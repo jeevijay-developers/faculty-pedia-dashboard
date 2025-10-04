@@ -5,9 +5,12 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'Faculty pedia Educator Dashboard',
+  description: 'Created with Faculty pedia',
+  generator: 'Faculty pedia',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
