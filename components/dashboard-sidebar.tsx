@@ -42,14 +42,9 @@ const navigation = [
     icon: TestTube,
   },
   {
-    name: "Live Classes",
+    name: "Live Classes/Webinars",
     href: "/dashboard/live-classes",
     icon: Video,
-  },
-  {
-    name: "Webinars",
-    href: "/dashboard/webinars",
-    icon: Calendar,
   },
   {
     name: "Students",
