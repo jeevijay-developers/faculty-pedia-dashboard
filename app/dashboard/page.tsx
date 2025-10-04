@@ -170,72 +170,7 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
-
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Activity */}
-          <Card className="bg-card border-border lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-card-foreground">Recent Activity</CardTitle>
-              <CardDescription>Latest updates from your dashboard</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                    <activity.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium text-card-foreground">{activity.title}</p>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {activity.time}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Events */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-card-foreground">Upcoming Events</CardTitle>
-              <CardDescription>Your scheduled sessions</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-card-foreground line-clamp-1">{event.title}</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {event.type}
-                        </Badge>
-                        {event.status === "starting-soon" && (
-                          <Badge className="text-xs bg-red-500/10 text-red-500 border-red-500/20">Starting Soon</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {event.time}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {event.students} participants
-                    </div>
-                  </div>
-                  {index < upcomingEvents.length - 1 && <div className="border-b border-border" />}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
+        
         {/* Quick Actions */}
         <Card className="bg-card border-border">
           <CardHeader>

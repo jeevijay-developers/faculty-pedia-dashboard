@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useAuth } from "@/contexts/auth-context"
 import {
   BookOpen,
   FileQuestion,
@@ -18,6 +19,7 @@ import {
   X,
   GraduationCap,
   Users,
+  LogOut,
 } from "lucide-react"
 
 const navigation = [
@@ -65,6 +67,7 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ className }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { educator, logout } = useAuth()
 
   return (
     <div className={cn("flex h-full flex-col bg-sidebar border-r border-sidebar-border", className)}>
@@ -74,21 +77,11 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <GraduationCap className="h-5 w-5 text-primary-foreground" />
           </div>
-          {!isCollapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">EduPlatform</span>
               <span className="text-xs text-sidebar-foreground/60">Educator Dashboard</span>
             </div>
-          )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="h-8 w-8 p-0 text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
       </div>
 
       {/* Navigation */}
@@ -108,7 +101,7 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
                 )}
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
-                {!isCollapsed && <span>{item.name}</span>}
+                <span>{item.name}</span>
               </Link>
             )
           })}
@@ -116,18 +109,31 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-sidebar-border p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-xs font-medium text-primary-foreground">JD</span>
+            <span className="text-xs font-medium text-primary-foreground">
+              {educator?.name?.charAt(0).toUpperCase() || "E"}
+            </span>
           </div>
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">John Doe</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">Physics Educator</p>
-            </div>
-          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {educator?.name || "Educator"}
+            </p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">
+              {educator?.email || "educator@example.com"}
+            </p>
+          </div>
         </div>
+        <Button
+          onClick={logout}
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </Button>
       </div>
     </div>
   )
