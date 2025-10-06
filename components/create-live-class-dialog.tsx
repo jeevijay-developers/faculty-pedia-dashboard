@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Clock, Video, LinkIcon } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { createLiveClass } from "@/util/server"
+import { toast } from "sonner"
 
 interface CreateLiveClassDialogProps {
   open: boolean
@@ -17,7 +20,9 @@ interface CreateLiveClassDialogProps {
 }
 
 export function CreateLiveClassDialog({ open, onOpenChange }: CreateLiveClassDialogProps) {
+  const { refreshEducator } = useAuth()
   const [step, setStep] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -41,24 +46,59 @@ export function CreateLiveClassDialog({ open, onOpenChange }: CreateLiveClassDia
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSubmit = () => {
-    console.log("Creating live class:", formData)
-    onOpenChange(false)
-    setStep(1)
-    setFormData({
-      title: "",
-      description: "",
-      subject: "",
-      specialization: "",
-      scheduledDate: "",
-      scheduledTime: "",
-      duration: 120,
-      platform: "",
-      meetingLink: "",
-      maxStudents: 100,
-      isCourseSpecific: false,
-      courseId: "",
-    })
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.title || !formData.subject || !formData.scheduledDate || !formData.scheduledTime || !formData.platform) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    const loadingToast = toast.loading("Creating live class...")
+
+    try {
+      // Prepare live class data for API
+      const liveClassData = {
+        ...formData,
+        duration: Number(formData.duration),
+        maxStudents: Number(formData.maxStudents),
+      }
+
+      // Call API to create live class
+      await createLiveClass(liveClassData)
+
+      // Refresh educator data to show new live class
+      await refreshEducator()
+
+      toast.success("Live class created successfully!", {
+        id: loadingToast,
+      })
+
+      // Reset form and close dialog
+      setFormData({
+        title: "",
+        description: "",
+        subject: "",
+        specialization: "",
+        scheduledDate: "",
+        scheduledTime: "",
+        duration: 120,
+        platform: "",
+        meetingLink: "",
+        maxStudents: 100,
+        isCourseSpecific: false,
+        courseId: "",
+      })
+      setStep(1)
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error creating live class:", error)
+      toast.error(error.response?.data?.message || "Failed to create live class", {
+        id: loadingToast,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const updateFormData = (field: string, value: any) => {
@@ -362,8 +402,11 @@ export function CreateLiveClassDialog({ open, onOpenChange }: CreateLiveClassDia
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!formData.platform || !formData.meetingLink}>
-                Schedule Live Class
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting || !formData.platform || !formData.meetingLink}
+              >
+                {isSubmitting ? "Creating..." : "Schedule Live Class"}
               </Button>
             )}
           </div>

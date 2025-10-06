@@ -1,136 +1,136 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, FileQuestion, TestTube, Video, Users, TrendingUp, Clock, Calendar, ArrowRight } from "lucide-react"
-
-const stats = [
-  {
-    title: "Total Courses",
-    value: "12",
-    description: "4 active courses",
-    icon: BookOpen,
-    trend: "+2 this month",
-    href: "/dashboard/courses",
-  },
-  {
-    title: "Question Bank",
-    value: "1,247",
-    description: "Questions created",
-    icon: FileQuestion,
-    trend: "+89 this week",
-    href: "/dashboard/questions",
-  },
-  {
-    title: "Test Series",
-    value: "8",
-    description: "Active test series",
-    icon: TestTube,
-    trend: "+1 this month",
-    href: "/dashboard/test-series",
-  },
-  {
-    title: "Students Enrolled",
-    value: "2,341",
-    description: "Across all courses",
-    icon: Users,
-    trend: "+156 this month",
-    href: "/dashboard/students",
-  },
-]
-
-const liveStats = [
-  {
-    title: "Live Classes",
-    value: "3",
-    description: "Scheduled this week",
-    icon: Video,
-    status: "1 live now",
-    href: "/dashboard/live-classes",
-  },
-  {
-    title: "Webinars",
-    value: "2",
-    description: "Upcoming events",
-    icon: Calendar,
-    status: "234 registered",
-    href: "/dashboard/live-classes",
-  },
-]
-
-const recentActivity = [
-  {
-    title: "New student enrolled in Physics Course",
-    time: "2 minutes ago",
-    icon: Users,
-    type: "enrollment",
-  },
-  {
-    title: "Test Series 'JEE Main Mock Tests' published",
-    time: "1 hour ago",
-    icon: TestTube,
-    type: "test",
-  },
-  {
-    title: "Live class 'Physics - Laws of Motion' starting soon",
-    time: "3 hours ago",
-    icon: Video,
-    type: "live",
-  },
-  {
-    title: "50 new questions added to Question Bank",
-    time: "1 day ago",
-    icon: FileQuestion,
-    type: "question",
-  },
-  {
-    title: "Webinar 'Career Guidance' registration opened",
-    time: "2 days ago",
-    icon: Calendar,
-    type: "webinar",
-  },
-]
-
-const upcomingEvents = [
-  {
-    title: "Physics - Laws of Motion",
-    type: "Live Class",
-    time: "Today, 10:00 AM",
-    students: 45,
-    status: "starting-soon",
-  },
-  {
-    title: "Career Guidance Webinar",
-    type: "Webinar",
-    time: "Tomorrow, 6:00 PM",
-    students: 234,
-    status: "scheduled",
-  },
-  {
-    title: "Chemistry Mock Test",
-    type: "Test Series",
-    time: "Jan 25, 2:00 PM",
-    students: 89,
-    status: "scheduled",
-  },
-]
+import { BookOpen, FileQuestion, TestTube, Video, Users, TrendingUp, Clock, Calendar, ArrowRight, Loader2 } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function DashboardPage() {
+  const { educator, getFullName } = useAuth()
+  const [loading, setLoading] = useState(false)
+
+  // Calculate stats from educator data
+  const coursesCount = educator?.courses?.length || 0
+  const questionsCount = educator?.questions?.length || 0
+  const testSeriesCount = educator?.testSeries?.length || 0
+  const studentsCount = educator?.followers?.length || 0
+  const webinarsCount = educator?.webinars?.length || 0
+  const liveTestsCount = educator?.liveTests?.length || 0
+
+  const statsData = [
+    {
+      title: "Total Courses",
+      value: coursesCount.toString(),
+      description: `${coursesCount} courses created`,
+      icon: BookOpen,
+      trend: `Subject: ${educator?.subject || 'N/A'}`,
+      href: "/dashboard/courses",
+    },
+    {
+      title: "Question Bank",
+      value: questionsCount.toString(),
+      description: "Questions created",
+      icon: FileQuestion,
+      trend: `Specialization: ${educator?.specialization || 'N/A'}`,
+      href: "/dashboard/questions",
+    },
+    {
+      title: "Test Series",
+      value: testSeriesCount.toString(),
+      description: "Test series created",
+      icon: TestTube,
+      trend: `${liveTestsCount} live tests`,
+      href: "/dashboard/test-series",
+    },
+    {
+      title: "Followers",
+      value: studentsCount.toString(),
+      description: "Total followers",
+      icon: Users,
+      trend: `Rating: ${educator?.rating || 0}/5`,
+      href: "/dashboard/students",
+    },
+  ]
+
+  const liveStatsData = [
+    {
+      title: "Webinars",
+      value: webinarsCount.toString(),
+      description: "Total webinars",
+      icon: Calendar,
+      status: `${educator?.yearsExperience || 0} years exp`,
+      href: "/dashboard/live-classes",
+    },
+    {
+      title: "Experience",
+      value: `${educator?.yearsExperience || 0}yr`,
+      description: "Teaching experience",
+      icon: Clock,
+      status: educator?.status || "active",
+      href: "/dashboard/settings",
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <DashboardHeader
-        title="Dashboard Overview"
-        description="Welcome back! Here's what's happening with your courses."
+        title={`Welcome back, ${getFullName()}!`}
+        description={`${educator?.specialization || 'Teaching'} • ${educator?.subject || 'Multiple Subjects'}`}
       />
 
       <div className="px-6 space-y-6">
+        {/* Educator Profile Summary */}
+        <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group h-full">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              {educator?.image?.url ? (
+                <img
+                  src={educator.image.url}
+                  alt={getFullName()}
+                  className="h-16 w-16 rounded-full object-cover border-2 border-white shadow-md"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl shadow-md">
+                  {educator?.firstName?.charAt(0)}{educator?.lastName?.charAt(0)}
+                </div>
+              )}
+              <div className="flex-1">
+                <CardTitle className="text-2xl text-card-foreground">{getFullName()}</CardTitle>
+                <CardDescription className="text-base">
+                  {educator?.specialization} • {educator?.subject}
+                  {educator?.bio && ` • ${educator.bio.substring(0, 100)}${educator.bio.length > 100 ? '...' : ''}`}
+                </CardDescription>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="secondary">{educator?.status || 'active'}</Badge>
+                  <Badge variant="outline">⭐ {educator?.rating || 0}/5</Badge>
+                  {educator?.payPerHourFees && educator.payPerHourFees > 0 && (
+                    <Badge variant="outline">₹{educator.payPerHourFees}/hr</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
         {/* Main Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
+          {statsData.map((stat) => (
             <Link key={stat.title} href={stat.href}>
-              <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group">
+              <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group h-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-card-foreground">{stat.title}</CardTitle>
                   <stat.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -150,7 +150,7 @@ export default function DashboardPage() {
 
         {/* Live Sessions Stats */}
         <div className="grid gap-4 md:grid-cols-2">
-          {liveStats.map((stat) => (
+          {liveStatsData.map((stat) => (
             <Link key={stat.title} href={stat.href}>
               <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -161,7 +161,7 @@ export default function DashboardPage() {
                   <div className="text-2xl font-bold text-card-foreground">{stat.value}</div>
                   <p className="text-xs text-muted-foreground">{stat.description}</p>
                   <div className="flex items-center mt-2">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs capitalize">
                       {stat.status}
                     </Badge>
                   </div>
@@ -169,6 +169,81 @@ export default function DashboardPage() {
               </Card>
             </Link>
           ))}
+        </div>
+
+        {/* Qualifications & Experience */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Qualifications */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground">Qualifications</CardTitle>
+              <CardDescription>Your educational background</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {educator?.qualification && educator.qualification.length > 0 ? (
+                <div className="space-y-3">
+                  {educator.qualification.slice(0, 3).map((qual, index) => (
+                    <div key={index} className="border-l-2 border-primary pl-3">
+                      <p className="text-sm font-medium text-card-foreground">{qual.title}</p>
+                      <p className="text-xs text-muted-foreground">{qual.institute}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(qual.startDate).getFullYear()} 
+                        {qual.endDate && ` - ${new Date(qual.endDate).getFullYear()}`}
+                      </p>
+                    </div>
+                  ))}
+                  {educator.qualification.length > 3 && (
+                    <Link href="/dashboard/settings" className="text-xs text-primary hover:underline">
+                      View all {educator.qualification.length} qualifications →
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No qualifications added yet</p>
+                  <Link href="/dashboard/settings" className="text-xs text-primary hover:underline mt-2 inline-block">
+                    Add qualifications →
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Work Experience */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground">Work Experience</CardTitle>
+              <CardDescription>Your professional history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {educator?.workExperience && educator.workExperience.length > 0 ? (
+                <div className="space-y-3">
+                  {educator.workExperience.slice(0, 3).map((exp, index) => (
+                    <div key={index} className="border-l-2 border-primary pl-3">
+                      <p className="text-sm font-medium text-card-foreground">{exp.title}</p>
+                      <p className="text-xs text-muted-foreground">{exp.company}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(exp.startDate).getFullYear()} 
+                        {exp.endDate && ` - ${new Date(exp.endDate).getFullYear()}`}
+                      </p>
+                    </div>
+                  ))}
+                  {educator.workExperience.length > 3 && (
+                    <Link href="/dashboard/settings" className="text-xs text-primary hover:underline">
+                      View all {educator.workExperience.length} experiences →
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No work experience added yet</p>
+                  <Link href="/dashboard/settings" className="text-xs text-primary hover:underline mt-2 inline-block">
+                    Add experience →
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
         
         {/* Quick Actions */}
@@ -233,6 +308,70 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Social Links */}
+        {educator?.socials && (Object.values(educator.socials).some(link => link)) && (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground">Social Media</CardTitle>
+              <CardDescription>Your connected social profiles</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                {educator.socials.instagram && (
+                  <a 
+                    href={educator.socials.instagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="text-sm text-card-foreground">Instagram</span>
+                  </a>
+                )}
+                {educator.socials.facebook && (
+                  <a 
+                    href={educator.socials.facebook} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="text-sm text-card-foreground">Facebook</span>
+                  </a>
+                )}
+                {educator.socials.twitter && (
+                  <a 
+                    href={educator.socials.twitter} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="text-sm text-card-foreground">Twitter</span>
+                  </a>
+                )}
+                {educator.socials.linkedin && (
+                  <a 
+                    href={educator.socials.linkedin} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="text-sm text-card-foreground">LinkedIn</span>
+                  </a>
+                )}
+                {educator.socials.youtube && (
+                  <a 
+                    href={educator.socials.youtube} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <span className="text-sm text-card-foreground">YouTube</span>
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

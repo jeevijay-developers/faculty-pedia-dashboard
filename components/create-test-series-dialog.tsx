@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { TestBuilder } from "@/components/test-builder"
+import { useAuth } from "@/contexts/auth-context"
+import { createTestSeries } from "@/util/server"
+import toast from "react-hot-toast"
 
 interface CreateTestSeriesDialogProps {
   open: boolean
@@ -23,6 +26,8 @@ interface CreateTestSeriesDialogProps {
 }
 
 export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesDialogProps) {
+  const { refreshEducator } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     shortDesc: "",
@@ -41,29 +46,59 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
   const [currentStep, setCurrentStep] = useState(1)
   const [tests, setTests] = useState<any[]>([])
 
-  const handleSubmit = () => {
-    // Handle form submission
-    console.log("Test Series Data:", formData)
-    console.log("Tests:", tests)
-    onOpenChange(false)
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.title || !formData.subject || !formData.specialization) {
+      toast.error("Please fill in all required fields")
+      return
+    }
 
-    // Reset form
-    setFormData({
-      title: "",
-      shortDesc: "",
-      longDesc: "",
-      price: "",
-      validity: "180",
-      noOfTests: "10",
-      startDate: "",
-      endDate: "",
-      subject: "",
-      specialization: "",
-      isCourseSpecific: false,
-      courseId: "",
-    })
-    setTests([])
-    setCurrentStep(1)
+    setIsSubmitting(true)
+    const loadingToast = toast.loading("Creating test series...")
+
+    try {
+      // Prepare test series data for API
+      const testSeriesData = {
+        ...formData,
+        tests,
+      }
+
+      // Call API to create test series
+      await createTestSeries(testSeriesData)
+
+      // Refresh educator data to show new test series
+      await refreshEducator()
+
+      toast.success("Test series created successfully!", {
+        id: loadingToast,
+      })
+
+      // Reset form and close dialog
+      setFormData({
+        title: "",
+        shortDesc: "",
+        longDesc: "",
+        price: "",
+        validity: "180",
+        noOfTests: "10",
+        startDate: "",
+        endDate: "",
+        subject: "",
+        specialization: "",
+        isCourseSpecific: false,
+        courseId: "",
+      })
+      setTests([])
+      setCurrentStep(1)
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error creating test series:", error)
+      toast.error(error.response?.data?.message || "Failed to create test series", {
+        id: loadingToast,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const renderStep1 = () => (
@@ -263,7 +298,9 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             {currentStep < 2 ? (
               <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
             ) : (
-              <Button onClick={handleSubmit}>Create Test Series</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Test Series"}
+              </Button>
             )}
           </div>
         </DialogFooter>

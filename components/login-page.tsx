@@ -40,13 +40,17 @@ export default function LoginPage() {
     try {
       const response = await loginEducator(email, password)
       
-      // Use auth context to handle login
-      if (response.TOKEN && response.educator) {
+      // Backend returns { TOKEN, educator } - we only need the token
+      const token = response.TOKEN || response.token
+      
+      if (token) {
+        // Login function will fetch educator data from API
+        await login(token)
+        
         toast.success("Login successful! Redirecting...", {
           id: loadingToast,
           duration: 2000,
         })
-        login(response.token, response.educator)
         // Navigation will happen automatically via useEffect
       } else {
         const errorMsg = "Invalid response from server. Please try again."

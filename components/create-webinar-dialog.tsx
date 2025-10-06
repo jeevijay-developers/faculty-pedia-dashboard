@@ -11,6 +11,9 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, Video, LinkIcon, Globe } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { createWebinar } from "@/util/server"
+import { toast } from "sonner"
 
 interface CreateWebinarDialogProps {
   open: boolean
@@ -18,7 +21,9 @@ interface CreateWebinarDialogProps {
 }
 
 export function CreateWebinarDialog({ open, onOpenChange }: CreateWebinarDialogProps) {
+  const { refreshEducator } = useAuth()
   const [step, setStep] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -42,24 +47,59 @@ export function CreateWebinarDialog({ open, onOpenChange }: CreateWebinarDialogP
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSubmit = () => {
-    console.log("Creating webinar:", formData)
-    onOpenChange(false)
-    setStep(1)
-    setFormData({
-      title: "",
-      description: "",
-      topic: "",
-      scheduledDate: "",
-      scheduledTime: "",
-      duration: 60,
-      platform: "",
-      meetingLink: "",
-      maxAttendees: 500,
-      isPublic: true,
-      registrationRequired: true,
-      registrationLink: "",
-    })
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.title || !formData.scheduledDate || !formData.scheduledTime || !formData.platform) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    const loadingToast = toast.loading("Creating webinar...")
+
+    try {
+      // Prepare webinar data for API
+      const webinarData = {
+        ...formData,
+        duration: Number(formData.duration),
+        maxAttendees: Number(formData.maxAttendees),
+      }
+
+      // Call API to create webinar
+      await createWebinar(webinarData)
+
+      // Refresh educator data to show new webinar
+      await refreshEducator()
+
+      toast.success("Webinar created successfully!", {
+        id: loadingToast,
+      })
+
+      // Reset form and close dialog
+      setFormData({
+        title: "",
+        description: "",
+        topic: "",
+        scheduledDate: "",
+        scheduledTime: "",
+        duration: 60,
+        platform: "",
+        meetingLink: "",
+        maxAttendees: 500,
+        isPublic: true,
+        registrationRequired: true,
+        registrationLink: "",
+      })
+      setStep(1)
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error creating webinar:", error)
+      toast.error(error.response?.data?.message || "Failed to create webinar", {
+        id: loadingToast,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const updateFormData = (field: string, value: any) => {
@@ -395,8 +435,11 @@ export function CreateWebinarDialog({ open, onOpenChange }: CreateWebinarDialogP
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!formData.platform || !formData.meetingLink}>
-                Schedule Webinar
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting || !formData.platform || !formData.meetingLink}
+              >
+                {isSubmitting ? "Creating..." : "Schedule Webinar"}
               </Button>
             )}
           </div>

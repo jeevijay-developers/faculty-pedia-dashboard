@@ -17,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Upload, ImageIcon } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { createQuestion } from "@/util/server"
+import toast from "react-hot-toast"
 
 interface CreateQuestionDialogProps {
   open: boolean
@@ -25,10 +28,17 @@ interface CreateQuestionDialogProps {
 
 interface QuestionOption {
   text: string
-  image: File | null
+  image: File | string | null
+}
+
+type QuestionOptionField = {
+  text: string;
+  image: string | File | null;
 }
 
 export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialogProps) {
+  const { refreshEducator } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
@@ -47,7 +57,7 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
   const [correctOptions, setCorrectOptions] = useState<string[]>([])
   const [questionImage, setQuestionImage] = useState<File | null>(null)
 
-  const updateOption = (key: string, field: keyof QuestionOption, value: string | File) => {
+  const updateOption = (key: string, field: keyof QuestionOption, value: string | File | null) => {
     setOptions((prev) => ({
       ...prev,
       [key]: { ...prev[key], [field]: value },
@@ -58,32 +68,60 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
     setCorrectOptions((prev) => (prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]))
   }
 
-  const handleSubmit = () => {
-    // Handle form submission
-    console.log("Question Data:", {
-      ...formData,
-      options,
-      correctOptions,
-      questionImage,
-    })
-    onOpenChange(false)
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.title || !formData.subject || correctOptions.length === 0) {
+      toast.error("Please fill in all required fields and select correct option(s)")
+      return
+    }
 
-    // Reset form
-    setFormData({
-      title: "",
-      subject: "",
-      topic: "",
-      positiveMarks: "4",
-      negativeMarks: "1",
-    })
-    setOptions({
-      A: { text: "", image: null },
-      B: { text: "", image: null },
-      C: { text: "", image: null },
-      D: { text: "", image: null },
-    })
-    setCorrectOptions([])
-    setQuestionImage(null)
+    setIsSubmitting(true)
+    const loadingToast = toast.loading("Creating question...")
+
+    try {
+      // Prepare question data for API
+      const questionData = {
+        ...formData,
+        options,
+        correctOptions,
+        questionImage,
+      }
+
+      // Call API to create question
+      await createQuestion(questionData)
+
+      // Refresh educator data to show new question
+      await refreshEducator()
+
+      toast.success("Question created successfully!", {
+        id: loadingToast,
+      })
+
+      // Reset form and close dialog
+      setFormData({
+        title: "",
+        subject: "",
+        topic: "",
+        positiveMarks: "4",
+        negativeMarks: "1",
+      })
+      setOptions({
+        A: { text: "", image: null },
+        B: { text: "", image: null },
+        C: { text: "", image: null },
+        D: { text: "", image: null },
+      })
+      setCorrectOptions([])
+      setQuestionImage(null)
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error creating question:", error)
+      toast.error(error.response?.data?.message || "Failed to create question", {
+        id: loadingToast,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -223,7 +261,7 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                       />
                       <Upload className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    {option.image && <p className="text-xs text-muted-foreground">Selected: {option.image.name}</p>}
+                    {option.image && option.image instanceof File && <p className="text-xs text-muted-foreground">Selected: {option.image.name}</p>}
                   </div>
                 </div>
               ))}
@@ -243,9 +281,9 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!formData.title || !formData.subject || !formData.topic || correctOptions.length === 0}
+            disabled={isSubmitting || !formData.title || !formData.subject || !formData.topic || correctOptions.length === 0}
           >
-            Create Question
+            {isSubmitting ? "Creating..." : "Create Question"}
           </Button>
         </DialogFooter>
       </DialogContent>

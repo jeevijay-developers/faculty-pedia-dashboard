@@ -17,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Upload, X, Youtube, FileText, Plus } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { createCourse } from "@/util/server"
+import toast from "react-hot-toast"
 
 interface CreateCourseDialogProps {
   open: boolean
@@ -37,6 +40,8 @@ interface CoursePDF {
 }
 
 export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogProps) {
+  const { refreshEducator } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     shortDesc: "",
@@ -92,12 +97,61 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
     setCoursePDFs((pdfs) => pdfs.filter((pdf) => pdf.id !== id))
   }
 
-  const handleSubmit = () => {
-    // Handle form submission
-    console.log("Course Data:", formData)
-    console.log("Video Lessons:", videoLessons)
-    console.log("PDFs:", coursePDFs)
-    onOpenChange(false)
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.title || !formData.specialization || !formData.subject) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    const loadingToast = toast.loading("Creating course...")
+
+    try {
+      // Prepare course data for API
+      const courseData = {
+        ...formData,
+        videoLessons,
+        pdfs: coursePDFs,
+      }
+
+      // Call API to create course
+      await createCourse(courseData)
+
+      // Refresh educator data to show new course
+      await refreshEducator()
+
+      toast.success("Course created successfully!", {
+        id: loadingToast,
+      })
+
+      // Reset form and close dialog
+      setFormData({
+        title: "",
+        shortDesc: "",
+        longDesc: "",
+        specialization: "",
+        courseClass: "",
+        subject: "",
+        courseType: "OTA",
+        startDate: "",
+        endDate: "",
+        seatLimit: "",
+        classDuration: "",
+        fees: "",
+        validity: "",
+      })
+      setVideoLessons([])
+      setCoursePDFs([])
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error creating course:", error)
+      toast.error(error.response?.data?.message || "Failed to create course", {
+        id: loadingToast,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const renderStep1 = () => (
@@ -445,7 +499,9 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             {currentStep < 3 ? (
               <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
             ) : (
-              <Button onClick={handleSubmit}>Create Course</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Course"}
+              </Button>
             )}
           </div>
         </DialogFooter>
