@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/auth-context"
 export default function DashboardPage() {
   const { educator, getFullName } = useAuth()
   const [loading, setLoading] = useState(false)
-
+  console.log("Educator:", educator)
   // Calculate stats from educator data
   const coursesCount = educator?.courses?.length || 0
   const questionsCount = educator?.questions?.length || 0

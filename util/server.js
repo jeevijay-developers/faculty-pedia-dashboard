@@ -81,6 +81,37 @@ export const getEducatorCourses = async () => {
   }
 };
 
+export const getCourseById = async (courseId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/course/by-id/${courseId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching course by ID:", error);
+    throw error;
+  }
+};
+
+export const getCoursesByIds = async (courseIds) => {
+  try {
+    if (!Array.isArray(courseIds) || courseIds.length === 0) {
+      return [];
+    }
+
+    const coursePromises = courseIds.map(id => getCourseById(id));
+    const results = await Promise.all(
+      coursePromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch course:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(course => course !== null);
+  } catch (error) {
+    console.error("Error fetching courses by IDs:", error);
+    throw error;
+  }
+};
+
 export const createCourse = async (courseData) => {
   try {
     const response = await API_CLIENT.post("/api/educator/courses", courseData, {
