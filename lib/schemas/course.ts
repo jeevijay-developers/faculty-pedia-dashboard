@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const courseSchema = new mongoose.Schema(
   {
     specialization: {
@@ -118,4 +120,10 @@ const courseSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-  }\
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Course", courseSchema);

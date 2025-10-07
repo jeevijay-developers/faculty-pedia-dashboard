@@ -22,7 +22,7 @@ export const loginEducator = async (email, password) => {
       password,
     });
     console.log("Educator login response:", response.data);
-    
+
     return response.data;
   } catch (error) {
     console.error("Error logging in educator:", error);
@@ -97,15 +97,17 @@ export const getCoursesByIds = async (courseIds) => {
       return [];
     }
 
-    const coursePromises = courseIds.map(id => getCourseById(id));
+    const coursePromises = courseIds.map((id) => getCourseById(id));
     const results = await Promise.all(
-      coursePromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch course:", err);
-        return null;
-      }))
+      coursePromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch course:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(course => course !== null);
+
+    return results.filter((course) => course !== null);
   } catch (error) {
     console.error("Error fetching courses by IDs:", error);
     throw error;
@@ -114,9 +116,13 @@ export const getCoursesByIds = async (courseIds) => {
 
 export const createCourse = async (courseData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/courses", courseData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.post(
+      "/api/educator/courses",
+      courseData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error creating course:", error);
@@ -126,9 +132,13 @@ export const createCourse = async (courseData) => {
 
 export const updateCourse = async (courseId, courseData) => {
   try {
-    const response = await API_CLIENT.put(`/api/educator/courses/${courseId}`, courseData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.put(
+      `/api/educator/courses/${courseId}`,
+      courseData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating course:", error);
@@ -138,9 +148,12 @@ export const updateCourse = async (courseId, courseData) => {
 
 export const deleteCourse = async (courseId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/educator/courses/${courseId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/educator/courses/${courseId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting course:", error);
@@ -163,9 +176,13 @@ export const getEducatorQuestions = async () => {
 
 export const createQuestion = async (questionData) => {
   try {
-    const response = await API_CLIENT.post("/api/questions/create-question", questionData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.post(
+      "/api/questions/create-question",
+      questionData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error creating question:", error);
@@ -175,9 +192,13 @@ export const createQuestion = async (questionData) => {
 
 export const updateQuestion = async (questionId, questionData) => {
   try {
-    const response = await API_CLIENT.put(`/api/educator/questions/${questionId}`, questionData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.put(
+      `/api/educator/questions/${questionId}`,
+      questionData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating question:", error);
@@ -187,9 +208,12 @@ export const updateQuestion = async (questionId, questionData) => {
 
 export const deleteQuestion = async (questionId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/educator/questions/${questionId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/educator/questions/${questionId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting question:", error);
@@ -213,15 +237,17 @@ export const getQuestionsByIds = async (questionIds) => {
       return [];
     }
 
-    const questionPromises = questionIds.map(id => getQuestionById(id));
+    const questionPromises = questionIds.map((id) => getQuestionById(id));
     const results = await Promise.all(
-      questionPromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch question:", err);
-        return null;
-      }))
+      questionPromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch question:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(question => question !== null);
+
+    return results.filter((question) => question !== null);
   } catch (error) {
     console.error("Error fetching questions by IDs:", error);
     throw error;
@@ -243,9 +269,13 @@ export const getEducatorTestSeries = async () => {
 
 export const createTestSeries = async (testSeriesData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/test-series", testSeriesData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.post(
+      "/api/educator/test-series",
+      testSeriesData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error creating test series:", error);
@@ -255,9 +285,13 @@ export const createTestSeries = async (testSeriesData) => {
 
 export const updateTestSeries = async (testSeriesId, testSeriesData) => {
   try {
-    const response = await API_CLIENT.put(`/api/educator/test-series/${testSeriesId}`, testSeriesData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.put(
+      `/api/educator/test-series/${testSeriesId}`,
+      testSeriesData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating test series:", error);
@@ -267,9 +301,12 @@ export const updateTestSeries = async (testSeriesId, testSeriesData) => {
 
 export const deleteTestSeries = async (testSeriesId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/educator/test-series/${testSeriesId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/educator/test-series/${testSeriesId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting test series:", error);
@@ -293,15 +330,17 @@ export const getTestSeriesByIds = async (testSeriesIds) => {
       return [];
     }
 
-    const testSeriesPromises = testSeriesIds.map(id => getTestSeriesById(id));
+    const testSeriesPromises = testSeriesIds.map((id) => getTestSeriesById(id));
     const results = await Promise.all(
-      testSeriesPromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch test series:", err);
-        return null;
-      }))
+      testSeriesPromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch test series:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(testSeries => testSeries !== null);
+
+    return results.filter((testSeries) => testSeries !== null);
   } catch (error) {
     console.error("Error fetching test series by IDs:", error);
     throw error;
@@ -323,9 +362,13 @@ export const getEducatorLiveClasses = async () => {
 
 export const createLiveClass = async (liveClassData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/live-classes", liveClassData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.post(
+      "/api/educator/live-classes",
+      liveClassData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error creating live class:", error);
@@ -335,9 +378,13 @@ export const createLiveClass = async (liveClassData) => {
 
 export const updateLiveClass = async (liveClassId, liveClassData) => {
   try {
-    const response = await API_CLIENT.put(`/api/educator/live-classes/${liveClassId}`, liveClassData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.put(
+      `/api/educator/live-classes/${liveClassId}`,
+      liveClassData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating live class:", error);
@@ -347,9 +394,12 @@ export const updateLiveClass = async (liveClassId, liveClassData) => {
 
 export const deleteLiveClass = async (liveClassId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/educator/live-classes/${liveClassId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/educator/live-classes/${liveClassId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting live class:", error);
@@ -373,15 +423,17 @@ export const getLiveClassesByIds = async (liveClassIds) => {
       return [];
     }
 
-    const liveClassPromises = liveClassIds.map(id => getLiveClassById(id));
+    const liveClassPromises = liveClassIds.map((id) => getLiveClassById(id));
     const results = await Promise.all(
-      liveClassPromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch live class:", err);
-        return null;
-      }))
+      liveClassPromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch live class:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(liveClass => liveClass !== null);
+
+    return results.filter((liveClass) => liveClass !== null);
   } catch (error) {
     console.error("Error fetching live classes by IDs:", error);
     throw error;
@@ -403,9 +455,13 @@ export const getEducatorWebinars = async () => {
 
 export const createWebinar = async (webinarData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/webinars", webinarData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.post(
+      "/api/educator/webinars",
+      webinarData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error creating webinar:", error);
@@ -415,9 +471,13 @@ export const createWebinar = async (webinarData) => {
 
 export const updateWebinar = async (webinarId, webinarData) => {
   try {
-    const response = await API_CLIENT.put(`/api/educator/webinars/${webinarId}`, webinarData, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.put(
+      `/api/educator/webinars/${webinarId}`,
+      webinarData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating webinar:", error);
@@ -427,9 +487,12 @@ export const updateWebinar = async (webinarId, webinarData) => {
 
 export const deleteWebinar = async (webinarId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/educator/webinars/${webinarId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/educator/webinars/${webinarId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting webinar:", error);
@@ -439,7 +502,9 @@ export const deleteWebinar = async (webinarId) => {
 
 export const getWebinarById = async (webinarId) => {
   try {
-    const response = await API_CLIENT.get(`/api/webinar/webinar-by-id/${webinarId}`);
+    const response = await API_CLIENT.get(
+      `/api/webinar/webinar-by-id/${webinarId}`
+    );
     return response.data;
   } catch (error) {
     console.error("Error fetching webinar by ID:", error);
@@ -453,15 +518,17 @@ export const getWebinarsByIds = async (webinarIds) => {
       return [];
     }
 
-    const webinarPromises = webinarIds.map(id => getWebinarById(id));
+    const webinarPromises = webinarIds.map((id) => getWebinarById(id));
     const results = await Promise.all(
-      webinarPromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch webinar:", err);
-        return null;
-      }))
+      webinarPromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch webinar:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(webinar => webinar !== null);
+
+    return results.filter((webinar) => webinar !== null);
   } catch (error) {
     console.error("Error fetching webinars by IDs:", error);
     throw error;
@@ -483,9 +550,12 @@ export const getEducatorStudents = async () => {
 
 export const getStudentById = async (studentId) => {
   try {
-    const response = await API_CLIENT.get(`/api/students/profile/${studentId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.get(
+      `/api/students/profile/${studentId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error fetching student by ID:", error);
@@ -499,15 +569,17 @@ export const getStudentsByIds = async (studentIds) => {
       return [];
     }
 
-    const studentPromises = studentIds.map(id => getStudentById(id));
+    const studentPromises = studentIds.map((id) => getStudentById(id));
     const results = await Promise.all(
-      studentPromises.map(p => p.catch(err => {
-        console.warn("Failed to fetch student:", err);
-        return null;
-      }))
+      studentPromises.map((p) =>
+        p.catch((err) => {
+          console.warn("Failed to fetch student:", err);
+          return null;
+        })
+      )
     );
-    
-    return results.filter(student => student !== null);
+
+    return results.filter((student) => student !== null);
   } catch (error) {
     console.error("Error fetching students by IDs:", error);
     throw error;
@@ -523,6 +595,53 @@ export const getDashboardStats = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
+    throw error;
+  }
+};
+
+// Live Test APIs
+export const getEducatorQuestionsByEducatorId = async (educatorId) => {
+  try {
+    const response = await API_CLIENT.get(
+      `/api/questions/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator questions:", error);
+    throw error;
+  }
+};
+
+export const getEducatorTests = async (educatorId) => {
+  try {
+    const response = await API_CLIENT.get(
+      `/api/live-test/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator tests:", error);
+    throw error;
+  }
+};
+
+export const createLiveTest = async (testData) => {
+  try {
+    const response = await API_CLIENT.post(
+      "/api/live-test/create-test",
+      testData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating live test:", error);
     throw error;
   }
 };
