@@ -2,91 +2,52 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, FileQuestion } from "lucide-react"
+import { Plus, Search, FileQuestion, Loader2 } from "lucide-react"
 import { CreateQuestionDialog } from "@/components/create-question-dialog"
 import { QuestionCard } from "@/components/question-card"
-
-// Mock data for questions
-const mockQuestions = [
-  {
-    id: "1",
-    title:
-      "A particle moves in a straight line with constant acceleration. If it covers 100m in the first 5 seconds, what is its acceleration?",
-    subject: "Physics",
-    topic: "Kinematics",
-    marks: { positive: 4, negative: 1 },
-    options: {
-      A: { text: "4 m/s²", image: { url: "", public_id: "" } },
-      B: { text: "8 m/s²", image: { url: "", public_id: "" } },
-      C: { text: "10 m/s²", image: { url: "", public_id: "" } },
-      D: { text: "12 m/s²", image: { url: "", public_id: "" } },
-    },
-    correctOptions: ["B"],
-    image: { url: "", public_id: "" },
-    educatorId: "educator1",
-  },
-  {
-    id: "2",
-    title: "Which of the following compounds exhibits optical isomerism?",
-    subject: "Chemistry",
-    topic: "Organic Chemistry",
-    marks: { positive: 4, negative: 1 },
-    options: {
-      A: { text: "CH₃CH₂CH₂CH₃", image: { url: "", public_id: "" } },
-      B: { text: "CH₃CH(OH)CH₂CH₃", image: { url: "", public_id: "" } },
-      C: { text: "CH₃CH₂OH", image: { url: "", public_id: "" } },
-      D: { text: "CH₃COOH", image: { url: "", public_id: "" } },
-    },
-    correctOptions: ["B"],
-    image: { url: "", public_id: "" },
-    educatorId: "educator1",
-  },
-  {
-    id: "3",
-    title: "Find the derivative of f(x) = x³ + 2x² - 5x + 1",
-    subject: "Mathematics",
-    topic: "Calculus",
-    marks: { positive: 4, negative: 1 },
-    options: {
-      A: { text: "3x² + 4x - 5", image: { url: "", public_id: "" } },
-      B: { text: "3x² + 2x - 5", image: { url: "", public_id: "" } },
-      C: { text: "x² + 4x - 5", image: { url: "", public_id: "" } },
-      D: { text: "3x² + 4x + 5", image: { url: "", public_id: "" } },
-    },
-    correctOptions: ["A"],
-    image: { url: "", public_id: "" },
-    educatorId: "educator1",
-  },
-  {
-    id: "4",
-    title: "The process of photosynthesis primarily occurs in which part of the plant cell?",
-    subject: "Biology",
-    topic: "Plant Biology",
-    marks: { positive: 4, negative: 1 },
-    options: {
-      A: { text: "Nucleus", image: { url: "", public_id: "" } },
-      B: { text: "Mitochondria", image: { url: "", public_id: "" } },
-      C: { text: "Chloroplasts", image: { url: "", public_id: "" } },
-      D: { text: "Ribosomes", image: { url: "", public_id: "" } },
-    },
-    correctOptions: ["C"],
-    image: { url: "", public_id: "" },
-    educatorId: "educator1",
-  },
-]
+import { useAuth } from "@/contexts/auth-context"
+import { getQuestionsByIds } from "@/util/server"
+import { toast } from "sonner"
 
 export default function QuestionsPage() {
-  const [questions, setQuestions] = useState(mockQuestions)
+  const { educator } = useAuth()
+  const [questions, setQuestions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [topicFilter, setTopicFilter] = useState("all")
+
+  // Fetch questions when educator data is available
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!educator?.questions || educator.questions.length === 0) {
+        setLoading(false)
+        setQuestions([])
+        return
+      }
+
+      try {
+        setLoading(true)
+        const questionIds = educator.questions
+        const fetchedQuestions = await getQuestionsByIds(questionIds)
+        setQuestions(fetchedQuestions)
+      } catch (error) {
+        console.error("Error fetching questions:", error)
+        toast.error("Failed to load questions")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchQuestions()
+  }, [educator?.questions])
 
   // Get unique subjects and topics for filters
   const subjects = Array.from(new Set(questions.map((q) => q.subject)))
@@ -134,7 +95,7 @@ export default function QuestionsPage() {
 
         {/* Filters */}
         <Card className="bg-card border-border">
-          <CardHeader className="pb-4">
+          <CardHeader>
             <CardTitle className="text-lg">Filters & Search</CardTitle>
           </CardHeader>
           <CardContent>
@@ -181,17 +142,26 @@ export default function QuestionsPage() {
         </Card>
 
         {/* Questions Grid */}
-        <div className="grid gap-4">
-          {filteredQuestions.map((question) => (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              onDelete={handleDeleteQuestion}
-              onDragStart={handleDragStart}
-              isDraggable={true}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading questions...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredQuestions.map((question) => (
+              <QuestionCard
+                key={question._id || question.id}
+                question={question}
+                onDelete={handleDeleteQuestion}
+                onDragStart={handleDragStart}
+                isDraggable={true}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredQuestions.length === 0 && questions.length > 0 && (
