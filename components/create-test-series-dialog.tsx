@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,9 +15,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { TestBuilder } from "@/components/test-builder"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
-import { createTestSeries } from "@/util/server"
+import { createTestSeries, getEducatorTests } from "@/util/server"
+import { Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react"
 import toast from "react-hot-toast"
 
 interface CreateTestSeriesDialogProps {
@@ -25,8 +27,21 @@ interface CreateTestSeriesDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+interface LiveTestSummary {
+  _id: string
+  title: string
+  subject: string
+  specialization?: string
+  startDate?: string
+  duration?: number
+  description?: {
+    short?: string
+    long?: string
+  }
+}
+
 export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesDialogProps) {
-  const { refreshEducator } = useAuth()
+  const { educator, refreshEducator } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
@@ -34,7 +49,7 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
     longDesc: "",
     price: "",
     validity: "180",
-    noOfTests: "10",
+  noOfTests: "0",
     startDate: "",
     endDate: "",
     subject: "",
@@ -44,43 +59,150 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
   })
 
   const [currentStep, setCurrentStep] = useState(1)
-  const [tests, setTests] = useState<any[]>([])
+  const [selectedTests, setSelectedTests] = useState<LiveTestSummary[]>([])
+  const [availableTests, setAvailableTests] = useState<LiveTestSummary[]>([])
+  const [loadingTests, setLoadingTests] = useState(false)
+  const [fetchTestsError, setFetchTestsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      noOfTests: String(selectedTests.length),
+    }))
+  }, [selectedTests.length])
+
+  const fetchAvailableTests = useCallback(async () => {
+    if (!educator?._id) {
+      return
+    }
+
+    try {
+      setLoadingTests(true)
+      setFetchTestsError(null)
+      const response = await getEducatorTests(educator._id)
+      const tests: LiveTestSummary[] = (response?.tests ?? [])
+        .filter((test: any) => !test?.testSeriesId)
+        .map((test: any) => ({
+          _id: test._id,
+          title: test.title,
+          subject: test.subject,
+          specialization: test.specialization,
+          startDate: test.startDate,
+          duration: test.duration,
+          description: test.description,
+        }))
+
+      setAvailableTests(tests)
+    } catch (error: any) {
+      console.error("Error fetching live tests:", error)
+      setFetchTestsError(error.response?.data?.message || "Failed to load live tests")
+    } finally {
+      setLoadingTests(false)
+    }
+  }, [educator?._id])
+
+  useEffect(() => {
+    if (!open || currentStep !== 2) {
+      return
+    }
+    fetchAvailableTests()
+  }, [open, currentStep, fetchAvailableTests])
+
+  const handleAddTest = (test: LiveTestSummary) => {
+    if (selectedTests.some((selected) => selected._id === test._id)) {
+      return
+    }
+    setSelectedTests((prev) => [...prev, test])
+  }
+
+  const handleRemoveTest = (testId: string) => {
+    setSelectedTests((prev) => prev.filter((test) => test._id !== testId))
+  }
+
+  const formatDateTime = (date?: string) => {
+    if (!date) return "--"
+    return new Date(date).toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
 
   const handleSubmit = async () => {
-    // Validate required fields
-    if (!formData.title || !formData.subject || !formData.specialization) {
+    if (!educator?._id) {
+      toast.error("Educator information missing. Please log in again")
+      return
+    }
+
+    if (!formData.title || !formData.shortDesc || !formData.longDesc || !formData.subject || !formData.specialization) {
       toast.error("Please fill in all required fields")
       return
+    }
+
+    if (!formData.startDate || !formData.endDate) {
+      toast.error("Please select both start and end dates")
+      return
+    }
+
+    if (new Date(formData.endDate) <= new Date(formData.startDate)) {
+      toast.error("End date must be after start date")
+      return
+    }
+
+    if (selectedTests.length === 0) {
+      toast.error("Add at least one live test to create a series")
+      return
+    }
+
+    const priceValue = Number(formData.price)
+    const validityValue = Number(formData.validity)
+
+    if (Number.isNaN(priceValue) || Number.isNaN(validityValue)) {
+      toast.error("Please enter valid numeric values for price and validity")
+      return
+    }
+
+    const testSeriesData = {
+      title: formData.title.trim(),
+      educatorId: educator._id,
+      description: {
+        short: formData.shortDesc.trim(),
+        long: formData.longDesc.trim(),
+      },
+      specialization: formData.specialization,
+      subject: formData.subject.toLowerCase(),
+      price: priceValue,
+      validity: validityValue,
+      noOfTests: selectedTests.length,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      liveTests: selectedTests.map((test) => test._id),
+      isCourseSpecific: formData.isCourseSpecific,
+      ...(formData.isCourseSpecific && formData.courseId
+        ? { courseId: formData.courseId }
+        : {}),
     }
 
     setIsSubmitting(true)
     const loadingToast = toast.loading("Creating test series...")
 
     try {
-      // Prepare test series data for API
-      const testSeriesData = {
-        ...formData,
-        tests,
-      }
-
-      // Call API to create test series
       await createTestSeries(testSeriesData)
-
-      // Refresh educator data to show new test series
       await refreshEducator()
 
       toast.success("Test series created successfully!", {
         id: loadingToast,
       })
 
-      // Reset form and close dialog
       setFormData({
         title: "",
         shortDesc: "",
         longDesc: "",
         price: "",
         validity: "180",
-        noOfTests: "10",
+        noOfTests: "0",
         startDate: "",
         endDate: "",
         subject: "",
@@ -88,7 +210,7 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
         isCourseSpecific: false,
         courseId: "",
       })
-      setTests([])
+      setSelectedTests([])
       setCurrentStep(1)
       onOpenChange(false)
     } catch (error: any) {
@@ -194,9 +316,12 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             id="noOfTests"
             type="number"
             value={formData.noOfTests}
-            onChange={(e) => setFormData({ ...formData, noOfTests: e.target.value })}
-            placeholder="10"
+            readOnly
+            placeholder="0"
           />
+          <p className="text-xs text-muted-foreground">
+            Automatically matches the count of live tests you add in the next step.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="courseSpecific">Course Specific</Label>
@@ -252,24 +377,155 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
     </div>
   )
 
-  const renderStep2 = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">Build Tests</h3>
-          <p className="text-sm text-muted-foreground">Create tests by dragging questions from your question bank</p>
+  const renderStep2 = () => {
+    const selectableTests = availableTests.filter(
+      (test) => !selectedTests.some((selected) => selected._id === test._id),
+    )
+
+    return (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Selected Live Tests</h3>
+              <p className="text-sm text-muted-foreground">
+                These live tests will be bundled into this series.
+              </p>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {selectedTests.length} selected
+            </Badge>
+          </div>
+
+          {selectedTests.length === 0 ? (
+            <Card className="border-dashed bg-muted/30">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No live tests added yet. Use the <span className="font-semibold">Add</span> button below to include tests
+                from your live test library.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3">
+              {selectedTests.map((test) => (
+                <Card key={test._id} className="border-border">
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="space-y-1">
+                      <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
+                        {test.title}
+                      </CardTitle>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="uppercase">
+                          {test.subject}
+                        </Badge>
+                        {test.specialization && <Badge variant="outline">{test.specialization}</Badge>}
+                        <span>{formatDateTime(test.startDate)}</span>
+                        {typeof test.duration === "number" && <span>{test.duration} min</span>}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveTest(test._id)}
+                      aria-label={`Remove ${test.title}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  {test.description?.short && (
+                    <CardContent className="pt-0 text-sm text-muted-foreground">
+                      {test.description.short}
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Available Live Tests</h3>
+              <p className="text-sm text-muted-foreground">
+                Pick from the live tests you have already created on the Live Tests page.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fetchAvailableTests}
+              disabled={loadingTests}
+            >
+              {loadingTests ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="mr-2 h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
+
+          {fetchTestsError && (
+            <Card className="border-destructive/50 bg-destructive/10">
+              <CardContent className="py-4 text-sm text-destructive">
+                {fetchTestsError}
+              </CardContent>
+            </Card>
+          )}
+
+          {loadingTests ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading live tests...
+            </div>
+          ) : selectableTests.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {selectableTests.map((test) => (
+                <Card key={test._id} className="border-border">
+                  <CardHeader className="space-y-2">
+                    <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
+                      {test.title}
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="uppercase">
+                        {test.subject}
+                      </Badge>
+                      {test.specialization && <Badge variant="outline">{test.specialization}</Badge>}
+                      <span>{formatDateTime(test.startDate)}</span>
+                      {typeof test.duration === "number" && <span>{test.duration} min</span>}
+                    </div>
+                  </CardHeader>
+                  {test.description?.short && (
+                    <CardContent className="pt-0 pb-2 text-sm text-muted-foreground">
+                      {test.description.short}
+                    </CardContent>
+                  )}
+                  <CardContent className="pt-0">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => handleAddTest(test)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-dashed bg-muted/30">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No available live tests found. Create live tests on the Live Tests page, then return here to add them.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
-
-      <TestBuilder
-        maxTests={Number.parseInt(formData.noOfTests) || 10}
-        tests={tests}
-        onTestsChange={setTests}
-        subject={formData.subject}
-        specialization={formData.specialization}
-      />
-    </div>
-  )
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

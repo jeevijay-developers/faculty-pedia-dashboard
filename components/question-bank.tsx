@@ -30,7 +30,7 @@ export default function QuestionBank({
   selectedQuestions,
   onQuestionSelect,
   loading = false,
-  height = "h-96",
+  height = "h-[69rem]",
   darkTheme = false,
 }: QuestionBankProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,7 +124,7 @@ export default function QuestionBank({
           <SelectTrigger
             className={
               darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500"
+                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
                 : ""
             }
           >
@@ -155,7 +155,7 @@ export default function QuestionBank({
           <SelectTrigger
             className={
               darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500"
+                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
                 : ""
             }
           >
@@ -202,7 +202,7 @@ export default function QuestionBank({
       </div>
 
       {/* Questions List */}
-      <ScrollArea className={height}>
+      <ScrollArea className={height} style={{ height: height.includes('vh') ? height.replace('h-[', '').replace(']', '') : undefined }}>
         {loading ? (
           <div className="flex justify-center items-center h-32">
             <Loader2

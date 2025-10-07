@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard-header";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,16 +13,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Edit, Trash2, Plus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  Loader2,
+  FileQuestion,
+  Clock,
+  Calendar,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  Target,
+} from "lucide-react";
 import { getEducatorTests } from "@/util/server";
 import { Test, TestsResponse } from "@/lib/types/test";
+import { toast } from "sonner";
 
 export default function CreateTestPage() {
   const { educator } = useAuth();
   const router = useRouter();
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!educator?._id) {
@@ -41,7 +59,7 @@ export default function CreateTestPage() {
       setTests(response.tests);
     } catch (error) {
       console.error("Error fetching tests:", error);
-      setError("Failed to fetch tests");
+      toast.error("Failed to load tests");
     } finally {
       setLoading(false);
     }
@@ -63,260 +81,201 @@ export default function CreateTestPage() {
 
   const getSubjectColor = (subject: string) => {
     const colors = {
-      physics: "bg-blue-100 text-blue-800",
-      chemistry: "bg-green-100 text-green-800",
-      mathematics: "bg-purple-100 text-purple-800",
-      mixed: "bg-orange-100 text-orange-800",
+      physics: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      chemistry: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      mathematics: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      mixed: "bg-orange-500/10 text-orange-500 border-orange-500/20",
     };
     return (
       colors[subject.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-100 text-gray-800"
+      "bg-gray-500/10 text-gray-500 border-gray-500/20"
     );
+  };
+
+  const getStatusColor = (test: Test) => {
+    const now = new Date();
+    const startDate = new Date(test.startDate);
+
+    if (now < startDate) {
+      return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    } else {
+      return "bg-green-500/10 text-green-500 border-green-500/20";
+    }
+  };
+
+  const getStatusText = (test: Test) => {
+    const now = new Date();
+    const startDate = new Date(test.startDate);
+
+    if (now < startDate) {
+      return "Upcoming";
+    } else {
+      return "Active";
+    }
   };
 
   if (!educator) {
     return null;
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading tests...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="container mx-auto py-8 px-4 space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white rounded-xl p-6 shadow-sm border">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Test Bank
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Create and manage your live tests with comprehensive question
-              selection
+    <div className="space-y-6">
+      <DashboardHeader
+        title="Test Management"
+        description="Create and manage your live tests"
+      />
+
+      <div className="px-6 space-y-6">
+        {/* Header Actions */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Your Tests
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Create comprehensive tests with custom questions and settings
             </p>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                {tests.length} Tests Created
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                Active Educator: {educator?.firstName} {educator?.lastName}
-              </span>
-            </div>
           </div>
           <Button
             onClick={() => router.push("/dashboard/test/create")}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg px-6 py-3 text-lg font-medium"
-            size="lg"
+            className="gap-2"
           >
-            <Plus className="h-5 w-5 mr-2" />
-            Create New Test
+            <Plus className="h-4 w-4" />
+            Create Test
           </Button>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-800 px-6 py-4 rounded-xl shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
-                <span className="text-red-600 text-sm font-bold">!</span>
-              </div>
-              <div>
-                <h3 className="font-semibold">Error Loading Tests</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-              </div>
+        {/* Test Grid */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading tests...</p>
             </div>
           </div>
-        )}
-
-        {/* Tests Content */}
-        {tests.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl shadow-sm border">
-            <div className="max-w-md mx-auto space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto">
-                <Plus className="h-12 w-12 text-blue-600" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  No tests created yet
-                </h3>
-                <p className="text-gray-600">
-                  Start building your test library by creating your first live
-                  test
-                </p>
-              </div>
-              <Button
-                onClick={() => router.push("/dashboard/test/create")}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg px-8 py-3"
-                size="lg"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Your First Test
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-6">
+        ) : tests.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {tests.map((test) => (
               <Card
                 key={test._id}
-                className="group hover:shadow-xl transition-all duration-300 border-0 shadow-md bg-white/80 backdrop-blur-sm hover:bg-white"
+                className="bg-card border-border hover:shadow-lg transition-shadow"
               >
-                <CardHeader className="pb-4">
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {test.title}
-                        </CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className={getStatusColor(test)}>
+                          {getStatusText(test)}
+                        </Badge>
                         <Badge
-                          className={`${getSubjectColor(
-                            test.subject
-                          )} font-medium px-3 py-1`}
+                          variant="outline"
+                          className={getSubjectColor(test.subject)}
                         >
                           {test.subject.charAt(0).toUpperCase() +
                             test.subject.slice(1)}
                         </Badge>
                       </div>
-                      <CardDescription className="text-gray-600 leading-relaxed">
-                        {test.description.short}
-                      </CardDescription>
-
-                      {/* Quick Stats */}
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <span className="text-blue-700 font-medium">
-                            {test.specialization}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="text-green-700 font-medium">
-                            {test.duration} min
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-full">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          <span className="text-purple-700 font-medium">
-                            {test.questions.length} questions
-                          </span>
-                        </div>
+                      <CardTitle className="text-lg text-card-foreground line-clamp-1">
+                        {test.title}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">
+                          {test.specialization}
+                        </Badge>
                       </div>
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleViewTest(test)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Test
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Test
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <CardDescription className="line-clamp-2">
+                    {test.description.short}
+                  </CardDescription>
+                </CardHeader>
 
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all"
-                        onClick={() => handleViewTest(test)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed"
-                        disabled
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-red-50 border-red-200 text-red-500 cursor-not-allowed"
-                        disabled
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileQuestion className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {test.questions.length} questions
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {test.duration} min
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground text-xs">
+                        {formatDate(test.startDate)}
+                      </span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {/* Detailed Information */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          Test Details
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-gray-600">Start Date:</span>
-                            <div className="font-medium text-gray-900">
-                              {formatDate(test.startDate)}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Marking:</span>
-                            <div className="font-medium text-gray-900">
-                              +{test.overallMarks.positive} /{" "}
-                              {test.overallMarks.negative} ({test.markingType})
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
 
-                    {test.questions.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4">
-                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                            Sample Questions
-                          </h4>
-                          <div className="space-y-3">
-                            {test.questions.slice(0, 2).map((question) => (
-                              <div
-                                key={question._id}
-                                className="bg-white rounded-lg p-3 shadow-sm border"
-                              >
-                                <div className="font-medium text-gray-900 text-sm truncate mb-2">
-                                  {question.title}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                                  >
-                                    {question.subject}
-                                  </Badge>
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs bg-green-50 text-green-700 border-green-200"
-                                  >
-                                    {question.topic}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-                            {test.questions.length > 2 && (
-                              <div className="text-center py-2">
-                                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border">
-                                  +{test.questions.length - 2} more questions
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-3 w-3" />
+                        <span>
+                          Marks: +{test.overallMarks.positive} /{" "}
+                          {test.overallMarks.negative}
+                        </span>
                       </div>
-                    )}
+                      <Badge variant="outline" className="text-xs">
+                        {test.markingType}
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileQuestion className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
+                No tests yet
+              </h3>
+              <p className="text-muted-foreground text-center mb-4">
+                Create your first test to start building your test library
+              </p>
+              <Button
+                onClick={() => router.push("/dashboard/test/create")}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create Your First Test
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

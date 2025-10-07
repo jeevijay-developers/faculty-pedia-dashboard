@@ -22,11 +22,8 @@ import {
   FileQuestion,
   TestTube,
   Video,
-  Calendar,
   BarChart3,
   Settings,
-  Menu,
-  X,
   GraduationCap,
   Users,
   LogOut,
@@ -52,11 +49,6 @@ const navigation = [
     name: "Test Bank",
     href: "/dashboard/create-test",
     icon: FileQuestion,
-  },
-  {
-    name: "Live Tests",
-    href: "/dashboard/live-test",
-    icon: TestTube,
   },
   {
     name: "Test Series",

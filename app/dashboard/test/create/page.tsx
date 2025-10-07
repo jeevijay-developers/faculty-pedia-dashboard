@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft,
   Calendar,
@@ -23,10 +23,8 @@ import {
   Target,
   Award,
   CheckCircle2,
-  Plus,
   Save,
   BookOpen,
-  Users,
   FileQuestion,
 } from "lucide-react";
 import QuestionBank from "@/components/question-bank";
@@ -37,12 +35,12 @@ import {
 } from "@/util/server";
 import { CreateTestData } from "@/lib/types/test";
 import { Question } from "@/lib/types/test";
+import { toast } from "sonner";
 
 export default function CreateTestPage() {
   const router = useRouter();
   const { educator } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
@@ -81,7 +79,7 @@ export default function CreateTestPage() {
       setQuestions(response.questions || []);
     } catch (error) {
       console.error("Error fetching questions:", error);
-      setError("Failed to fetch questions");
+      toast.error("Failed to fetch questions");
     } finally {
       setQuestionsLoading(false);
     }
@@ -111,7 +109,7 @@ export default function CreateTestPage() {
 
     for (const field of requiredFields) {
       if (!formData[field as keyof typeof formData]) {
-        setError(
+        toast.error(
           `Please fill in the ${field.replace(/([A-Z])/g, " $1").toLowerCase()}`
         );
         return false;
@@ -120,56 +118,34 @@ export default function CreateTestPage() {
 
     // Validate title length
     if (formData.title.length < 3) {
-      setError("Title must be at least 3 characters long");
+      toast.error("Title must be at least 3 characters long");
       return false;
     }
 
     if (formData.title.length > 200) {
-      setError("Title must not exceed 200 characters");
+      toast.error("Title must not exceed 200 characters");
       return false;
     }
 
     // Validate short description length
     if (formData.shortDescription.length < 10) {
-      setError("Short description must be at least 10 characters long");
+      toast.error("Short description must be at least 10 characters long");
       return false;
     }
 
     if (formData.shortDescription.length > 500) {
-      setError("Short description must not exceed 500 characters");
+      toast.error("Short description must not exceed 500 characters");
       return false;
     }
 
     // Validate long description length
     if (formData.longDescription.length < 20) {
-      setError("Detailed description must be at least 20 characters long");
+      toast.error("Detailed description must be at least 20 characters long");
       return false;
     }
 
     if (formData.longDescription.length > 2000) {
-      setError("Detailed description must not exceed 2000 characters");
-      return false;
-    }
-
-    // Validate title length
-    if (formData.title.length < 3) {
-      setError("Test title must be at least 3 characters long");
-      return false;
-    }
-
-    if (formData.title.length > 200) {
-      setError("Test title must not exceed 200 characters");
-      return false;
-    }
-
-    // Validate short description
-    if (formData.shortDescription.length < 10) {
-      setError("Short description must be at least 10 characters long");
-      return false;
-    }
-
-    if (formData.shortDescription.length > 500) {
-      setError("Short description must not exceed 500 characters");
+      toast.error("Detailed description must not exceed 2000 characters");
       return false;
     }
 
@@ -178,33 +154,32 @@ export default function CreateTestPage() {
     const negativeMarks = parseInt(formData.negativeMarks);
 
     if (positiveMarks <= 0) {
-      setError("Positive marks must be greater than 0");
+      toast.error("Positive marks must be greater than 0");
       return false;
     }
 
     if (negativeMarks >= 0) {
-      setError("Negative marks must be less than 0");
+      toast.error("Negative marks must be less than 0");
       return false;
     }
 
     // Validate duration
     const duration = parseInt(formData.duration);
     if (duration <= 0) {
-      setError("Duration must be greater than 0 minutes");
+      toast.error("Duration must be greater than 0 minutes");
       return false;
     }
 
     if (duration > 1440) {
-      setError("Duration cannot exceed 24 hours (1440 minutes)");
+      toast.error("Duration cannot exceed 24 hours (1440 minutes)");
       return false;
     }
 
     if (selectedQuestions.length === 0) {
-      setError("Please select at least one question");
+      toast.error("Please select at least one question");
       return false;
     }
 
-    setError(null);
     return true;
   };
 
@@ -212,13 +187,12 @@ export default function CreateTestPage() {
     if (!validateForm()) return;
 
     if (!educator?._id) {
-      setError("Educator information not found");
+      toast.error("Educator information not found");
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
 
       // Combine date and time
       const startDateTime = new Date(
@@ -245,6 +219,7 @@ export default function CreateTestPage() {
       };
 
       await createLiveTest(testData);
+      toast.success("Test created successfully!");
       router.push("/dashboard/create-test");
     } catch (error: any) {
       console.error("Error creating test:", error);
@@ -258,7 +233,7 @@ export default function CreateTestPage() {
           errorData.message &&
           errorData.message.includes("title already exists")
         ) {
-          setError(
+          toast.error(
             "A test with this title already exists. Please choose a different title."
           );
           return;
@@ -283,19 +258,19 @@ export default function CreateTestPage() {
             }
             return err;
           });
-          setError(errorMessages.join(". "));
+          toast.error(errorMessages.join(". "));
           return;
         }
 
         // Handle single error message
         if (errorData.message) {
-          setError(errorData.message);
+          toast.error(errorData.message);
           return;
         }
       }
 
       // Fallback error message
-      setError("Failed to create test. Please check your input and try again.");
+      toast.error("Failed to create test. Please check your input and try again.");
     } finally {
       setLoading(false);
     }
@@ -303,14 +278,14 @@ export default function CreateTestPage() {
 
   const getSubjectColor = (subject: string) => {
     const colors = {
-      physics: "bg-blue-900/50 text-blue-300 border-blue-700",
-      chemistry: "bg-green-900/50 text-green-300 border-green-700",
-      mathematics: "bg-purple-900/50 text-purple-300 border-purple-700",
-      mixed: "bg-orange-900/50 text-orange-300 border-orange-700",
+      physics: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      chemistry: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      mathematics: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      mixed: "bg-orange-500/10 text-orange-500 border-orange-500/20",
     };
     return (
       colors[subject.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-700 text-gray-300 border-gray-600"
+      "bg-gray-500/10 text-gray-500 border-gray-500/20"
     );
   };
 
@@ -319,74 +294,58 @@ export default function CreateTestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto py-8 px-4 space-y-6">
-        {/* Header Section */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-gray-700/50">
-          <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6 pb-6">
+      <DashboardHeader
+        title="Create New Test"
+        description="Build comprehensive tests with custom questions and settings"
+      />
+
+      <div className="px-6 space-y-6">
+        {/* Header Actions */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/create-test")}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Tests
+          </Button>
+
+          <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => router.push("/dashboard/create-test")}
-              className="hover:bg-gray-700/50 border-gray-600 text-gray-300 hover:text-white transition-all"
+              disabled={loading}
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Tests
+              Cancel
             </Button>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/dashboard/create-test")}
-                disabled={loading}
-                className="border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={loading || selectedQuestions.length === 0}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all"
-              >
-                {loading ? "Creating..." : "Create Test"}
-                <Save className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Create New Test
-            </h1>
-            <p className="text-gray-400 text-lg leading-relaxed">
-              Build comprehensive tests with custom questions and settings
-            </p>
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || selectedQuestions.length === 0}
+              className="gap-2"
+            >
+              {loading ? "Creating..." : "Create Test"}
+              <Save className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-red-300">{error}</p>
-          </div>
-        )}
 
         {/* Form Content */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Left Column - Test Details */}
           <div className="space-y-6">
             {/* Basic Information */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 shadow-xl">
+            <Card className="bg-card border-border">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-blue-400" />
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
                   Basic Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title" className="text-gray-300">
-                    Test Title
-                  </Label>
+                  <Label htmlFor="title">Test Title</Label>
                   <Input
                     id="title"
                     placeholder="e.g., JEE Mixed Subject Test"
@@ -397,15 +356,14 @@ export default function CreateTestPage() {
                         title: e.target.value,
                       }))
                     }
-                    className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20"
                     maxLength={200}
                   />
                   <div className="flex justify-between text-xs">
                     <span
                       className={`${
                         formData.title.length < 3
-                          ? "text-red-400"
-                          : "text-gray-400"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
                       }`}
                     >
                       Minimum 3 characters
@@ -413,8 +371,8 @@ export default function CreateTestPage() {
                     <span
                       className={`${
                         formData.title.length > 200
-                          ? "text-red-400"
-                          : "text-gray-400"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {formData.title.length}/200
@@ -423,9 +381,7 @@ export default function CreateTestPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="shortDescription" className="text-gray-300">
-                    Short Description
-                  </Label>
+                  <Label htmlFor="shortDescription">Short Description</Label>
                   <Textarea
                     id="shortDescription"
                     placeholder="Brief description of the test"
@@ -437,15 +393,14 @@ export default function CreateTestPage() {
                         shortDescription: e.target.value,
                       }))
                     }
-                    className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20"
                     maxLength={500}
                   />
                   <div className="flex justify-between text-xs">
                     <span
                       className={`${
                         formData.shortDescription.length < 10
-                          ? "text-red-400"
-                          : "text-gray-400"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
                       }`}
                     >
                       Minimum 10 characters
@@ -453,8 +408,8 @@ export default function CreateTestPage() {
                     <span
                       className={`${
                         formData.shortDescription.length > 500
-                          ? "text-red-400"
-                          : "text-gray-400"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {formData.shortDescription.length}/500
@@ -463,9 +418,7 @@ export default function CreateTestPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="longDescription" className="text-gray-300">
-                    Detailed Description
-                  </Label>
+                  <Label htmlFor="longDescription">Detailed Description</Label>
                   <Textarea
                     id="longDescription"
                     placeholder="Detailed description including test pattern, instructions, etc."
@@ -477,60 +430,36 @@ export default function CreateTestPage() {
                         longDescription: e.target.value,
                       }))
                     }
-                    className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/20"
+                    maxLength={2000}
                   />
+                  <div className="flex justify-end text-xs text-muted-foreground">
+                    {formData.longDescription.length}/2000
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="subject" className="text-gray-300">
-                      Subject
-                    </Label>
+                    <Label htmlFor="subject">Subject</Label>
                     <Select
                       value={formData.subject}
                       onValueChange={(value) =>
                         setFormData((prev) => ({ ...prev, subject: value }))
                       }
                     >
-                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500">
-                        <SelectValue
-                          placeholder="Select subject"
-                          className="text-gray-400"
-                        />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        <SelectItem
-                          value="physics"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Physics
-                        </SelectItem>
-                        <SelectItem
-                          value="chemistry"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Chemistry
-                        </SelectItem>
-                        <SelectItem
-                          value="mathematics"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Mathematics
-                        </SelectItem>
-                        <SelectItem
-                          value="mixed"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Mixed
-                        </SelectItem>
+                      <SelectContent>
+                        <SelectItem value="physics">Physics</SelectItem>
+                        <SelectItem value="chemistry">Chemistry</SelectItem>
+                        <SelectItem value="mathematics">Mathematics</SelectItem>
+                        <SelectItem value="mixed">Mixed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="specialization" className="text-gray-300">
-                      Specialization
-                    </Label>
+                    <Label htmlFor="specialization">Specialization</Label>
                     <Select
                       value={formData.specialization}
                       onValueChange={(value) =>
@@ -540,31 +469,13 @@ export default function CreateTestPage() {
                         }))
                       }
                     >
-                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500">
-                        <SelectValue
-                          placeholder="Select specialization"
-                          className="text-gray-400"
-                        />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select specialization" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        <SelectItem
-                          value="IIT-JEE"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          IIT-JEE
-                        </SelectItem>
-                        <SelectItem
-                          value="NEET"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          NEET
-                        </SelectItem>
-                        <SelectItem
-                          value="CBSE"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          CBSE
-                        </SelectItem>
+                      <SelectContent>
+                        <SelectItem value="IIT-JEE">IIT-JEE</SelectItem>
+                        <SelectItem value="NEET">NEET</SelectItem>
+                        <SelectItem value="CBSE">CBSE</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -573,19 +484,17 @@ export default function CreateTestPage() {
             </Card>
 
             {/* Schedule & Timing */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 shadow-xl">
+            <Card className="bg-card border-border">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-green-400" />
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
                   Schedule & Timing
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate" className="text-gray-300">
-                      Start Date
-                    </Label>
+                    <Label htmlFor="startDate">Start Date</Label>
                     <Input
                       id="startDate"
                       type="date"
@@ -596,14 +505,11 @@ export default function CreateTestPage() {
                           startDate: e.target.value,
                         }))
                       }
-                      className="bg-gray-700/50 border-gray-600 text-gray-100 focus:border-green-500 focus:ring-green-500/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="startTime" className="text-gray-300">
-                      Start Time
-                    </Label>
+                    <Label htmlFor="startTime">Start Time</Label>
                     <Input
                       id="startTime"
                       type="time"
@@ -614,14 +520,16 @@ export default function CreateTestPage() {
                           startTime: e.target.value,
                         }))
                       }
-                      className="bg-gray-700/50 border-gray-600 text-gray-100 focus:border-green-500 focus:ring-green-500/20"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="duration" className="text-gray-300">
-                    Duration (minutes)
+                  <Label htmlFor="duration">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Duration (minutes)
+                    </div>
                   </Label>
                   <Input
                     id="duration"
@@ -634,26 +542,23 @@ export default function CreateTestPage() {
                         duration: e.target.value,
                       }))
                     }
-                    className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-green-500 focus:ring-green-500/20"
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Marking Scheme */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 shadow-xl">
+            <Card className="bg-card border-border">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <Award className="h-5 w-5 text-purple-400" />
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                  <Award className="h-5 w-5 text-primary" />
                   Marking Scheme
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="positiveMarks" className="text-gray-300">
-                      Positive Marks
-                    </Label>
+                    <Label htmlFor="positiveMarks">Positive Marks</Label>
                     <Input
                       id="positiveMarks"
                       type="number"
@@ -665,14 +570,11 @@ export default function CreateTestPage() {
                           positiveMarks: e.target.value,
                         }))
                       }
-                      className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="negativeMarks" className="text-gray-300">
-                      Negative Marks
-                    </Label>
+                    <Label htmlFor="negativeMarks">Negative Marks</Label>
                     <Input
                       id="negativeMarks"
                       type="number"
@@ -684,36 +586,23 @@ export default function CreateTestPage() {
                           negativeMarks: e.target.value,
                         }))
                       }
-                      className="bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="markingType" className="text-gray-300">
-                      Marking Type
-                    </Label>
+                    <Label htmlFor="markingType">Marking Type</Label>
                     <Select
                       value={formData.markingType}
                       onValueChange={(value) =>
                         setFormData((prev) => ({ ...prev, markingType: value }))
                       }
                     >
-                      <SelectTrigger className="bg-gray-700/50 border-gray-600 text-gray-100 focus:border-purple-500">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        <SelectItem
-                          value="PQM"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Per Question Marking
-                        </SelectItem>
-                        <SelectItem
-                          value="OAM"
-                          className="text-gray-100 focus:bg-gray-700"
-                        >
-                          Overall Marking
-                        </SelectItem>
+                      <SelectContent>
+                        <SelectItem value="PQM">Per Question Marking</SelectItem>
+                        <SelectItem value="OAM">Overall Marking</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -722,17 +611,17 @@ export default function CreateTestPage() {
             </Card>
 
             {/* Selected Questions Summary */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 shadow-xl">
+            <Card className="bg-card border-border">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-400" />
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
                   Selected Questions ({selectedQuestions.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedQuestions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <FileQuestion className="h-12 w-12 mx-auto mb-3 text-gray-500" />
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileQuestion className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                     <p>No questions selected yet</p>
                     <p className="text-sm">
                       Select questions from the question bank
@@ -743,25 +632,24 @@ export default function CreateTestPage() {
                     {questions
                       .filter((q) => selectedQuestions.includes(q._id))
                       .slice(0, 3)
-                      .map((question, index) => (
+                      .map((question) => (
                         <div
                           key={question._id}
-                          className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg border border-gray-600"
+                          className="flex items-center gap-3 p-3 bg-muted rounded-lg border border-border"
                         >
                           <Badge
-                            className={`${getSubjectColor(
-                              question.subject
-                            )} text-xs`}
+                            variant="outline"
+                            className={getSubjectColor(question.subject)}
                           >
                             {question.subject}
                           </Badge>
-                          <span className="text-sm text-gray-300 font-medium truncate">
+                          <span className="text-sm text-card-foreground font-medium truncate">
                             {question.title}
                           </span>
                         </div>
                       ))}
                     {selectedQuestions.length > 3 && (
-                      <div className="text-center py-2 text-sm text-gray-400">
+                      <div className="text-center py-2 text-sm text-muted-foreground">
                         ... and {selectedQuestions.length - 3} more questions
                       </div>
                     )}
@@ -772,11 +660,11 @@ export default function CreateTestPage() {
           </div>
 
           {/* Right Column - Question Bank */}
-          <div className="space-y-6">
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 shadow-xl">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-indigo-400" />
+          <div className="space-y-3">
+            <Card className="bg-card border-border px-4">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
                   Question Bank
                 </CardTitle>
               </CardHeader>
@@ -786,7 +674,6 @@ export default function CreateTestPage() {
                   selectedQuestions={selectedQuestions}
                   onQuestionSelect={handleQuestionSelect}
                   loading={questionsLoading}
-                  height="600px"
                   darkTheme={true}
                 />
               </CardContent>

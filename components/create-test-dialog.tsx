@@ -473,7 +473,7 @@ export default function CreateTestDialog({
                 selectedQuestions={formData.selectedQuestions}
                 onQuestionSelect={handleQuestionSelect}
                 loading={questionsLoading}
-                height="h-80"
+                height="h-60"
               />
             </div>
 

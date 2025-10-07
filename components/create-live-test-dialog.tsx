@@ -260,7 +260,7 @@ export default function CreateLiveTestDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto max-h-[60vh]">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{error}</p>
@@ -268,7 +268,7 @@ export default function CreateLiveTestDialog({
           )}
 
           {currentStep === 1 && (
-            <div className="space-y-6 overflow-y-auto max-h-[calc(95vh-300px)] pr-4">
+            <div className="space-y-6 pr-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Basic Information */}
                 <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
@@ -509,12 +509,13 @@ export default function CreateLiveTestDialog({
           )}
 
           {currentStep === 2 && (
-            <div className="h-full">
+            <div className="pr-4">
               <QuestionBank
                 questions={questions}
                 selectedQuestions={selectedQuestions}
                 onQuestionSelect={handleQuestionSelect}
                 loading={questionsLoading}
+                height="h-[50vh]"
               />
             </div>
           )}
