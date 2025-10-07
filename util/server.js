@@ -163,7 +163,7 @@ export const getEducatorQuestions = async () => {
 
 export const createQuestion = async (questionData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/questions", questionData, {
+    const response = await API_CLIENT.post("/api/questions/create-question", questionData, {
       headers: getAuthHeaders(),
     });
     return response.data;
@@ -193,6 +193,37 @@ export const deleteQuestion = async (questionId) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting question:", error);
+    throw error;
+  }
+};
+
+export const getQuestionById = async (questionId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/questions/${questionId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching question by ID:", error);
+    throw error;
+  }
+};
+
+export const getQuestionsByIds = async (questionIds) => {
+  try {
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+      return [];
+    }
+
+    const questionPromises = questionIds.map(id => getQuestionById(id));
+    const results = await Promise.all(
+      questionPromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch question:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(question => question !== null);
+  } catch (error) {
+    console.error("Error fetching questions by IDs:", error);
     throw error;
   }
 };
@@ -246,6 +277,37 @@ export const deleteTestSeries = async (testSeriesId) => {
   }
 };
 
+export const getTestSeriesById = async (testSeriesId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/test-series/${testSeriesId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching test series by ID:", error);
+    throw error;
+  }
+};
+
+export const getTestSeriesByIds = async (testSeriesIds) => {
+  try {
+    if (!Array.isArray(testSeriesIds) || testSeriesIds.length === 0) {
+      return [];
+    }
+
+    const testSeriesPromises = testSeriesIds.map(id => getTestSeriesById(id));
+    const results = await Promise.all(
+      testSeriesPromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch test series:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(testSeries => testSeries !== null);
+  } catch (error) {
+    console.error("Error fetching test series by IDs:", error);
+    throw error;
+  }
+};
+
 // Live Classes APIs
 export const getEducatorLiveClasses = async () => {
   try {
@@ -291,6 +353,37 @@ export const deleteLiveClass = async (liveClassId) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting live class:", error);
+    throw error;
+  }
+};
+
+export const getLiveClassById = async (liveClassId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/live-class/${liveClassId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching live class by ID:", error);
+    throw error;
+  }
+};
+
+export const getLiveClassesByIds = async (liveClassIds) => {
+  try {
+    if (!Array.isArray(liveClassIds) || liveClassIds.length === 0) {
+      return [];
+    }
+
+    const liveClassPromises = liveClassIds.map(id => getLiveClassById(id));
+    const results = await Promise.all(
+      liveClassPromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch live class:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(liveClass => liveClass !== null);
+  } catch (error) {
+    console.error("Error fetching live classes by IDs:", error);
     throw error;
   }
 };
@@ -344,6 +437,37 @@ export const deleteWebinar = async (webinarId) => {
   }
 };
 
+export const getWebinarById = async (webinarId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/webinar/webinar-by-id/${webinarId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching webinar by ID:", error);
+    throw error;
+  }
+};
+
+export const getWebinarsByIds = async (webinarIds) => {
+  try {
+    if (!Array.isArray(webinarIds) || webinarIds.length === 0) {
+      return [];
+    }
+
+    const webinarPromises = webinarIds.map(id => getWebinarById(id));
+    const results = await Promise.all(
+      webinarPromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch webinar:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(webinar => webinar !== null);
+  } catch (error) {
+    console.error("Error fetching webinars by IDs:", error);
+    throw error;
+  }
+};
+
 // Students APIs
 export const getEducatorStudents = async () => {
   try {
@@ -353,6 +477,39 @@ export const getEducatorStudents = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching students:", error);
+    throw error;
+  }
+};
+
+export const getStudentById = async (studentId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/students/profile/${studentId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching student by ID:", error);
+    throw error;
+  }
+};
+
+export const getStudentsByIds = async (studentIds) => {
+  try {
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return [];
+    }
+
+    const studentPromises = studentIds.map(id => getStudentById(id));
+    const results = await Promise.all(
+      studentPromises.map(p => p.catch(err => {
+        console.warn("Failed to fetch student:", err);
+        return null;
+      }))
+    );
+    
+    return results.filter(student => student !== null);
+  } catch (error) {
+    console.error("Error fetching students by IDs:", error);
     throw error;
   }
 };
