@@ -163,7 +163,7 @@ export const getEducatorQuestions = async () => {
 
 export const createQuestion = async (questionData) => {
   try {
-    const response = await API_CLIENT.post("/api/educator/questions", questionData, {
+    const response = await API_CLIENT.post("/api/questions/create-question", questionData, {
       headers: getAuthHeaders(),
     });
     return response.data;

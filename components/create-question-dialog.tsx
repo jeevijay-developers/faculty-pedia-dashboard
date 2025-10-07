@@ -31,13 +31,8 @@ interface QuestionOption {
   image: File | string | null
 }
 
-type QuestionOptionField = {
-  text: string;
-  image: string | File | null;
-}
-
 export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialogProps) {
-  const { refreshEducator } = useAuth()
+  const { educator, refreshEducator } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
@@ -70,23 +65,52 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!formData.title || !formData.subject || correctOptions.length === 0) {
+    if (!formData.title || !formData.subject || !formData.topic || correctOptions.length === 0) {
       toast.error("Please fill in all required fields and select correct option(s)")
       return
+    }
+
+    if (!educator?._id) {
+      toast.error("Educator information missing. Please log in again.")
+      return
+    }
+
+    const positiveMarksValue = Number(formData.positiveMarks)
+    const negativeMarksValue = Number(formData.negativeMarks)
+
+    if (Number.isNaN(positiveMarksValue) || Number.isNaN(negativeMarksValue)) {
+      toast.error("Please enter valid numeric values for marks")
+      return
+    }
+
+    const normalizedOptions = Object.entries(options).reduce(
+      (acc, [key, option]) => {
+        acc[key] = {
+          text: option.text.trim(),
+          ...(typeof option.image === "string" && option.image ? { image: option.image } : {}),
+        }
+        return acc
+      },
+      {} as Record<string, { text: string; image?: string }>
+    )
+
+    const questionData = {
+      title: formData.title.trim(),
+      educatorId: educator._id,
+      subject: formData.subject,
+      topic: formData.topic,
+      marks: {
+        positive: positiveMarksValue,
+        negative: negativeMarksValue > 0 ? -negativeMarksValue : negativeMarksValue,
+      },
+      options: normalizedOptions,
+      correctOptions,
     }
 
     setIsSubmitting(true)
     const loadingToast = toast.loading("Creating question...")
 
     try {
-      // Prepare question data for API
-      const questionData = {
-        ...formData,
-        options,
-        correctOptions,
-        questionImage,
-      }
-
       // Call API to create question
       await createQuestion(questionData)
 
@@ -111,6 +135,7 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
         C: { text: "", image: null },
         D: { text: "", image: null },
       })
+      
       setCorrectOptions([])
       setQuestionImage(null)
       onOpenChange(false)
@@ -126,7 +151,7 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Question</DialogTitle>
           <DialogDescription>
@@ -190,6 +215,9 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                     />
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
                   </div>
+                  {questionImage instanceof File && (
+                    <p className="text-xs text-muted-foreground">Selected: {questionImage.name}</p>
+                  )}
                 </div>
               </div>
 
