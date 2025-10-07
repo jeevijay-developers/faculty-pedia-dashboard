@@ -45,7 +45,7 @@ export function QuestionCard({ question, onDelete, onDragStart, isDraggable = fa
 
   return (
     <Card
-      className="bg-card border-border hover:shadow-lg transition-all cursor-grab active:cursor-grabbing"
+      className="bg-card border-border hover:shadow-lg transition-all "
       draggable={isDraggable}
       onDragStart={(e) => onDragStart(e, question.id)}
     >
@@ -85,7 +85,7 @@ export function QuestionCard({ question, onDelete, onDragStart, isDraggable = fa
                 {question.topic}
               </Badge>
               <Badge variant="outline" className="text-xs">
-                +{question.marks.positive} / -{question.marks.negative}
+                +{question.marks.positive} / {question.marks.negative}
               </Badge>
             </div>
           </div>

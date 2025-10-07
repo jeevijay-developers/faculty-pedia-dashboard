@@ -157,7 +157,6 @@ export default function QuestionsPage() {
                 question={question}
                 onDelete={handleDeleteQuestion}
                 onDragStart={handleDragStart}
-                isDraggable={true}
               />
             ))}
           </div>
