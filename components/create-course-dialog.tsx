@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, ChangeEvent } from "react"
+import { isAxiosError } from "axios"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Upload, X, Youtube, FileText, Plus } from "lucide-react"
+import { Upload, X, Youtube, FileText, Plus, ImageIcon } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { createCourse } from "@/util/server"
 import toast from "react-hot-toast"
@@ -40,8 +41,10 @@ interface CoursePDF {
 }
 
 export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogProps) {
-  const { refreshEducator } = useAuth()
+  const { educator, refreshEducator } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     shortDesc: "",
@@ -97,9 +100,54 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
     setCoursePDFs((pdfs) => pdfs.filter((pdf) => pdf.id !== id))
   }
 
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file")
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB")
+      return
+    }
+
+    setSelectedImage(file)
+
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+  }
+
   const handleSubmit = async () => {
+    if (!educator?._id) {
+      toast.error("Educator information missing. Please log in again")
+      return
+    }
+
     // Validate required fields
-    if (!formData.title || !formData.specialization || !formData.subject) {
+    if (
+      !formData.title ||
+      !formData.specialization ||
+      !formData.subject ||
+      !formData.shortDesc ||
+      !formData.longDesc ||
+      !formData.startDate ||
+      !formData.endDate ||
+      !formData.classDuration ||
+      !formData.fees ||
+      !formData.seatLimit ||
+      !formData.validity
+    ) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -108,15 +156,58 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
     const loadingToast = toast.loading("Creating course...")
 
     try {
-      // Prepare course data for API
-      const courseData = {
-        ...formData,
-        videoLessons,
-        pdfs: coursePDFs,
+      const slugBase = formData.title
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+
+      const coursePayload = {
+        specialization: formData.specialization,
+        courseClass: formData.courseClass || undefined,
+        subject: formData.subject.trim().toLowerCase(),
+        educatorId: educator._id,
+        title: formData.title.trim(),
+        slug: slugBase ? `${slugBase}-${Date.now().toString(36)}` : undefined,
+        description: {
+          shortDesc: formData.shortDesc.trim(),
+          longDesc: formData.longDesc.trim(),
+        },
+  courseType: formData.courseType.toUpperCase(),
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+        seatLimit: formData.seatLimit ? Number(formData.seatLimit) : undefined,
+        classDuration: formData.classDuration ? Number(formData.classDuration) : undefined,
+        fees: formData.fees ? Number(formData.fees) : undefined,
+        validity: formData.validity ? Number(formData.validity) : undefined,
+        videos: {
+          intro: videoLessons[0]?.youtubeUrl ?? "",
+          descriptionVideo: videoLessons[1]?.youtubeUrl ?? "",
+          lessons: videoLessons
+            .filter((lesson) => lesson.title || lesson.youtubeUrl || lesson.description)
+            .map((lesson, index) => ({
+              order: index + 1,
+              title: lesson.title,
+              url: lesson.youtubeUrl,
+              description: lesson.description,
+            })),
+        },
+        pdfs: coursePDFs
+          .filter((pdf) => pdf.name || pdf.file)
+          .map((pdf, index) => ({
+            order: index + 1,
+            name: pdf.name,
+            size: pdf.file?.size ?? null,
+          })),
       }
 
-      // Call API to create course
-      await createCourse(courseData)
+      const submissionData = new FormData()
+      submissionData.append("data", JSON.stringify(coursePayload))
+      if (selectedImage) {
+        submissionData.append("image", selectedImage)
+      }
+
+      await createCourse(submissionData, educator._id)
 
       // Refresh educator data to show new course
       await refreshEducator()
@@ -143,10 +234,16 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
       })
       setVideoLessons([])
       setCoursePDFs([])
+      setSelectedImage(null)
+      setImagePreview(null)
       onOpenChange(false)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating course:", error)
-      toast.error(error.response?.data?.message || "Failed to create course", {
+      const errorMessage = isAxiosError(error)
+        ? error.response?.data?.message || "Failed to create course"
+        : "Failed to create course"
+
+      toast.error(errorMessage, {
         id: loadingToast,
       })
     } finally {
@@ -198,6 +295,47 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="courseImage">Course Banner Image</Label>
+        <div className="space-y-3">
+          {imagePreview ? (
+            <div className="relative">
+              <img src={imagePreview} alt="Course banner preview" className="w-full h-40 object-cover rounded-lg border border-border" />
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={handleRemoveImage}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+              <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">Upload a banner image for your course</p>
+              <p className="text-xs text-muted-foreground mb-3">Supports JPG, PNG. Max size 5MB</p>
+              <label htmlFor="course-image-upload" className="cursor-pointer">
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose Image
+                  </span>
+                </Button>
+              </label>
+              <input
+                id="course-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="specialization">Specialization</Label>
@@ -205,7 +343,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             value={formData.specialization}
             onValueChange={(value) => setFormData({ ...formData, specialization: value })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select specialization" />
             </SelectTrigger>
             <SelectContent>
@@ -221,7 +359,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             value={formData.courseClass}
             onValueChange={(value) => setFormData({ ...formData, courseClass: value })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select class" />
             </SelectTrigger>
             <SelectContent>
@@ -239,12 +377,12 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             value={formData.courseType}
             onValueChange={(value) => setFormData({ ...formData, courseType: value })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="OTA">One-to-All</SelectItem>
-              <SelectItem value="OTO">One-to-One</SelectItem>
+              <SelectItem value="OTA">One to All</SelectItem>
+              <SelectItem value="OTO">One to One</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -383,7 +521,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
         <div className="text-center py-8 text-muted-foreground">
           <Youtube className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p>No video lessons added yet</p>
-          <p className="text-sm">Click "Add Video" to start adding your course content</p>
+          <p className="text-sm">Click &ldquo;Add Video&rdquo; to start adding your course content</p>
         </div>
       )}
     </div>
@@ -464,7 +602,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
         <div className="text-center py-8 text-muted-foreground">
           <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p>No PDF materials added yet</p>
-          <p className="text-sm">Click "Add PDF" to upload course materials</p>
+          <p className="text-sm">Click &ldquo;Add PDF&rdquo; to upload course materials</p>
         </div>
       )}
     </div>

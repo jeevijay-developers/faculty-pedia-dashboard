@@ -114,14 +114,22 @@ export const getCoursesByIds = async (courseIds) => {
   }
 };
 
-export const createCourse = async (courseData) => {
+export const createCourse = async (courseData, educatorId) => {
   try {
+    const isFormData =
+      typeof FormData !== "undefined" && courseData instanceof FormData
+
+    const config = {
+      headers: {
+        ...getAuthHeaders(),
+        ...(isFormData ? { "Content-Type": "multipart/form-data" } : {}),
+      },
+    }
+
     const response = await API_CLIENT.post(
-      "/api/educator/courses",
+      `/api/course/create/${educatorId}`,
       courseData,
-      {
-        headers: getAuthHeaders(),
-      }
+      config
     );
     return response.data;
   } catch (error) {
