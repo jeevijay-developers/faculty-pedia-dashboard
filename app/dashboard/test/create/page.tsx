@@ -505,6 +505,7 @@ export default function CreateTestPage() {
                           startDate: e.target.value,
                         }))
                       }
+                      className="w-full text-white"
                     />
                   </div>
 

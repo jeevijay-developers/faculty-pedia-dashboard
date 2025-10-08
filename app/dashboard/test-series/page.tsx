@@ -100,7 +100,7 @@ export default function TestSeriesPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {testSeries.map((series) => (
               <Card key={series._id} className="bg-card border-border hover:shadow-lg transition-shadow">
-                <div className="aspect-video relative overflow-hidden rounded-t-lg">
+                <div className="aspect-video relative overflow-hidden ">
                   <img
                     src={series.image?.url || "/placeholder.svg"}
                     alt={series.title}
@@ -174,7 +174,7 @@ export default function TestSeriesPage() {
                       <span className="text-muted-foreground">{series.validity || 0} days</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-primary">
+                      <span className="text-md font-semibold text-shadow-gray-50">
                         ₹{(series.price || 0).toLocaleString()}
                       </span>
                     </div>

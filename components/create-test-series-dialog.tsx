@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { createTestSeries, getEducatorTests } from "@/util/server"
-import { Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react"
+import { Loader2, Plus, RefreshCcw, Trash2, Upload, X, ImageIcon } from "lucide-react"
 import toast from "react-hot-toast"
 
 interface CreateTestSeriesDialogProps {
@@ -43,6 +43,8 @@ interface LiveTestSummary {
 export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesDialogProps) {
   const { educator, refreshEducator } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     shortDesc: "",
@@ -119,6 +121,37 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
     setSelectedTests((prev) => prev.filter((test) => test._id !== testId))
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please select a valid image file")
+        return
+      }
+      
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB")
+        return
+      }
+
+      setSelectedImage(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+  }
+
   const formatDateTime = (date?: string) => {
     if (!date) return "--"
     return new Date(date).toLocaleString(undefined, {
@@ -164,32 +197,67 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
       return
     }
 
-    const testSeriesData = {
-      title: formData.title.trim(),
-      educatorId: educator._id,
-      description: {
-        short: formData.shortDesc.trim(),
-        long: formData.longDesc.trim(),
-      },
-      specialization: formData.specialization,
-      subject: formData.subject.toLowerCase(),
-      price: priceValue,
-      validity: validityValue,
-      noOfTests: selectedTests.length,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      liveTests: selectedTests.map((test) => test._id),
-      isCourseSpecific: formData.isCourseSpecific,
-      ...(formData.isCourseSpecific && formData.courseId
-        ? { courseId: formData.courseId }
-        : {}),
+    // Prepare data for submission
+    let submissionData: any
+
+    if (selectedImage) {
+      // Use FormData for file upload
+      const formDataToSubmit = new FormData()
+      formDataToSubmit.append("title", formData.title.trim())
+      formDataToSubmit.append("educatorId", educator._id)
+      formDataToSubmit.append("description[short]", formData.shortDesc.trim())
+      formDataToSubmit.append("description[long]", formData.longDesc.trim())
+      formDataToSubmit.append("specialization", formData.specialization)
+      formDataToSubmit.append("subject", formData.subject.toLowerCase())
+      formDataToSubmit.append("price", priceValue.toString())
+      formDataToSubmit.append("validity", validityValue.toString())
+      formDataToSubmit.append("noOfTests", selectedTests.length.toString())
+      formDataToSubmit.append("startDate", formData.startDate)
+      formDataToSubmit.append("endDate", formData.endDate)
+      formDataToSubmit.append("isCourseSpecific", formData.isCourseSpecific.toString())
+      
+      if (formData.isCourseSpecific && formData.courseId) {
+        formDataToSubmit.append("courseId", formData.courseId)
+      }
+      
+      // Append live tests
+      selectedTests.forEach((test, index) => {
+        formDataToSubmit.append(`liveTests[${index}]`, test._id)
+      })
+      
+      // Append image
+      formDataToSubmit.append("image", selectedImage)
+      
+      submissionData = formDataToSubmit
+    } else {
+      // Use regular JSON data
+      submissionData = {
+        title: formData.title.trim(),
+        educatorId: educator._id,
+        description: {
+          short: formData.shortDesc.trim(),
+          long: formData.longDesc.trim(),
+        },
+        specialization: formData.specialization,
+        subject: formData.subject.toLowerCase(),
+        price: priceValue,
+        validity: validityValue,
+        noOfTests: selectedTests.length,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        liveTests: selectedTests.map((test) => test._id),
+        isCourseSpecific: formData.isCourseSpecific,
+        ...(formData.isCourseSpecific && formData.courseId
+          ? { courseId: formData.courseId }
+          : {}),
+      }
     }
 
     setIsSubmitting(true)
     const loadingToast = toast.loading("Creating test series...")
 
     try {
-      await createTestSeries(testSeriesData)
+      await createTestSeries(submissionData)
       await refreshEducator()
 
       toast.success("Test series created successfully!", {
@@ -211,6 +279,8 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
         courseId: "",
       })
       setSelectedTests([])
+      setSelectedImage(null)
+      setImagePreview(null)
       setCurrentStep(1)
       onOpenChange(false)
     } catch (error: any) {
@@ -256,14 +326,63 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="image">Banner Image (Optional)</Label>
+        <div className="space-y-3">
+          {imagePreview ? (
+            <div className="relative">
+              <img
+                src={imagePreview}
+                alt="Test series banner preview"
+                className="w-full h-32 object-cover rounded-lg border border-border"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={handleRemoveImage}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+              <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Upload a banner image for your test series
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Supports JPG, PNG. Max size 5MB
+              </p>
+              <label htmlFor="image-upload" className="cursor-pointer">
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose Image
+                  </span>
+                </Button>
+              </label>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 ">
         <div className="space-y-2">
           <Label htmlFor="subject">Subject</Label>
           <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select subject" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent >
               <SelectItem value="Physics">Physics</SelectItem>
               <SelectItem value="Chemistry">Chemistry</SelectItem>
               <SelectItem value="Mathematics">Mathematics</SelectItem>
@@ -277,7 +396,7 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             value={formData.specialization}
             onValueChange={(value) => setFormData({ ...formData, specialization: value })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select specialization" />
             </SelectTrigger>
             <SelectContent>
@@ -287,9 +406,6 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price">Price (₹)</Label>
           <Input
@@ -300,6 +416,10 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             placeholder="2500"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+
         <div className="space-y-2">
           <Label htmlFor="validity">Validity (days)</Label>
           <Input
@@ -309,19 +429,6 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
             placeholder="180"
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="noOfTests">Number of Tests</Label>
-          <Input
-            id="noOfTests"
-            type="number"
-            value={formData.noOfTests}
-            readOnly
-            placeholder="0"
-          />
-          <p className="text-xs text-muted-foreground">
-            Automatically matches the count of live tests you add in the next step.
-          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="courseSpecific">Course Specific</Label>
@@ -336,12 +443,29 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
             </Label>
           </div>
         </div>
+        
+      {formData.isCourseSpecific && (
+        <div className="space-y-2">
+          <Label htmlFor="courseId">Select Course</Label>
+          <Select value={formData.courseId} onValueChange={(value) => setFormData({ ...formData, courseId: value })}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a course" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="course1">Advanced Physics for JEE Main</SelectItem>
+              <SelectItem value="course2">Organic Chemistry Mastery</SelectItem>
+              <SelectItem value="course3">Mathematics Foundation</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <Label htmlFor="startDate">Start Date</Label>
           <Input
+            className="w-full"
             id="startDate"
             type="date"
             value={formData.startDate}
@@ -358,22 +482,6 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
           />
         </div>
       </div>
-
-      {formData.isCourseSpecific && (
-        <div className="space-y-2">
-          <Label htmlFor="courseId">Select Course</Label>
-          <Select value={formData.courseId} onValueChange={(value) => setFormData({ ...formData, courseId: value })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a course" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="course1">Advanced Physics for JEE Main</SelectItem>
-              <SelectItem value="course2">Organic Chemistry Mastery</SelectItem>
-              <SelectItem value="course3">Mathematics Foundation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </div>
   )
 
@@ -482,7 +590,7 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
           ) : selectableTests.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2">
               {selectableTests.map((test) => (
-                <Card key={test._id} className="border-border">
+                <Card key={test._id} className="border-border justify-between">
                   <CardHeader className="space-y-2">
                     <CardTitle className="text-base font-semibold text-foreground line-clamp-1">
                       {test.title}

@@ -269,12 +269,20 @@ export const getEducatorTestSeries = async () => {
 
 export const createTestSeries = async (testSeriesData) => {
   try {
+    // Check if testSeriesData contains a file (image)
+    const isFormData = testSeriesData instanceof FormData;
+    
+    const config = {
+      headers: {
+        ...getAuthHeaders(),
+        ...(isFormData && { 'Content-Type': 'multipart/form-data' }),
+      },
+    };
+
     const response = await API_CLIENT.post(
-      "/api/educator/test-series",
+      "/api/test-series/create-test-series",
       testSeriesData,
-      {
-        headers: getAuthHeaders(),
-      }
+      config
     );
     return response.data;
   } catch (error) {
@@ -286,7 +294,7 @@ export const createTestSeries = async (testSeriesData) => {
 export const updateTestSeries = async (testSeriesId, testSeriesData) => {
   try {
     const response = await API_CLIENT.put(
-      `/api/educator/test-series/${testSeriesId}`,
+      `/api/test-series/${testSeriesId}`,
       testSeriesData,
       {
         headers: getAuthHeaders(),
@@ -302,7 +310,7 @@ export const updateTestSeries = async (testSeriesId, testSeriesData) => {
 export const deleteTestSeries = async (testSeriesId) => {
   try {
     const response = await API_CLIENT.delete(
-      `/api/educator/test-series/${testSeriesId}`,
+      `/api/test-series/${testSeriesId}`,
       {
         headers: getAuthHeaders(),
       }
