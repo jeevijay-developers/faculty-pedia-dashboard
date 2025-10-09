@@ -140,12 +140,20 @@ export const createCourse = async (courseData, educatorId) => {
 
 export const updateCourse = async (courseId, courseData) => {
   try {
+    const isFormData =
+      typeof FormData !== "undefined" && courseData instanceof FormData
+
+    const config = {
+      headers: {
+        ...getAuthHeaders(),
+        ...(isFormData ? { "Content-Type": "multipart/form-data" } : {}),
+      },
+    }
+
     const response = await API_CLIENT.put(
-      `/api/educator/courses/${courseId}`,
+      `/api/course/update/${courseId}`,
       courseData,
-      {
-        headers: getAuthHeaders(),
-      }
+      config
     );
     return response.data;
   } catch (error) {
@@ -157,7 +165,7 @@ export const updateCourse = async (courseId, courseData) => {
 export const deleteCourse = async (courseId) => {
   try {
     const response = await API_CLIENT.delete(
-      `/api/educator/courses/${courseId}`,
+      `/api/course/delete/${courseId}`,
       {
         headers: getAuthHeaders(),
       }
@@ -201,7 +209,7 @@ export const createQuestion = async (questionData) => {
 export const updateQuestion = async (questionId, questionData) => {
   try {
     const response = await API_CLIENT.put(
-      `/api/educator/questions/${questionId}`,
+      `/api/questions/${questionId}`,
       questionData,
       {
         headers: getAuthHeaders(),
@@ -217,7 +225,7 @@ export const updateQuestion = async (questionId, questionData) => {
 export const deleteQuestion = async (questionId) => {
   try {
     const response = await API_CLIENT.delete(
-      `/api/educator/questions/${questionId}`,
+      `/api/questions/${questionId}`,
       {
         headers: getAuthHeaders(),
       }
@@ -658,6 +666,37 @@ export const createLiveTest = async (testData) => {
     return response.data;
   } catch (error) {
     console.error("Error creating live test:", error);
+    throw error;
+  }
+};
+
+export const updateLiveTest = async (testId, testData) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/live-test/${testId}`,
+      testData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating live test:", error);
+    throw error;
+  }
+};
+
+export const deleteLiveTest = async (testId) => {
+  try {
+    const response = await API_CLIENT.delete(
+      `/api/live-test/${testId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting live test:", error);
     throw error;
   }
 };

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ArrowLeft,
   Calendar,
@@ -17,10 +19,13 @@ import {
   Edit,
   Trash2,
   Copy,
+  Loader2,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { getEducatorTests } from "@/util/server";
 import { Test } from "@/lib/types/test";
+import toast from "react-hot-toast";
 
 export default function TestDetailsPage() {
   const params = useParams();
@@ -73,28 +78,33 @@ export default function TestDetailsPage() {
 
   const getSubjectColor = (subject: string) => {
     const colors = {
-      physics: "bg-blue-100 text-blue-800 border-blue-200",
-      chemistry: "bg-green-100 text-green-800 border-green-200",
-      mathematics: "bg-purple-100 text-purple-800 border-purple-200",
-      mixed: "bg-orange-100 text-orange-800 border-orange-200",
+      physics: "bg-blue-500/10 text-blue-700 border-blue-200",
+      chemistry: "bg-green-500/10 text-green-700 border-green-200",
+      mathematics: "bg-purple-500/10 text-purple-700 border-purple-200",
+      mixed: "bg-orange-500/10 text-orange-700 border-orange-200",
     };
     return (
       colors[subject.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-100 text-gray-800 border-gray-200"
+      "bg-muted text-muted-foreground"
     );
   };
 
-  const getTopicColor = (subject: string) => {
+  const getDifficultyColor = (difficulty: string) => {
     const colors = {
-      physics: "bg-blue-50 text-blue-700 border-blue-100",
-      chemistry: "bg-green-50 text-green-700 border-green-100",
-      mathematics: "bg-purple-50 text-purple-700 border-purple-100",
-      mixed: "bg-orange-50 text-orange-700 border-orange-100",
+      easy: "bg-green-500/10 text-green-600 border-green-200",
+      medium: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
+      hard: "bg-red-500/10 text-red-600 border-red-200",
     };
-    return (
-      colors[subject.toLowerCase() as keyof typeof colors] ||
-      "bg-gray-50 text-gray-700 border-gray-100"
-    );
+    return colors[difficulty?.toLowerCase() as keyof typeof colors] || "bg-muted";
+  };
+
+  const handleDeleteTest = () => {
+    toast.error("Delete functionality not implemented yet");
+  };
+
+
+  const handleEditTest = () => {
+    toast.custom("Edit functionality not implemented yet")
   };
 
   if (!educator) {
@@ -103,10 +113,14 @@ export default function TestDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="container mx-auto py-8 px-4">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-lg text-gray-600">Loading test details...</div>
+      <div className="space-y-6">
+        <DashboardHeader title="Test Details" description="View comprehensive test information" />
+        <div className="px-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading test details...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -115,20 +129,24 @@ export default function TestDetailsPage() {
 
   if (error || !test) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="container mx-auto py-8 px-4">
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-            <div className="text-lg text-red-600">
-              {error || "Test not found"}
-            </div>
-            <Button
-              onClick={() => router.push("/dashboard/create-test")}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Tests
-            </Button>
-          </div>
+      <div className="space-y-6">
+        <DashboardHeader title="Test Details" description="View comprehensive test information" />
+        <div className="px-6">
+          <Card className="bg-card border-border">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
+                {error || "Test not found"}
+              </h3>
+              <p className="text-muted-foreground text-center mb-4">
+                The test you're looking for doesn't exist or has been removed.
+              </p>
+              <Button onClick={() => router.push("/dashboard/create-test")} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Tests
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -145,255 +163,253 @@ export default function TestDetailsPage() {
   }, {} as Record<string, typeof test.questions>);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="space-y-6">
+      <DashboardHeader title="Test Details" description="View comprehensive test information" />
+
+      <div className="px-6 space-y-6">
         {/* Header Section */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border">
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard/create-test")}
-              className="hover:bg-gray-50"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Tests
+        <div className="flex items-center justify-between">
+          <Button variant="outline" onClick={() => router.push("/dashboard/create-test")} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Tests
+          </Button>
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleEditTest} className="gap-2">
+              <Edit className="h-4 w-4" />
+              Edit
             </Button>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed"
-                disabled
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicate
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {test.title}
-              </h1>
-              <Badge
-                className={`${getSubjectColor(
-                  test.subject
-                )} font-medium px-4 py-2 text-sm`}
-              >
-                {test.subject.charAt(0).toUpperCase() + test.subject.slice(1)}
-              </Badge>
-            </div>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              {test.description.short}
-            </p>
+            <Button variant="outline" size="sm" onClick={handleDeleteTest} className="gap-2 text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
           </div>
         </div>
+
+        {/* Test Title Card */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-2xl font-bold text-foreground">{test.title}</CardTitle>
+                  <Badge className={`${getSubjectColor(test.subject)} capitalize`}>
+                    {test.subject}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground">{test.description.short}</p>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Test Overview Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" />
-                Test Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Target className="h-4 w-4" />
-                    Specialization
-                  </div>
-                  <div className="font-medium text-gray-900">
-                    {test.specialization}
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-card border-border">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Target className="h-5 w-5 text-primary" />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="h-4 w-4" />
-                    Duration
-                  </div>
-                  <div className="font-medium text-gray-900">
-                    {test.duration} minutes
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  Start Date & Time
-                </div>
-                <div className="font-medium text-gray-900">
-                  {formatDate(test.startDate)}
+                <div>
+                  <p className="text-xs text-muted-foreground">Specialization</p>
+                  <p className="text-sm font-semibold text-foreground capitalize">{test.specialization}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Marking Scheme */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Award className="h-5 w-5 text-green-600" />
-                Marking Scheme
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="text-sm text-green-600 mb-1">
-                    Positive Marks
-                  </div>
-                  <div className="text-2xl font-bold text-green-700">
-                    +{test.overallMarks.positive}
-                  </div>
+          <Card className="bg-card border-border">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Clock className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                  <div className="text-sm text-red-600 mb-1">
-                    Negative Marks
-                  </div>
-                  <div className="text-2xl font-bold text-red-700">
-                    {test.overallMarks.negative}
-                  </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="text-sm font-semibold text-foreground">{test.duration} minutes</p>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Marking Type</div>
-                <div className="font-medium text-gray-900">
-                  {test.markingType === "PQM"
-                    ? "Per Question Marking"
-                    : "Overall Marking"}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <Award className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Positive Marks</p>
+                  <p className="text-sm font-semibold text-green-600">+{test.overallMarks.positive}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-500/10">
+                  <Award className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Negative Marks</p>
+                  <p className="text-sm font-semibold text-red-600">{test.overallMarks.negative}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Description */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-purple-600" />
-              Description
+        {/* Test Information */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Test Information
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-gray-700 leading-relaxed">
-              {test.description.long}
-            </p>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Start Date & Time</p>
+                <p className="font-medium text-foreground">{formatDate(test.startDate)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Marking Type</p>
+                <Badge variant="outline">
+                  {test.markingType === "PQM" ? "Per Question Marking" : "Overall Marking"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Total Questions</p>
+                <p className="font-medium text-foreground">{test.questions.length} questions</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Test ID</p>
+                <p className="font-mono text-xs text-foreground">{test._id}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Description */}
+        {test.description.long && (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Description
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground leading-relaxed">{test.description.long}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Questions Section */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="h-5 w-5 text-indigo-600" />
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
               Questions ({test.questions.length} Total)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-[600px] pr-4">
-              <div className="space-y-6">
-                {Object.entries(questionsBySubject).map(
-                  ([subject, questions]) => (
-                    <div key={subject} className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <Badge
-                          className={`${getSubjectColor(
-                            subject
-                          )} font-medium px-3 py-1`}
-                        >
-                          {subject.charAt(0).toUpperCase() + subject.slice(1)}
-                        </Badge>
-                        <span className="text-sm text-gray-600">
-                          {questions.length} question
-                          {questions.length !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {questions.map((question, index) => (
-                          <div
-                            key={question._id}
-                            className="bg-gradient-to-r from-gray-50 to-white p-4 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
-                                    Q{index + 1}
-                                  </span>
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-xs ${getTopicColor(
-                                      question.subject
-                                    )}`}
-                                  >
-                                    {question.topic}
-                                  </Badge>
-                                </div>
-                                <p className="text-gray-900 font-medium leading-relaxed">
-                                  {question.title}
-                                </p>
-                              </div>
+            <div className="space-y-6">
+              {Object.entries(questionsBySubject).map(([subject, questions]) => (
+                <div key={subject} className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Badge className={`${getSubjectColor(subject)} capitalize`}>
+                      {subject}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {questions.length} question{questions.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <Separator />
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">#</TableHead>
+                        <TableHead>Question</TableHead>
+                        <TableHead>Topic</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Difficulty</TableHead>
+                        <TableHead>Marks</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {questions.map((question, index) => (
+                        <TableRow key={question._id}>
+                          <TableCell>
+                            <Badge variant="outline">Q{index + 1}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <p className="max-w-2xl text-sm font-medium text-foreground line-clamp-1 truncate">
+                              {question.title}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {question.topic}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {(question as any)?.type || "MCQ"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(question as any)?.difficulty ? (
+                              <Badge className={`text-xs ${getDifficultyColor((question as any).difficulty)}`}>
+                                {(question as any).difficulty}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs">
+                              <span className="text-green-600">
+                                +{(question as any).positiveMarks || test.overallMarks.positive}
+                              </span>
+                              {" / "}
+                              <span className="text-red-600">
+                                -{Math.abs((question as any).negativeMarks || test.overallMarks.negative)}
+                              </span>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            </ScrollArea>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
         {/* Test Metadata */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-900">
-              Test Metadata
-            </CardTitle>
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg">Test Metadata</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-gray-600">Created:</span>
-                <div className="font-medium text-gray-900">
-                  {formatDate(test.createdAt)}
-                </div>
+                <p className="text-muted-foreground mb-1">Created</p>
+                <p className="font-medium text-foreground">{formatDate(test.createdAt)}</p>
               </div>
               <div>
-                <span className="text-gray-600">Last Updated:</span>
-                <div className="font-medium text-gray-900">
-                  {formatDate(test.updatedAt)}
-                </div>
+                <p className="text-muted-foreground mb-1">Last Updated</p>
+                <p className="font-medium text-foreground">{formatDate(test.updatedAt)}</p>
               </div>
               <div>
-                <span className="text-gray-600">Test Slug:</span>
-                <div className="font-medium text-gray-900 font-mono text-xs">
-                  {test.slug}
-                </div>
+                <p className="text-muted-foreground mb-1">Test Slug</p>
+                <p className="font-mono text-xs text-foreground">{test.slug}</p>
               </div>
             </div>
           </CardContent>

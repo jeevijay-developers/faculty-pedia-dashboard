@@ -7,10 +7,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,23 +19,33 @@ import {
   Plus,
   Loader2,
   FileQuestion,
-  Clock,
-  Calendar,
   MoreHorizontal,
   Eye,
   Edit,
   Trash2,
-  Target,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { getEducatorTests } from "@/util/server";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EditTestDialog } from "@/components/edit-test-dialog";
+import { DeleteTestAlert } from "@/components/delete-test-alert";
+import { getEducatorTests, deleteLiveTest } from "@/util/server";
 import { Test, TestsResponse } from "@/lib/types/test";
 import { toast } from "sonner";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function CreateTestPage() {
   const { educator } = useAuth();
   const router = useRouter();
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<Test | null>(null);
+  const [testToDelete, setTestToDelete] = useState<Test | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!educator?._id) {
@@ -67,6 +73,35 @@ export default function CreateTestPage() {
 
   const handleViewTest = (test: Test) => {
     router.push(`/dashboard/test/${test._id}`);
+  };
+
+  const handleEditTest = (test: Test) => {
+    setSelectedTest(test);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteTest = (test: Test) => {
+    setTestToDelete(test);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const confirmDeleteTest = async () => {
+    if (!testToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      await deleteLiveTest(testToDelete._id);
+      toast.success("Test deleted successfully!");
+      setIsDeleteAlertOpen(false);
+      setTestToDelete(null);
+      // Refresh tests list
+      fetchTests();
+    } catch (error: any) {
+      console.error("Error deleting test:", error);
+      toast.error(error.response?.data?.message || "Failed to delete test");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -114,6 +149,17 @@ export default function CreateTestPage() {
     }
   };
 
+  const totalPages = Math.ceil(tests.length / ITEMS_PER_PAGE);
+  const paginatedTests = tests.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (!educator) {
     return null;
   }
@@ -154,130 +200,172 @@ export default function CreateTestPage() {
             </div>
           </div>
         ) : tests.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {tests.map((test) => (
-              <Card
-                key={test._id}
-                className="bg-card border-border hover:shadow-lg transition-shadow"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge className={getStatusColor(test)}>
-                          {getStatusText(test)}
+          <>
+            <Card className="bg-card border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Test Title</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Specialization</TableHead>
+                    <TableHead>Questions</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Marks</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedTests.map((test) => (
+                    <TableRow key={test._id}>
+                      <TableCell>
+                        <div className="flex flex-col max-w-xs">
+                          <span className="font-medium text-foreground line-clamp-1">
+                            {test.title}
+                          </span>
+                          <span className="text-xs text-muted-foreground line-clamp-1">
+                            {test.description.short}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getSubjectColor(test.subject)}>
+                          {test.subject.charAt(0).toUpperCase() + test.subject.slice(1)}
                         </Badge>
-                        <Badge
-                          variant="outline"
-                          className={getSubjectColor(test.subject)}
-                        >
-                          {test.subject.charAt(0).toUpperCase() +
-                            test.subject.slice(1)}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-lg text-card-foreground line-clamp-1">
-                        {test.title}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      </TableCell>
+                      <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {test.specialization}
                         </Badge>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleViewTest(test)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Test
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Test
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <CardDescription className="line-clamp-2">
-                    {test.description.short}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div className="flex items-center gap-2">
-                      <FileQuestion className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {test.questions.length} questions
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {test.duration} min
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 col-span-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground text-xs">
-                        {formatDate(test.startDate)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-border">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Target className="h-3 w-3" />
-                        <span>
-                          Marks: +{test.overallMarks.positive} /{" "}
-                          {test.overallMarks.negative}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">{test.questions.length}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">{test.duration} min</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(test.startDate)}
                         </span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {test.markingType}
-                      </Badge>
-                    </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(test)}>{getStatusText(test)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          <span className="text-green-600">+{test.overallMarks.positive}</span>
+                          {" / "}
+                          <span className="text-red-600">-{test.overallMarks.negative}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewTest(test)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditTest(test)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Test
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-500 font-semibold"
+                              onClick={() => handleDeleteTest(test)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Test
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, tests.length)} of {tests.length} tests
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <Card className="bg-card border-border">
-            <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="flex flex-col items-center justify-center py-12 px-4">
               <FileQuestion className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                No tests yet
-              </h3>
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">No tests yet</h3>
               <p className="text-muted-foreground text-center mb-4">
                 Create your first test to start building your test library
               </p>
-              <Button
-                onClick={() => router.push("/dashboard/test/create")}
-                className="gap-2"
-              >
+              <Button onClick={() => router.push("/dashboard/test/create")} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Create Your First Test
               </Button>
-            </CardContent>
+            </div>
           </Card>
         )}
       </div>
+
+      {/* Dialogs */}
+      <EditTestDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        test={selectedTest}
+        onTestUpdated={fetchTests}
+      />
+      <DeleteTestAlert
+        open={isDeleteAlertOpen}
+        onOpenChange={setIsDeleteAlertOpen}
+        onConfirm={confirmDeleteTest}
+        loading={deleteLoading}
+        testTitle={testToDelete?.title || ""}
+      />
     </div>
   );
 }

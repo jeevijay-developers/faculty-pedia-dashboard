@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Clock, Video, LinkIcon } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { createLiveClass } from "@/util/server"
-import { toast } from "sonner"
+import toast from "react-hot-toast"
 
 interface CreateLiveClassDialogProps {
   open: boolean

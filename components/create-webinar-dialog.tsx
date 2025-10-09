@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, Video, LinkIcon, Globe } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { createWebinar } from "@/util/server"
-import { toast } from "sonner"
+import toast from "react-hot-toast"
 
 interface CreateWebinarDialogProps {
   open: boolean

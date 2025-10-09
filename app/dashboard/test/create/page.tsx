@@ -35,7 +35,7 @@ import {
 } from "@/util/server";
 import { CreateTestData } from "@/lib/types/test";
 import { Question } from "@/lib/types/test";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 export default function CreateTestPage() {
   const router = useRouter();
