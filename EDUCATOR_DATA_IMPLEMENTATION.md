@@ -1,16 +1,19 @@
 # Educator Data Implementation Guide
 
 ## Overview
+
 This document explains how educator data is managed dynamically in the Faculty Pedia dashboard using localStorage and API calls.
 
 ## Data Storage Structure
 
 ### LocalStorage Keys
+
 1. **`faculty-pedia-auth-token`**: JWT authentication token
 2. **`faculty-pedia-educator-data`**: Complete educator profile data (JSON)
 3. **`user-role`**: User role identifier ("educator")
 
 ### Educator Data Structure
+
 ```typescript
 {
   _id: string
@@ -65,6 +68,7 @@ This document explains how educator data is managed dynamically in the Faculty P
 The auth context manages the global educator state and provides helper methods:
 
 **Key Features:**
+
 - Automatically loads educator data from localStorage on mount
 - Provides `educator` object to all components
 - `getFullName()`: Returns formatted full name
@@ -73,19 +77,20 @@ The auth context manages the global educator state and provides helper methods:
 - `logout()`: Clears all data and redirects
 
 **Usage Example:**
+
 ```typescript
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/contexts/auth-context";
 
 function MyComponent() {
-  const { educator, getFullName, isAuthenticated } = useAuth()
-  
+  const { educator, getFullName, isAuthenticated } = useAuth();
+
   return (
     <div>
       <h1>Welcome, {getFullName()}</h1>
       <p>Email: {educator?.email}</p>
       <p>Specialization: {educator?.specialization}</p>
     </div>
-  )
+  );
 }
 ```
 
@@ -94,64 +99,75 @@ function MyComponent() {
 All API calls are centralized in `server.js` for clean and organized code.
 
 **Helper Functions:**
+
 - `getAuthToken()`: Retrieves token from localStorage
 - `getAuthHeaders()`: Returns authorization headers with token
 
 **Available API Methods:**
 
 #### Authentication
+
 - `loginEducator(email, password)`: Login and get token + educator data
 
 #### Profile Management
+
 - `getEducatorProfile()`: Fetch current educator profile
 - `updateEducatorProfile(data)`: Update educator profile
 
 #### Courses
+
 - `getEducatorCourses()`: Get all courses by educator
 - `createCourse(courseData)`: Create new course
 - `updateCourse(courseId, courseData)`: Update existing course
 - `deleteCourse(courseId)`: Delete a course
 
 #### Question Bank
+
 - `getEducatorQuestions()`: Get all questions
 - `createQuestion(questionData)`: Create new question
 - `updateQuestion(questionId, questionData)`: Update question
 - `deleteQuestion(questionId)`: Delete question
 
 #### Test Series
+
 - `getEducatorTestSeries()`: Get all test series
 - `createTestSeries(testSeriesData)`: Create test series
 - `updateTestSeries(testSeriesId, testSeriesData)`: Update test series
 - `deleteTestSeries(testSeriesId)`: Delete test series
 
-#### Live Classes
-- `getEducatorLiveClasses()`: Get all live classes
+#### Pay Per Hour
+
+- `getEducatorLiveClasses()`: Get all Pay Per Hour
 - `createLiveClass(liveClassData)`: Create live class
 - `updateLiveClass(liveClassId, liveClassData)`: Update live class
 - `deleteLiveClass(liveClassId)`: Delete live class
 
 #### Webinars
+
 - `getEducatorWebinars()`: Get all webinars
 - `createWebinar(webinarData)`: Create webinar
 - `updateWebinar(webinarId, webinarData)`: Update webinar
 - `deleteWebinar(webinarId)`: Delete webinar
 
 #### Students
+
 - `getEducatorStudents()`: Get all enrolled students
 
 #### Dashboard
+
 - `getDashboardStats()`: Get dashboard statistics
 
 **Usage Example:**
+
 ```typescript
-import { getEducatorCourses, createCourse } from "@/util/server"
+import { getEducatorCourses, createCourse } from "@/util/server";
 
 async function loadCourses() {
   try {
-    const response = await getEducatorCourses()
-    console.log("Courses:", response.courses)
+    const response = await getEducatorCourses();
+    console.log("Courses:", response.courses);
   } catch (error) {
-    console.error("Failed to load courses:", error)
+    console.error("Failed to load courses:", error);
   }
 }
 
@@ -162,11 +178,11 @@ async function addCourse() {
       description: "Complete physics course",
       price: 5000,
       // ... other fields
-    }
-    const response = await createCourse(newCourse)
-    console.log("Course created:", response.course)
+    };
+    const response = await createCourse(newCourse);
+    console.log("Course created:", response.course);
   } catch (error) {
-    console.error("Failed to create course:", error)
+    console.error("Failed to create course:", error);
   }
 }
 ```
@@ -176,12 +192,14 @@ async function addCourse() {
 The sidebar dynamically displays educator information:
 
 **Dynamic Features:**
+
 - Shows educator's profile image or initials
 - Displays full name (firstName + lastName)
 - Shows email address
 - All data pulled from auth context
 
 **Key Functions:**
+
 - `getInitials()`: Generates initials from first and last name
 - `getProfileImage()`: Returns profile image URL or null
 - `getFullName()`: From auth context
@@ -189,6 +207,7 @@ The sidebar dynamically displays educator information:
 ### 4. Login Page (`components/login-page.tsx`)
 
 **Updated Features:**
+
 - Handles both `TOKEN` and `token` response formats
 - Properly saves educator data to localStorage via auth context
 - Shows appropriate error messages
@@ -197,64 +216,68 @@ The sidebar dynamically displays educator information:
 ## Best Practices
 
 ### 1. Always Use Auth Context
+
 ```typescript
 // ✅ GOOD
-const { educator } = useAuth()
-const name = `${educator?.firstName} ${educator?.lastName}`
+const { educator } = useAuth();
+const name = `${educator?.firstName} ${educator?.lastName}`;
 
 // ❌ BAD
-const data = localStorage.getItem("faculty-pedia-educator-data")
-const educator = JSON.parse(data)
+const data = localStorage.getItem("faculty-pedia-educator-data");
+const educator = JSON.parse(data);
 ```
 
 ### 2. Use Server Methods for API Calls
+
 ```typescript
 // ✅ GOOD
-import { getEducatorCourses } from "@/util/server"
-const courses = await getEducatorCourses()
+import { getEducatorCourses } from "@/util/server";
+const courses = await getEducatorCourses();
 
 // ❌ BAD
-const token = localStorage.getItem("faculty-pedia-auth-token")
+const token = localStorage.getItem("faculty-pedia-auth-token");
 const response = await axios.get("/api/courses", {
-  headers: { Authorization: `Bearer ${token}` }
-})
+  headers: { Authorization: `Bearer ${token}` },
+});
 ```
 
 ### 3. Handle Loading and Error States
+
 ```typescript
-const [loading, setLoading] = useState(true)
-const [error, setError] = useState(null)
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
 
 useEffect(() => {
   async function loadData() {
     try {
-      setLoading(true)
-      const response = await getEducatorCourses()
-      setCourses(response.courses)
+      setLoading(true);
+      const response = await getEducatorCourses();
+      setCourses(response.courses);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
-  loadData()
-}, [])
+  loadData();
+}, []);
 ```
 
 ### 4. Update Context After Profile Changes
-```typescript
-import { updateEducatorProfile } from "@/util/server"
-import { useAuth } from "@/contexts/auth-context"
 
-const { updateEducator } = useAuth()
+```typescript
+import { updateEducatorProfile } from "@/util/server";
+import { useAuth } from "@/contexts/auth-context";
+
+const { updateEducator } = useAuth();
 
 async function saveProfile(data) {
   try {
-    const response = await updateEducatorProfile(data)
+    const response = await updateEducatorProfile(data);
     // Update context so UI reflects changes immediately
-    updateEducator(response.educator)
+    updateEducator(response.educator);
   } catch (error) {
-    console.error("Failed to update profile:", error)
+    console.error("Failed to update profile:", error);
   }
 }
 ```
@@ -269,66 +292,66 @@ async function saveProfile(data) {
 ## Example: Building a Courses Page
 
 ```typescript
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { getEducatorCourses, createCourse, deleteCourse } from "@/util/server"
-import toast from "react-hot-toast"
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { getEducatorCourses, createCourse, deleteCourse } from "@/util/server";
+import toast from "react-hot-toast";
 
 export default function CoursesPage() {
-  const { educator, getFullName } = useAuth()
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { educator, getFullName } = useAuth();
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCourses()
-  }, [])
+    loadCourses();
+  }, []);
 
   async function loadCourses() {
     try {
-      setLoading(true)
-      const response = await getEducatorCourses()
-      setCourses(response.courses)
+      setLoading(true);
+      const response = await getEducatorCourses();
+      setCourses(response.courses);
     } catch (error) {
-      toast.error("Failed to load courses")
-      console.error(error)
+      toast.error("Failed to load courses");
+      console.error(error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleCreateCourse(courseData) {
     try {
-      const response = await createCourse(courseData)
-      setCourses([...courses, response.course])
-      toast.success("Course created successfully!")
+      const response = await createCourse(courseData);
+      setCourses([...courses, response.course]);
+      toast.success("Course created successfully!");
     } catch (error) {
-      toast.error("Failed to create course")
-      console.error(error)
+      toast.error("Failed to create course");
+      console.error(error);
     }
   }
 
   async function handleDeleteCourse(courseId) {
     try {
-      await deleteCourse(courseId)
-      setCourses(courses.filter(c => c._id !== courseId))
-      toast.success("Course deleted successfully!")
+      await deleteCourse(courseId);
+      setCourses(courses.filter((c) => c._id !== courseId));
+      toast.success("Course deleted successfully!");
     } catch (error) {
-      toast.error("Failed to delete course")
-      console.error(error)
+      toast.error("Failed to delete course");
+      console.error(error);
     }
   }
 
-  if (loading) return <div>Loading...</div>
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div>
       <h1>Courses by {getFullName()}</h1>
       <p>Specialization: {educator?.specialization}</p>
-      
+
       <div className="courses-grid">
-        {courses.map(course => (
+        {courses.map((course) => (
           <div key={course._id}>
             <h3>{course.title}</h3>
             <button onClick={() => handleDeleteCourse(course._id)}>
@@ -338,23 +361,26 @@ export default function CoursesPage() {
         ))}
       </div>
     </div>
-  )
+  );
 }
 ```
 
 ## Troubleshooting
 
 ### Issue: Educator data is null
+
 - Check if localStorage has `faculty-pedia-educator-data`
 - Verify you're logged in (check for token)
 - Try logging out and logging back in
 
 ### Issue: API calls return 401
+
 - Token might be expired
 - Check if token is being sent in headers
 - Verify backend is running and accessible
 
 ### Issue: Data not updating in UI
+
 - Make sure to use `updateEducator()` after profile updates
 - Check if you're using the auth context properly
 - Verify state is being updated in components

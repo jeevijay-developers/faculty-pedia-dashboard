@@ -117,14 +117,14 @@ export const getCoursesByIds = async (courseIds) => {
 export const createCourse = async (courseData, educatorId) => {
   try {
     const isFormData =
-      typeof FormData !== "undefined" && courseData instanceof FormData
+      typeof FormData !== "undefined" && courseData instanceof FormData;
 
     const config = {
       headers: {
         ...getAuthHeaders(),
         ...(isFormData ? { "Content-Type": "multipart/form-data" } : {}),
       },
-    }
+    };
 
     const response = await API_CLIENT.post(
       `/api/course/create/${educatorId}`,
@@ -279,11 +279,11 @@ export const createTestSeries = async (testSeriesData) => {
   try {
     // Check if testSeriesData contains a file (image)
     const isFormData = testSeriesData instanceof FormData;
-    
+
     const config = {
       headers: {
         ...getAuthHeaders(),
-        ...(isFormData && { 'Content-Type': 'multipart/form-data' }),
+        ...(isFormData && { "Content-Type": "multipart/form-data" }),
       },
     };
 
@@ -363,7 +363,84 @@ export const getTestSeriesByIds = async (testSeriesIds) => {
   }
 };
 
-// Live Classes APIs
+// Pay Per Hour APIs
+export const getEducatorPayPerHourSessions = async (educatorId) => {
+  try {
+    const response = await API_CLIENT.get(
+      `/api/pay-per-hour/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching Pay Per Hour sessions:", error);
+    throw error;
+  }
+};
+
+export const createPayPerHourSession = async (sessionData) => {
+  try {
+    const response = await API_CLIENT.post(
+      "/api/pay-per-hour/create-pph",
+      sessionData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating Pay Per Hour session:", error);
+    throw error;
+  }
+};
+
+export const updatePayPerHourSession = async (sessionId, sessionData) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/pay-per-hour/edit/${sessionId}`,
+      sessionData,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating Pay Per Hour session:", error);
+    throw error;
+  }
+};
+
+export const deletePayPerHourSession = async (sessionId) => {
+  try {
+    const response = await API_CLIENT.delete(
+      `/api/pay-per-hour/delete/${sessionId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting Pay Per Hour session:", error);
+    throw error;
+  }
+};
+
+export const getEducatorWebinars = async (educatorId) => {
+  try {
+    const response = await API_CLIENT.get(
+      `/api/webinars/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator webinars:", error);
+    throw error;
+  }
+};
+
 export const getEducatorLiveClasses = async () => {
   try {
     const response = await API_CLIENT.get("/api/educator/live-classes", {
@@ -371,7 +448,7 @@ export const getEducatorLiveClasses = async () => {
     });
     return response.data;
   } catch (error) {
-    console.error("Error fetching live classes:", error);
+    console.error("Error fetching Pay Per Hour:", error);
     throw error;
   }
 };
@@ -451,28 +528,38 @@ export const getLiveClassesByIds = async (liveClassIds) => {
 
     return results.filter((liveClass) => liveClass !== null);
   } catch (error) {
-    console.error("Error fetching live classes by IDs:", error);
+    console.error("Error fetching Pay Per Hour by IDs:", error);
     throw error;
   }
 };
 
-// Webinar APIs
-export const getEducatorWebinars = async () => {
+// Image upload function
+export const uploadImage = async (imageFile) => {
   try {
-    const response = await API_CLIENT.get("/api/educator/webinars", {
-      headers: getAuthHeaders(),
-    });
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const response = await API_CLIENT.post(
+      "/api/images/upload-image",
+      formData,
+      {
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return response.data;
   } catch (error) {
-    console.error("Error fetching webinars:", error);
+    console.error("Error uploading image:", error);
     throw error;
   }
 };
 
-export const createWebinar = async (webinarData) => {
+export const createWebinar = async (educatorId, webinarData) => {
   try {
     const response = await API_CLIENT.post(
-      "/api/educator/webinars",
+      `/api/webinars/create-webinar/${educatorId}`,
       webinarData,
       {
         headers: getAuthHeaders(),
@@ -488,7 +575,7 @@ export const createWebinar = async (webinarData) => {
 export const updateWebinar = async (webinarId, webinarData) => {
   try {
     const response = await API_CLIENT.put(
-      `/api/educator/webinars/${webinarId}`,
+      `/api/webinars/update/${webinarId}`,
       webinarData,
       {
         headers: getAuthHeaders(),
@@ -504,7 +591,7 @@ export const updateWebinar = async (webinarId, webinarData) => {
 export const deleteWebinar = async (webinarId) => {
   try {
     const response = await API_CLIENT.delete(
-      `/api/educator/webinars/${webinarId}`,
+      `/api/webinars/delete/${webinarId}`,
       {
         headers: getAuthHeaders(),
       }

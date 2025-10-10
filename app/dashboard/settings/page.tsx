@@ -1,18 +1,30 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { User, Bell, Shield, Palette, Save } from "lucide-react"
+import { useState } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { User, Bell, Shield, Palette, Save } from "lucide-react";
 
 export default function SettingsPage() {
   const [profileData, setProfileData] = useState({
@@ -24,7 +36,7 @@ export default function SettingsPage() {
     subjects: ["Physics", "Mathematics"],
     experience: "10+ years",
     qualifications: "M.Sc Physics, B.Ed",
-  })
+  });
 
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -33,18 +45,21 @@ export default function SettingsPage() {
     testSubmissions: true,
     liveClassReminders: true,
     weeklyReports: false,
-  })
+  });
 
   const [preferences, setPreferences] = useState({
     theme: "dark",
     language: "english",
     timezone: "Asia/Kolkata",
     defaultCurrency: "INR",
-  })
+  });
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Settings" description="Manage your account and preferences" />
+      <DashboardHeader
+        title="Settings"
+        description="Manage your account and preferences"
+      />
 
       <div className="px-6 space-y-6">
         <Tabs defaultValue="profile" className="space-y-6">
@@ -70,13 +85,20 @@ export default function SettingsPage() {
           <TabsContent value="profile" className="space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-card-foreground">Profile Information</CardTitle>
-                <CardDescription>Update your personal and professional details</CardDescription>
+                <CardTitle className="text-card-foreground">
+                  Profile Information
+                </CardTitle>
+                <CardDescription>
+                  Update your personal and professional details
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src="/placeholder.svg" alt={profileData.name} />
+                    <AvatarImage
+                      src="/placeholder.svg"
+                      alt={profileData.name}
+                    />
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
                       {profileData.name
                         .split(" ")
@@ -88,7 +110,9 @@ export default function SettingsPage() {
                     <Button variant="outline" size="sm">
                       Change Photo
                     </Button>
-                    <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max size 2MB.</p>
+                    <p className="text-xs text-muted-foreground">
+                      JPG, PNG or GIF. Max size 2MB.
+                    </p>
                   </div>
                 </div>
 
@@ -98,7 +122,12 @@ export default function SettingsPage() {
                     <Input
                       id="name"
                       value={profileData.name}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -107,7 +136,12 @@ export default function SettingsPage() {
                       id="email"
                       type="email"
                       value={profileData.email}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -118,7 +152,12 @@ export default function SettingsPage() {
                     <Input
                       id="phone"
                       value={profileData.phone}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          phone: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -126,7 +165,12 @@ export default function SettingsPage() {
                     <Input
                       id="experience"
                       value={profileData.experience}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, experience: e.target.value }))}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          experience: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -137,7 +181,12 @@ export default function SettingsPage() {
                     id="bio"
                     rows={3}
                     value={profileData.bio}
-                    onChange={(e) => setProfileData((prev) => ({ ...prev, bio: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        bio: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -146,7 +195,12 @@ export default function SettingsPage() {
                   <Input
                     id="qualifications"
                     value={profileData.qualifications}
-                    onChange={(e) => setProfileData((prev) => ({ ...prev, qualifications: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        qualifications: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -190,20 +244,29 @@ export default function SettingsPage() {
           <TabsContent value="notifications" className="space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-card-foreground">Notification Preferences</CardTitle>
-                <CardDescription>Choose how you want to be notified about important events</CardDescription>
+                <CardTitle className="text-card-foreground">
+                  Notification Preferences
+                </CardTitle>
+                <CardDescription>
+                  Choose how you want to be notified about important events
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Email Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                      <p className="text-sm text-muted-foreground">
+                        Receive notifications via email
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.emailNotifications}
                       onCheckedChange={(checked) =>
-                        setNotifications((prev) => ({ ...prev, emailNotifications: checked }))
+                        setNotifications((prev) => ({
+                          ...prev,
+                          emailNotifications: checked,
+                        }))
                       }
                     />
                   </div>
@@ -211,12 +274,17 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Push Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive push notifications in browser</p>
+                      <p className="text-sm text-muted-foreground">
+                        Receive push notifications in browser
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.pushNotifications}
                       onCheckedChange={(checked) =>
-                        setNotifications((prev) => ({ ...prev, pushNotifications: checked }))
+                        setNotifications((prev) => ({
+                          ...prev,
+                          pushNotifications: checked,
+                        }))
                       }
                     />
                   </div>
@@ -224,12 +292,17 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Student Enrollments</Label>
-                      <p className="text-sm text-muted-foreground">Get notified when students enroll in your courses</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when students enroll in your courses
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.studentEnrollments}
                       onCheckedChange={(checked) =>
-                        setNotifications((prev) => ({ ...prev, studentEnrollments: checked }))
+                        setNotifications((prev) => ({
+                          ...prev,
+                          studentEnrollments: checked,
+                        }))
                       }
                     />
                   </div>
@@ -237,23 +310,35 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Test Submissions</Label>
-                      <p className="text-sm text-muted-foreground">Get notified when students submit tests</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when students submit tests
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.testSubmissions}
-                      onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, testSubmissions: checked }))}
+                      onCheckedChange={(checked) =>
+                        setNotifications((prev) => ({
+                          ...prev,
+                          testSubmissions: checked,
+                        }))
+                      }
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Live Class Reminders</Label>
-                      <p className="text-sm text-muted-foreground">Get reminded about upcoming live classes</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get reminded about upcoming Pay Per Hour
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.liveClassReminders}
                       onCheckedChange={(checked) =>
-                        setNotifications((prev) => ({ ...prev, liveClassReminders: checked }))
+                        setNotifications((prev) => ({
+                          ...prev,
+                          liveClassReminders: checked,
+                        }))
                       }
                     />
                   </div>
@@ -261,11 +346,18 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Weekly Reports</Label>
-                      <p className="text-sm text-muted-foreground">Receive weekly performance reports</p>
+                      <p className="text-sm text-muted-foreground">
+                        Receive weekly performance reports
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.weeklyReports}
-                      onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, weeklyReports: checked }))}
+                      onCheckedChange={(checked) =>
+                        setNotifications((prev) => ({
+                          ...prev,
+                          weeklyReports: checked,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -281,8 +373,12 @@ export default function SettingsPage() {
           <TabsContent value="preferences" className="space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-card-foreground">Application Preferences</CardTitle>
-                <CardDescription>Customize your dashboard experience</CardDescription>
+                <CardTitle className="text-card-foreground">
+                  Application Preferences
+                </CardTitle>
+                <CardDescription>
+                  Customize your dashboard experience
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -290,7 +386,9 @@ export default function SettingsPage() {
                     <Label htmlFor="theme">Theme</Label>
                     <Select
                       value={preferences.theme}
-                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, theme: value }))}
+                      onValueChange={(value) =>
+                        setPreferences((prev) => ({ ...prev, theme: value }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -307,7 +405,9 @@ export default function SettingsPage() {
                     <Label htmlFor="language">Language</Label>
                     <Select
                       value={preferences.language}
-                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, language: value }))}
+                      onValueChange={(value) =>
+                        setPreferences((prev) => ({ ...prev, language: value }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -326,15 +426,21 @@ export default function SettingsPage() {
                     <Label htmlFor="timezone">Timezone</Label>
                     <Select
                       value={preferences.timezone}
-                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, timezone: value }))}
+                      onValueChange={(value) =>
+                        setPreferences((prev) => ({ ...prev, timezone: value }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
+                        <SelectItem value="Asia/Kolkata">
+                          Asia/Kolkata (IST)
+                        </SelectItem>
                         <SelectItem value="UTC">UTC</SelectItem>
-                        <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
+                        <SelectItem value="America/New_York">
+                          America/New_York (EST)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -343,7 +449,12 @@ export default function SettingsPage() {
                     <Label htmlFor="currency">Default Currency</Label>
                     <Select
                       value={preferences.defaultCurrency}
-                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, defaultCurrency: value }))}
+                      onValueChange={(value) =>
+                        setPreferences((prev) => ({
+                          ...prev,
+                          defaultCurrency: value,
+                        }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -368,31 +479,51 @@ export default function SettingsPage() {
           <TabsContent value="security" className="space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-card-foreground">Security Settings</CardTitle>
-                <CardDescription>Manage your account security and privacy</CardDescription>
+                <CardTitle className="text-card-foreground">
+                  Security Settings
+                </CardTitle>
+                <CardDescription>
+                  Manage your account security and privacy
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="current-password">Current Password</Label>
-                    <Input id="current-password" type="password" autoComplete="current-password" />
+                    <Input
+                      id="current-password"
+                      type="password"
+                      autoComplete="current-password"
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="new-password">New Password</Label>
-                    <Input id="new-password" type="password" autoComplete="new-password" />
+                    <Input
+                      id="new-password"
+                      type="password"
+                      autoComplete="new-password"
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input id="confirm-password" type="password" autoComplete="new-password" />
+                    <Label htmlFor="confirm-password">
+                      Confirm New Password
+                    </Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                    />
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border border-border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Two-Factor Authentication</Label>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add an extra layer of security to your account
+                    </p>
                   </div>
                   <Button variant="outline">Enable 2FA</Button>
                 </div>
@@ -400,7 +531,9 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-4 border border-border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Active Sessions</Label>
-                    <p className="text-sm text-muted-foreground">Manage your active login sessions</p>
+                    <p className="text-sm text-muted-foreground">
+                      Manage your active login sessions
+                    </p>
                   </div>
                   <Button variant="outline">View Sessions</Button>
                 </div>
@@ -415,5 +548,5 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

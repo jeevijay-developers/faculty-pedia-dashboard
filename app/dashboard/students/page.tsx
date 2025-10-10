@@ -1,15 +1,36 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Users, TrendingUp, BookOpen, TestTube, Video, MoreHorizontal, Mail, Phone } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useState } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Search,
+  Users,
+  TrendingUp,
+  BookOpen,
+  TestTube,
+  Video,
+  MoreHorizontal,
+  Mail,
+  Phone,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Mock student data
 const students = [
@@ -55,7 +76,7 @@ const students = [
     performance: "Average",
     joinedDate: "2024-01-05",
   },
-]
+];
 
 const studentStats = [
   {
@@ -86,35 +107,38 @@ const studentStats = [
     icon: Video,
     trend: "+5% this month",
   },
-]
+];
 
 export default function StudentsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedTab, setSelectedTab] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTab, setSelectedTab] = useState("all");
 
   const filteredStudents = students.filter(
     (student) =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.specialization.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+      student.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getPerformanceBadge = (performance: string) => {
     switch (performance) {
       case "Excellent":
-        return "bg-green-500/10 text-green-500 border-green-500/20"
+        return "bg-green-500/10 text-green-500 border-green-500/20";
       case "Good":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20"
+        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       case "Average":
-        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
       default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20"
+        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Student Management" description="Monitor and manage your student community" />
+      <DashboardHeader
+        title="Student Management"
+        description="Monitor and manage your student community"
+      />
 
       <div className="px-6 space-y-6">
         {/* Stats Grid */}
@@ -122,12 +146,18 @@ export default function StudentsPage() {
           {studentStats.map((stat) => (
             <Card key={stat.title} className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground">{stat.title}</CardTitle>
+                <CardTitle className="text-sm font-medium text-card-foreground">
+                  {stat.title}
+                </CardTitle>
                 <stat.icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-card-foreground">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
+                <div className="text-2xl font-bold text-card-foreground">
+                  {stat.value}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
                 <div className="flex items-center mt-2 text-xs text-primary">
                   <TrendingUp className="h-3 w-3 mr-1" />
                   {stat.trend}
@@ -140,7 +170,9 @@ export default function StudentsPage() {
         {/* Search and Filters */}
         <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-card-foreground">Student Directory</CardTitle>
+            <CardTitle className="text-card-foreground">
+              Student Directory
+            </CardTitle>
             <CardDescription>Search and manage your students</CardDescription>
           </CardHeader>
           <CardContent>
@@ -167,12 +199,18 @@ export default function StudentsPage() {
               <TabsContent value="all" className="mt-6">
                 <div className="space-y-4">
                   {filteredStudents.map((student) => (
-                    <Card key={student.id} className="bg-muted/30 border-border">
+                    <Card
+                      key={student.id}
+                      className="bg-muted/30 border-border"
+                    >
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <Avatar className="h-12 w-12">
-                              <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
+                              <AvatarImage
+                                src={student.avatar || "/placeholder.svg"}
+                                alt={student.name}
+                              />
                               <AvatarFallback className="bg-primary/10 text-primary">
                                 {student.name
                                   .split(" ")
@@ -181,12 +219,18 @@ export default function StudentsPage() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="space-y-1">
-                              <h3 className="text-lg font-semibold text-card-foreground">{student.name}</h3>
+                              <h3 className="text-lg font-semibold text-card-foreground">
+                                {student.name}
+                              </h3>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
                                   {student.specialization}
                                 </Badge>
-                                <Badge className={getPerformanceBadge(student.performance)}>
+                                <Badge
+                                  className={getPerformanceBadge(
+                                    student.performance
+                                  )}
+                                >
                                   {student.performance}
                                 </Badge>
                               </div>
@@ -208,30 +252,50 @@ export default function StudentsPage() {
                               <div className="text-2xl font-bold text-card-foreground">
                                 {student.enrolledCourses.length}
                               </div>
-                              <div className="text-xs text-muted-foreground">Courses</div>
+                              <div className="text-xs text-muted-foreground">
+                                Courses
+                              </div>
                             </div>
                             <div className="text-center">
-                              <div className="text-2xl font-bold text-card-foreground">{student.testsCompleted}</div>
-                              <div className="text-xs text-muted-foreground">Tests</div>
+                              <div className="text-2xl font-bold text-card-foreground">
+                                {student.testsCompleted}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Tests
+                              </div>
                             </div>
                             <div className="text-center">
                               <div className="text-2xl font-bold text-card-foreground">
                                 {student.liveClassesAttended}
                               </div>
-                              <div className="text-xs text-muted-foreground">Live Classes</div>
+                              <div className="text-xs text-muted-foreground">
+                                Pay Per Hour
+                              </div>
                             </div>
 
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>View Profile</DropdownMenuItem>
-                                <DropdownMenuItem>Send Message</DropdownMenuItem>
-                                <DropdownMenuItem>View Progress</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">Remove Student</DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  View Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  Send Message
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  View Progress
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">
+                                  Remove Student
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -240,10 +304,16 @@ export default function StudentsPage() {
                         <div className="mt-4 pt-4 border-t border-border">
                           <div className="flex items-center justify-between text-sm">
                             <div>
-                              <span className="text-muted-foreground">Enrolled Courses: </span>
-                              <span className="text-card-foreground">{student.enrolledCourses.join(", ")}</span>
+                              <span className="text-muted-foreground">
+                                Enrolled Courses:{" "}
+                              </span>
+                              <span className="text-card-foreground">
+                                {student.enrolledCourses.join(", ")}
+                              </span>
                             </div>
-                            <div className="text-muted-foreground">Last active: {student.lastActive}</div>
+                            <div className="text-muted-foreground">
+                              Last active: {student.lastActive}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -278,5 +348,5 @@ export default function StudentsPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

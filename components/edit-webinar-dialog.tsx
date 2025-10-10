@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,14 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
-import { createWebinar, uploadImage } from "@/util/server";
+import { updateWebinar, uploadImage } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
-import toast from "react-hot-toast";
 
-interface CreateWebinarDialogProps {
+interface EditWebinarDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onWebinarCreated?: () => void;
+  webinar: any | null;
+  onWebinarUpdated?: () => void;
 }
 
 interface AssetLink {
@@ -36,13 +36,13 @@ interface AssetLink {
   link: string;
 }
 
-export function CreateWebinarDialog({
+export function EditWebinarDialog({
   open,
   onOpenChange,
-  onWebinarCreated,
-}: CreateWebinarDialogProps) {
+  webinar,
+  onWebinarUpdated,
+}: EditWebinarDialogProps) {
   const [formData, setFormData] = useState({
-    title: "",
     shortDescription: "",
     longDescription: "",
     webinarType: "OTA" as "OTO" | "OTA",
@@ -51,8 +51,6 @@ export function CreateWebinarDialog({
     specialization: "CBSE" as "IIT-JEE" | "NEET" | "CBSE",
     date: "",
     seatLimit: "",
-    duration: "",
-    fees: "",
     webinarLink: "",
     assetLinks: [] as AssetLink[],
   });
@@ -66,6 +64,30 @@ export function CreateWebinarDialog({
   const [newAssetLink, setNewAssetLink] = useState("");
 
   const { educator } = useAuth();
+
+  // Populate form when webinar changes
+  useEffect(() => {
+    if (webinar && open) {
+      setFormData({
+        shortDescription: webinar.description?.short || "",
+        longDescription: webinar.description?.long || "",
+        webinarType: webinar.webinarType || "OTA",
+        time: webinar.time || "",
+        subject: webinar.subject || "",
+        specialization: webinar.specialization || "CBSE",
+        date: webinar.date
+          ? new Date(webinar.date).toISOString().split("T")[0]
+          : "",
+        seatLimit: webinar.seatLimit?.toString() || "",
+        webinarLink: webinar.webinarLink || "",
+        assetLinks: webinar.assetsLinks || [],
+      });
+      setImagePreview(webinar.image?.url || null);
+      setSelectedImage(null);
+      setError(null);
+      setSuccess(false);
+    }
+  }, [webinar, open]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -107,62 +129,8 @@ export function CreateWebinarDialog({
   };
 
   const handleSubmit = async () => {
-    // Validate required fields
-    if (!formData.title.trim()) {
-      setError("Title is required");
-      return;
-    }
-    if (!formData.shortDescription.trim()) {
-      setError("Short description is required");
-      return;
-    }
-    if (!formData.longDescription.trim()) {
-      setError("Long description is required");
-      return;
-    }
-    if (!formData.subject.trim()) {
-      setError("Subject is required");
-      return;
-    }
-    if (!formData.date.trim()) {
-      setError("Date is required");
-      return;
-    }
-    if (!formData.time.trim()) {
-      setError("Time is required");
-      return;
-    }
-    if (!formData.seatLimit.trim()) {
-      setError("Seat limit is required");
-      return;
-    }
-    if (isNaN(Number(formData.seatLimit)) || Number(formData.seatLimit) <= 0) {
-      setError("Seat limit must be a valid positive number");
-      return;
-    }
-    if (!formData.duration.trim()) {
-      setError("Duration is required");
-      return;
-    }
-    if (isNaN(Number(formData.duration)) || Number(formData.duration) <= 0) {
-      setError("Duration must be a valid positive number");
-      return;
-    }
-    if (!formData.fees.trim()) {
-      setError("Fees is required");
-      return;
-    }
-    if (isNaN(Number(formData.fees)) || Number(formData.fees) < 0) {
-      setError("Fees must be a valid non-negative number");
-      return;
-    }
-    if (!formData.webinarLink.trim()) {
-      setError("Webinar link is required");
-      return;
-    }
-
-    if (!educator?._id) {
-      setError("User authentication required");
+    if (!webinar?._id) {
+      setError("Webinar ID is required");
       return;
     }
 
@@ -170,15 +138,15 @@ export function CreateWebinarDialog({
     setError(null);
 
     try {
-      let imageData = null;
+      let imageData = undefined;
 
+      // Only upload if a new image was selected
       if (selectedImage) {
         const imageResponse = await uploadImage(selectedImage);
         imageData = imageResponse.imageUrl;
       }
 
-      const webinarData = {
-        title: formData.title.trim(),
+      const updateData: any = {
         description: {
           short: formData.shortDescription.trim(),
           long: formData.longDescription.trim(),
@@ -189,61 +157,29 @@ export function CreateWebinarDialog({
         specialization: formData.specialization,
         date: new Date(formData.date).toISOString(),
         seatLimit: Number(formData.seatLimit),
-        duration: Number(formData.duration),
-        fees: Number(formData.fees),
-        educatorId: educator._id,
         webinarLink: formData.webinarLink.trim(),
         assetsLinks: formData.assetLinks,
-        ...(imageData && { image: imageData }),
       };
 
-      // console.log("webinarData", webinarData);
+      // Only include image if a new one was uploaded
+      if (imageData) {
+        updateData.image = imageData;
+      }
 
-      await createWebinar(educator._id, webinarData);
+      await updateWebinar(webinar._id, updateData);
       setSuccess(true);
 
-      if (onWebinarCreated) {
-        onWebinarCreated();
+      if (onWebinarUpdated) {
+        onWebinarUpdated();
       }
 
-      // Reset form and close dialog after a delay
       setTimeout(() => {
-        setFormData({
-          title: "",
-          shortDescription: "",
-          longDescription: "",
-          webinarType: "OTA",
-          time: "",
-          subject: "",
-          specialization: "CBSE",
-          date: "",
-          seatLimit: "",
-          duration: "",
-          fees: "",
-          webinarLink: "",
-          assetLinks: [],
-        });
-        setSelectedImage(null);
-        setImagePreview(null);
-        setNewAssetName("PPT");
-        setNewAssetLink("");
-        setSuccess(false);
-        setError(null);
         onOpenChange(false);
+        setSuccess(false);
       }, 2000);
     } catch (error: any) {
-      console.error("Error creating webinar:", error);
-      setError(error?.response?.data?.message || "Failed to create webinar");
-      if (Array.isArray(error?.response?.data?.errors)) {
-        error?.response?.data?.errors.map((err: any) => {
-          if (err !== "Invalid value")
-            toast.error(err, {
-              duration: 8000,
-              position: "top-right",
-              style: { background: "#ffeded", color: "#ff0000" },
-            });
-        });
-      }
+      console.error("Error updating webinar:", error);
+      setError(error?.response?.data?.message || "Failed to update webinar");
     } finally {
       setIsLoading(false);
     }
@@ -253,8 +189,10 @@ export function CreateWebinarDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Webinar</DialogTitle>
-          <DialogDescription>Set up a new webinar session.</DialogDescription>
+          <DialogTitle>Edit Webinar</DialogTitle>
+          <DialogDescription>
+            Update the webinar details below.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -271,23 +209,12 @@ export function CreateWebinarDialog({
             <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                <span className="text-sm">Webinar created successfully!</span>
+                <span className="text-sm">Webinar updated successfully!</span>
               </div>
             </div>
           )}
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g., JEE Physics Problem Solving Marathon"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="webinarType">Webinar Type *</Label>
@@ -392,46 +319,16 @@ export function CreateWebinarDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="seatLimit">Seat Limit *</Label>
-                <Input
-                  id="seatLimit"
-                  type="number"
-                  placeholder="100"
-                  value={formData.seatLimit}
-                  onChange={(e) =>
-                    handleInputChange("seatLimit", e.target.value)
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (min) *</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  placeholder="90"
-                  value={formData.duration}
-                  onChange={(e) =>
-                    handleInputChange("duration", e.target.value)
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fees">Fees (₹) *</Label>
-                <Input
-                  id="fees"
-                  type="number"
-                  placeholder="500"
-                  value={formData.fees}
-                  onChange={(e) => handleInputChange("fees", e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="seatLimit">Seat Limit *</Label>
+              <Input
+                id="seatLimit"
+                type="number"
+                placeholder="100"
+                value={formData.seatLimit}
+                onChange={(e) => handleInputChange("seatLimit", e.target.value)}
+                disabled={isLoading}
+              />
             </div>
 
             <div className="space-y-2">
@@ -591,12 +488,12 @@ export function CreateWebinarDialog({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Updating...
               </>
             ) : success ? (
-              "Created!"
+              "Updated!"
             ) : (
-              "Create Webinar"
+              "Update Webinar"
             )}
           </Button>
         </DialogFooter>

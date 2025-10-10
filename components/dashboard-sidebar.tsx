@@ -56,7 +56,7 @@ const navigation = [
     icon: TestTube,
   },
   {
-    name: "Live Classes/Webinars",
+    name: "Pay Per Hour/Webinars",
     href: "/dashboard/live-classes",
     icon: Video,
   },
