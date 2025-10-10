@@ -12,13 +12,11 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
-  Users,
   BookOpen,
   Target,
   Award,
   Edit,
   Trash2,
-  Copy,
   Loader2,
   FileText,
 } from "lucide-react";
@@ -98,15 +96,6 @@ export default function TestDetailsPage() {
     return colors[difficulty?.toLowerCase() as keyof typeof colors] || "bg-muted";
   };
 
-  const handleDeleteTest = () => {
-    toast.error("Delete functionality not implemented yet");
-  };
-
-
-  const handleEditTest = () => {
-    toast.custom("Edit functionality not implemented yet")
-  };
-
   if (!educator) {
     return null;
   }
@@ -173,17 +162,6 @@ export default function TestDetailsPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Tests
           </Button>
-
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleEditTest} className="gap-2">
-              <Edit className="h-4 w-4" />
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleDeleteTest} className="gap-2 text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </Button>
-          </div>
         </div>
 
         {/* Test Title Card */}

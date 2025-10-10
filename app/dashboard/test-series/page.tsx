@@ -10,8 +10,10 @@ import { Plus, TestTube, Loader2, MoreHorizontal, Edit, Trash2, Eye, ChevronLeft
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CreateTestSeriesDialog } from "@/components/create-test-series-dialog"
+import { EditTestSeriesDialog } from "@/components/edit-test-series-dialog"
+import { DeleteTestSeriesAlert } from "@/components/delete-test-series-alert"
 import { useAuth } from "@/contexts/auth-context"
-import { getTestSeriesByIds } from "@/util/server"
+import { getTestSeriesByIds, deleteTestSeries } from "@/util/server"
 import toast from "react-hot-toast"
 
 const ITEMS_PER_PAGE = 10
@@ -22,32 +24,37 @@ export default function TestSeriesPage() {
   const [testSeries, setTestSeries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  const [selectedSeries, setSelectedSeries] = useState<any>(null)
+  const [seriesToDelete, setSeriesToDelete] = useState<any>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
   // Fetch test series when educator data is available
   useEffect(() => {
-    const fetchTestSeries = async () => {
-      if (!educator?.testSeries || educator.testSeries.length === 0) {
-        setLoading(false)
-        setTestSeries([])
-        return
-      }
-
-      try {
-        setLoading(true)
-        const testSeriesIds = educator.testSeries
-        const fetchedTestSeries = await getTestSeriesByIds(testSeriesIds)
-        setTestSeries(fetchedTestSeries)
-      } catch (error) {
-        console.error("Error fetching test series:", error)
-        toast.error("Failed to load test series")
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchTestSeries()
   }, [educator?.testSeries])
+
+  const fetchTestSeries = async () => {
+    if (!educator?.testSeries || educator.testSeries.length === 0) {
+      setLoading(false)
+      setTestSeries([])
+      return
+    }
+
+    try {
+      setLoading(true)
+      const testSeriesIds = educator.testSeries
+      const fetchedTestSeries = await getTestSeriesByIds(testSeriesIds)
+      setTestSeries(fetchedTestSeries)
+    } catch (error) {
+      console.error("Error fetching test series:", error)
+      toast.error("Failed to load test series")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const totalPages = Math.ceil(testSeries.length / ITEMS_PER_PAGE)
   const paginatedTestSeries = testSeries.slice(
@@ -65,11 +72,32 @@ export default function TestSeriesPage() {
   }
 
   const handleEditTestSeries = (series: any) => {
-    toast.custom("Edit functionality coming soon")
+    setSelectedSeries(series)
+    setIsEditDialogOpen(true)
   }
 
   const handleDeleteTestSeries = (series: any) => {
-    toast.error("Delete functionality coming soon")
+    setSeriesToDelete(series)
+    setIsDeleteAlertOpen(true)
+  }
+
+  const confirmDeleteTestSeries = async () => {
+    if (!seriesToDelete) return
+
+    setDeleteLoading(true)
+    try {
+      await deleteTestSeries(seriesToDelete._id)
+      toast.success("Test series deleted successfully!")
+      setIsDeleteAlertOpen(false)
+      setSeriesToDelete(null)
+      // Refresh the test series list
+      await fetchTestSeries()
+    } catch (error: any) {
+      console.error("Error deleting test series:", error)
+      toast.error(error.response?.data?.message || "Failed to delete test series")
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   const getStatusColor = (series: any) => {
@@ -215,7 +243,7 @@ export default function TestSeriesPage() {
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Series
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTestSeries(series)}>
+                            <DropdownMenuItem className="text-red-500 font-medium" onClick={() => handleDeleteTestSeries(series)}>
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete Series
                             </DropdownMenuItem>
@@ -288,7 +316,25 @@ export default function TestSeriesPage() {
         )}
       </div>
 
-      <CreateTestSeriesDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
+      {/* Dialogs */}
+      <CreateTestSeriesDialog 
+        open={isCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen}
+        onSeriesCreated={fetchTestSeries}
+      />
+      <EditTestSeriesDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        testSeries={selectedSeries}
+        onTestSeriesUpdated={fetchTestSeries}
+      />
+      <DeleteTestSeriesAlert
+        open={isDeleteAlertOpen}
+        onOpenChange={setIsDeleteAlertOpen}
+        onConfirm={confirmDeleteTestSeries}
+        loading={deleteLoading}
+        seriesTitle={seriesToDelete?.title || ""}
+      />
     </div>
   )
 }

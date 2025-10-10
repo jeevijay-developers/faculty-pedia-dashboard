@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import toast from "react-hot-toast"
 import { updateLiveTest } from "@/util/server"
 
 interface EditTestDialogProps {
@@ -73,12 +73,12 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
       }
 
       await updateLiveTest(test._id, updateData)
-      toast.success("Test updated successfully!")
+  toast.success("Test updated successfully!")
       onTestUpdated()
       onOpenChange(false)
     } catch (error: any) {
       console.error("Error updating test:", error)
-      toast.error(error.response?.data?.message || "Failed to update test")
+  toast.error(error.response?.data?.message || "Failed to update test")
     } finally {
       setLoading(false)
     }
@@ -86,7 +86,7 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto ">
         <DialogHeader>
           <DialogTitle>Edit Test</DialogTitle>
         </DialogHeader>
@@ -219,7 +219,6 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
                 onChange={(e) => setFormData({ ...formData, negativeMarks: e.target.value })}
                 placeholder="e.g., 1"
                 step="0.01"
-                min="0"
               />
             </div>
 

@@ -31,7 +31,7 @@ import { EditTestDialog } from "@/components/edit-test-dialog";
 import { DeleteTestAlert } from "@/components/delete-test-alert";
 import { getEducatorTests, deleteLiveTest } from "@/util/server";
 import { Test, TestsResponse } from "@/lib/types/test";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -65,7 +65,7 @@ export default function CreateTestPage() {
       setTests(response.tests);
     } catch (error) {
       console.error("Error fetching tests:", error);
-      toast.error("Failed to load tests");
+  toast.error("Failed to load tests");
     } finally {
       setLoading(false);
     }
@@ -91,14 +91,14 @@ export default function CreateTestPage() {
     setDeleteLoading(true);
     try {
       await deleteLiveTest(testToDelete._id);
-      toast.success("Test deleted successfully!");
+  toast.success("Test deleted successfully!");
       setIsDeleteAlertOpen(false);
       setTestToDelete(null);
       // Refresh tests list
       fetchTests();
     } catch (error: any) {
       console.error("Error deleting test:", error);
-      toast.error(error.response?.data?.message || "Failed to delete test");
+  toast.error(error.response?.data?.message || "Failed to delete test");
     } finally {
       setDeleteLoading(false);
     }
@@ -224,7 +224,7 @@ export default function CreateTestPage() {
                           <span className="font-medium text-foreground line-clamp-1">
                             {test.title}
                           </span>
-                          <span className="text-xs text-muted-foreground line-clamp-1">
+                          <span className="text-xs text-muted-foreground line-clamp-1 truncate">
                             {test.description.short}
                           </span>
                         </div>

@@ -18,13 +18,35 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
-import { createTestSeries, getEducatorTests } from "@/util/server"
+import { createTestSeries, getEducatorTests, getCoursesByIds } from "@/util/server"
 import { Loader2, Plus, RefreshCcw, Trash2, Upload, X, ImageIcon } from "lucide-react"
 import toast from "react-hot-toast"
 
+// Constants
+const INITIAL_FORM_DATA = {
+  title: "",
+  shortDesc: "",
+  longDesc: "",
+  price: "",
+  validity: "180",
+  noOfTests: "0",
+  startDate: "",
+  endDate: "",
+  subject: "",
+  specialization: "",
+  isCourseSpecific: false,
+  courseId: "",
+}
+
+const SUBJECTS = ["Physics", "Chemistry", "Mathematics", "Biology"]
+const SPECIALIZATIONS = ["IIT-JEE", "NEET", "CBSE"]
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+
+// Interfaces
 interface CreateTestSeriesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSeriesCreated?: () => void
 }
 
 interface LiveTestSummary {
@@ -40,60 +62,53 @@ interface LiveTestSummary {
   }
 }
 
-export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesDialogProps) {
+interface Course {
+  _id: string
+  title: string
+}
+
+export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: CreateTestSeriesDialogProps) {
   const { educator, refreshEducator } = useAuth()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Form state
+  const [currentStep, setCurrentStep] = useState(1)
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    title: "",
-    shortDesc: "",
-    longDesc: "",
-    price: "",
-    validity: "180",
-  noOfTests: "0",
-    startDate: "",
-    endDate: "",
-    subject: "",
-    specialization: "",
-    isCourseSpecific: false,
-    courseId: "",
-  })
-
-  const [currentStep, setCurrentStep] = useState(1)
   const [selectedTests, setSelectedTests] = useState<LiveTestSummary[]>([])
-  const [availableTests, setAvailableTests] = useState<LiveTestSummary[]>([])
+  
+  // Loading states
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [loadingTests, setLoadingTests] = useState(false)
+  const [loadingCourses, setLoadingCourses] = useState(false)
+  
+  // Data states
+  const [availableTests, setAvailableTests] = useState<LiveTestSummary[]>([])
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [fetchTestsError, setFetchTestsError] = useState<string | null>(null)
 
+  // Update noOfTests when selectedTests changes
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      noOfTests: String(selectedTests.length),
-    }))
+    setFormData((prev) => ({ ...prev, noOfTests: String(selectedTests.length) }))
   }, [selectedTests.length])
 
+  // Fetch available tests for step 2
   const fetchAvailableTests = useCallback(async () => {
-    if (!educator?._id) {
-      return
-    }
+    if (!educator?._id) return
 
     try {
       setLoadingTests(true)
       setFetchTestsError(null)
       const response = await getEducatorTests(educator._id)
-      const tests: LiveTestSummary[] = (response?.tests ?? [])
-        .filter((test: any) => !test?.testSeriesId)
-        .map((test: any) => ({
-          _id: test._id,
-          title: test.title,
-          subject: test.subject,
-          specialization: test.specialization,
-          startDate: test.startDate,
-          duration: test.duration,
-          description: test.description,
-        }))
-
+      const tests: LiveTestSummary[] = (response?.tests ?? []).map((test: any) => ({
+        _id: test._id,
+        title: test.title,
+        subject: test.subject,
+        specialization: test.specialization,
+        startDate: test.startDate,
+        duration: test.duration,
+        description: test.description,
+      }))
       setAvailableTests(tests)
     } catch (error: any) {
       console.error("Error fetching live tests:", error)
@@ -103,18 +118,41 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
     }
   }, [educator?._id])
 
+  // Fetch tests when step 2 is opened
   useEffect(() => {
-    if (!open || currentStep !== 2) {
-      return
+    if (open && currentStep === 2) {
+      fetchAvailableTests()
     }
-    fetchAvailableTests()
   }, [open, currentStep, fetchAvailableTests])
 
-  const handleAddTest = (test: LiveTestSummary) => {
-    if (selectedTests.some((selected) => selected._id === test._id)) {
-      return
+  // Fetch educator's courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!open || !educator?.courses?.length) {
+        setAvailableCourses([])
+        return
+      }
+
+      try {
+        setLoadingCourses(true)
+        const courses = await getCoursesByIds(educator.courses)
+        setAvailableCourses(courses)
+      } catch (error) {
+        console.error("Error fetching courses:", error)
+        toast.error("Failed to load courses")
+      } finally {
+        setLoadingCourses(false)
+      }
     }
-    setSelectedTests((prev) => [...prev, test])
+
+    fetchCourses()
+  }, [open, educator?.courses])
+
+  // Handlers
+  const handleAddTest = (test: LiveTestSummary) => {
+    if (!selectedTests.some((t) => t._id === test._id)) {
+      setSelectedTests((prev) => [...prev, test])
+    }
   }
 
   const handleRemoveTest = (testId: string) => {
@@ -123,28 +161,28 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error("Please select a valid image file")
-        return
-      }
-      
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB")
-        return
-      }
+    if (!file) return
 
-      setSelectedImage(file)
-      
-      // Create preview
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select a valid image file")
+      return
     }
+    
+    // Validate file size
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error("Image size should be less than 5MB")
+      return
+    }
+
+    setSelectedImage(file)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleRemoveImage = () => {
@@ -163,30 +201,38 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
     })
   }
 
-  const handleSubmit = async () => {
+  const resetForm = () => {
+    setFormData(INITIAL_FORM_DATA)
+    setSelectedTests([])
+    setSelectedImage(null)
+    setImagePreview(null)
+    setCurrentStep(1)
+  }
+
+  const validateForm = (): boolean => {
     if (!educator?._id) {
       toast.error("Educator information missing. Please log in again")
-      return
+      return false
     }
 
     if (!formData.title || !formData.shortDesc || !formData.longDesc || !formData.subject || !formData.specialization) {
       toast.error("Please fill in all required fields")
-      return
+      return false
     }
 
     if (!formData.startDate || !formData.endDate) {
       toast.error("Please select both start and end dates")
-      return
+      return false
     }
 
     if (new Date(formData.endDate) <= new Date(formData.startDate)) {
       toast.error("End date must be after start date")
-      return
+      return false
     }
 
     if (selectedTests.length === 0) {
       toast.error("Add at least one live test to create a series")
-      return
+      return false
     }
 
     const priceValue = Number(formData.price)
@@ -194,100 +240,74 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
 
     if (Number.isNaN(priceValue) || Number.isNaN(validityValue)) {
       toast.error("Please enter valid numeric values for price and validity")
-      return
+      return false
     }
 
-    // Prepare data for submission
-    let submissionData: any
+    return true
+  }
+
+  const prepareSubmissionData = () => {
+    const priceValue = Number(formData.price)
+    const validityValue = Number(formData.validity)
+
+    const baseData = {
+      title: formData.title.trim(),
+      educatorId: educator!._id,
+      description: {
+        short: formData.shortDesc.trim(),
+        long: formData.longDesc.trim(),
+      },
+      specialization: formData.specialization,
+      subject: formData.subject.toLowerCase(),
+      price: priceValue,
+      validity: validityValue,
+      noOfTests: selectedTests.length,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      liveTests: selectedTests.map((test) => test._id),
+      isCourseSpecific: formData.isCourseSpecific,
+      ...(formData.isCourseSpecific && formData.courseId && { courseId: formData.courseId }),
+    }
 
     if (selectedImage) {
-      // Use FormData for file upload
       const formDataToSubmit = new FormData()
-      formDataToSubmit.append("title", formData.title.trim())
-      formDataToSubmit.append("educatorId", educator._id)
-      formDataToSubmit.append("description[short]", formData.shortDesc.trim())
-      formDataToSubmit.append("description[long]", formData.longDesc.trim())
-      formDataToSubmit.append("specialization", formData.specialization)
-      formDataToSubmit.append("subject", formData.subject.toLowerCase())
-      formDataToSubmit.append("price", priceValue.toString())
-      formDataToSubmit.append("validity", validityValue.toString())
-      formDataToSubmit.append("noOfTests", selectedTests.length.toString())
-      formDataToSubmit.append("startDate", formData.startDate)
-      formDataToSubmit.append("endDate", formData.endDate)
-      formDataToSubmit.append("isCourseSpecific", formData.isCourseSpecific.toString())
-      
-      if (formData.isCourseSpecific && formData.courseId) {
-        formDataToSubmit.append("courseId", formData.courseId)
-      }
-      
-      // Append live tests
-      selectedTests.forEach((test, index) => {
-        formDataToSubmit.append(`liveTests[${index}]`, test._id)
+      Object.entries(baseData).forEach(([key, value]) => {
+        if (key === 'description') {
+          formDataToSubmit.append('description[short]', baseData.description.short)
+          formDataToSubmit.append('description[long]', baseData.description.long)
+        } else if (key === 'liveTests') {
+          baseData.liveTests.forEach((testId, index) => {
+            formDataToSubmit.append(`liveTests[${index}]`, testId)
+          })
+        } else {
+          formDataToSubmit.append(key, String(value))
+        }
       })
-      
-      // Append image
-      formDataToSubmit.append("image", selectedImage)
-      
-      submissionData = formDataToSubmit
-    } else {
-      // Use regular JSON data
-      submissionData = {
-        title: formData.title.trim(),
-        educatorId: educator._id,
-        description: {
-          short: formData.shortDesc.trim(),
-          long: formData.longDesc.trim(),
-        },
-        specialization: formData.specialization,
-        subject: formData.subject.toLowerCase(),
-        price: priceValue,
-        validity: validityValue,
-        noOfTests: selectedTests.length,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        liveTests: selectedTests.map((test) => test._id),
-        isCourseSpecific: formData.isCourseSpecific,
-        ...(formData.isCourseSpecific && formData.courseId
-          ? { courseId: formData.courseId }
-          : {}),
-      }
+      formDataToSubmit.append('image', selectedImage)
+      return formDataToSubmit
     }
+
+    return baseData
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return
 
     setIsSubmitting(true)
     const loadingToast = toast.loading("Creating test series...")
 
     try {
+      const submissionData = prepareSubmissionData()
       await createTestSeries(submissionData)
       await refreshEducator()
 
-      toast.success("Test series created successfully!", {
-        id: loadingToast,
-      })
-
-      setFormData({
-        title: "",
-        shortDesc: "",
-        longDesc: "",
-        price: "",
-        validity: "180",
-        noOfTests: "0",
-        startDate: "",
-        endDate: "",
-        subject: "",
-        specialization: "",
-        isCourseSpecific: false,
-        courseId: "",
-      })
-      setSelectedTests([])
-      setSelectedImage(null)
-      setImagePreview(null)
-      setCurrentStep(1)
+      toast.success("Test series created successfully!", { id: loadingToast })
+      resetForm()
       onOpenChange(false)
+      onSeriesCreated?.()
     } catch (error: any) {
       console.error("Error creating test series:", error)
-      toast.error(error.response?.data?.message || "Failed to create test series", {
-        id: loadingToast,
-      })
+      toast.error(error.response?.data?.message || "Failed to create test series", { id: loadingToast })
     } finally {
       setIsSubmitting(false)
     }
@@ -375,61 +395,65 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 ">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="subject">Subject</Label>
+          <Label htmlFor="subject">Subject *</Label>
           <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger>
               <SelectValue placeholder="Select subject" />
             </SelectTrigger>
-            <SelectContent >
-              <SelectItem value="Physics">Physics</SelectItem>
-              <SelectItem value="Chemistry">Chemistry</SelectItem>
-              <SelectItem value="Mathematics">Mathematics</SelectItem>
-              <SelectItem value="Biology">Biology</SelectItem>
+            <SelectContent>
+              {SUBJECTS.map((subject) => (
+                <SelectItem key={subject} value={subject}>
+                  {subject}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2">
-          <Label htmlFor="specialization">Specialization</Label>
-          <Select
-            value={formData.specialization}
-            onValueChange={(value) => setFormData({ ...formData, specialization: value })}
-          >
-            <SelectTrigger className="w-full">
+          <Label htmlFor="specialization">Specialization *</Label>
+          <Select value={formData.specialization} onValueChange={(value) => setFormData({ ...formData, specialization: value })}>
+            <SelectTrigger>
               <SelectValue placeholder="Select specialization" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="IIT-JEE">IIT-JEE</SelectItem>
-              <SelectItem value="NEET">NEET</SelectItem>
-              <SelectItem value="CBSE">CBSE</SelectItem>
+              {SPECIALIZATIONS.map((spec) => (
+                <SelectItem key={spec} value={spec}>
+                  {spec}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2">
-          <Label htmlFor="price">Price (₹)</Label>
+          <Label htmlFor="price">Price (₹) *</Label>
           <Input
             id="price"
             type="number"
             value={formData.price}
             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
             placeholder="2500"
+            min="0"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-
         <div className="space-y-2">
-          <Label htmlFor="validity">Validity (days)</Label>
+          <Label htmlFor="validity">Validity (days) *</Label>
           <Input
             id="validity"
             type="number"
             value={formData.validity}
             onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
             placeholder="180"
+            min="1"
           />
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="courseSpecific">Course Specific</Label>
           <div className="flex items-center space-x-2 pt-2">
@@ -438,27 +462,40 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
               checked={formData.isCourseSpecific}
               onCheckedChange={(checked) => setFormData({ ...formData, isCourseSpecific: checked })}
             />
-            <Label htmlFor="courseSpecific" className="text-sm">
+            <Label htmlFor="courseSpecific" className="text-sm cursor-pointer">
               Link to course
             </Label>
           </div>
         </div>
         
-      {formData.isCourseSpecific && (
-        <div className="space-y-2">
-          <Label htmlFor="courseId">Select Course</Label>
-          <Select value={formData.courseId} onValueChange={(value) => setFormData({ ...formData, courseId: value })}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a course" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="course1">Advanced Physics for JEE Main</SelectItem>
-              <SelectItem value="course2">Organic Chemistry Mastery</SelectItem>
-              <SelectItem value="course3">Mathematics Foundation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+        {formData.isCourseSpecific && (
+          <div className="space-y-2">
+            <Label htmlFor="courseId">Select Course *</Label>
+            {loadingCourses ? (
+              <div className="flex items-center justify-center py-4 text-muted-foreground text-sm">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading courses...
+              </div>
+            ) : availableCourses.length > 0 ? (
+              <Select value={formData.courseId} onValueChange={(value) => setFormData({ ...formData, courseId: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCourses.map((course) => (
+                    <SelectItem key={course._id} value={course._id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
+                No courses available. Create a course first.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -486,8 +523,9 @@ export function CreateTestSeriesDialog({ open, onOpenChange }: CreateTestSeriesD
   )
 
   const renderStep2 = () => {
+    // Filter out already selected tests
     const selectableTests = availableTests.filter(
-      (test) => !selectedTests.some((selected) => selected._id === test._id),
+      (test) => !selectedTests.some((selected) => selected._id === test._id)
     )
 
     return (
