@@ -60,16 +60,16 @@ const navigation = [
     href: "/dashboard/live-classes",
     icon: Video,
   },
-  {
-    name: "Students",
-    href: "/dashboard/students",
-    icon: Users,
-  },
-  {
-    name: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+  // {
+  //   name: "Students",
+  //   href: "/dashboard/students",
+  //   icon: Users,
+  // },
+  // {
+  //   name: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  // },
 ];
 
 interface DashboardSidebarProps {
