@@ -8,46 +8,94 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, FileQuestion, Loader2 } from "lucide-react"
+import { Plus, Search, FileQuestion, Loader2, MoreHorizontal, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CreateQuestionDialog } from "@/components/create-question-dialog"
-import { QuestionCard } from "@/components/question-card"
+import { ViewQuestionDialog } from "@/components/view-question-dialog"
+import { EditQuestionDialog } from "@/components/edit-question-dialog"
+import { DeleteQuestionAlert } from "@/components/delete-question-alert"
 import { useAuth } from "@/contexts/auth-context"
-import { getQuestionsByIds } from "@/util/server"
-import { toast } from "sonner"
+import { getQuestionsByIds, deleteQuestion } from "@/util/server"
+import toast from "react-hot-toast"
+
+const ITEMS_PER_PAGE = 15
 
 export default function QuestionsPage() {
   const { educator } = useAuth()
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
+  const [questionToDelete, setQuestionToDelete] = useState<any>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [topicFilter, setTopicFilter] = useState("all")
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Fetch questions when educator data is available
   useEffect(() => {
-    const fetchQuestions = async () => {
-      if (!educator?.questions || educator.questions.length === 0) {
-        setLoading(false)
-        setQuestions([])
-        return
-      }
-
-      try {
-        setLoading(true)
-        const questionIds = educator.questions
-        const fetchedQuestions = await getQuestionsByIds(questionIds)
-        setQuestions(fetchedQuestions)
-      } catch (error) {
-        console.error("Error fetching questions:", error)
-        toast.error("Failed to load questions")
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchQuestions()
   }, [educator?.questions])
+
+  const fetchQuestions = async () => {
+    if (!educator?.questions || educator.questions.length === 0) {
+      setLoading(false)
+      setQuestions([])
+      return
+    }
+
+    try {
+      setLoading(true)
+      const questionIds = educator.questions
+      const fetchedQuestions = await getQuestionsByIds(questionIds)
+      setQuestions(fetchedQuestions)
+    } catch (error) {
+      console.error("Error fetching questions:", error)
+      toast.error("Failed to load questions")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleViewQuestion = (question: any) => {
+    setSelectedQuestion(question)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleEditQuestion = (question: any) => {
+    setSelectedQuestion(question)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteQuestion = (question: any) => {
+    setQuestionToDelete(question)
+    setIsDeleteAlertOpen(true)
+  }
+
+  const confirmDeleteQuestion = async () => {
+    if (!questionToDelete) return
+
+    setDeleteLoading(true)
+    try {
+      await deleteQuestion(questionToDelete._id || questionToDelete.id)
+      toast.success("Question deleted successfully!")
+      setIsDeleteAlertOpen(false)
+      setQuestionToDelete(null)
+      // Refresh questions list
+      fetchQuestions()
+    } catch (error: any) {
+      console.error("Error deleting question:", error)
+      toast.error(error.response?.data?.message || "Failed to delete question")
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   // Get unique subjects and topics for filters
   const subjects = Array.from(new Set(questions.map((q) => q.subject)))
@@ -65,14 +113,17 @@ export default function QuestionsPage() {
     return matchesSearch && matchesSubject && matchesTopic
   })
 
-  const handleDeleteQuestion = (id: string) => {
-    setQuestions(questions.filter((q) => q.id !== id))
+  const totalPages = Math.ceil(filteredQuestions.length / ITEMS_PER_PAGE)
+  const paginatedQuestions = filteredQuestions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const handleDragStart = (e: React.DragEvent, questionId: string) => {
-    e.dataTransfer.setData("text/plain", questionId)
-    e.dataTransfer.effectAllowed = "copy"
-  }
 
   return (
     <div className="space-y-6">
@@ -149,18 +200,139 @@ export default function QuestionsPage() {
               <p className="text-muted-foreground">Loading questions...</p>
             </div>
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {filteredQuestions.map((question) => (
-              <QuestionCard
-                key={question._id || question.id}
-                question={question}
-                onDelete={handleDeleteQuestion}
-                onDragStart={handleDragStart}
-              />
-            ))}
-          </div>
-        )}
+        ) : filteredQuestions.length > 0 ? (
+          <>
+            <Card className="bg-card border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Question</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Topic</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Marks</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedQuestions.map((question) => (
+                    <TableRow key={question._id || question.id}>
+                      <TableCell>
+                        <div className="max-w-xl">
+                          <div className="font-medium text-foreground line-clamp-1 truncate">
+                            {question.title}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {question.subject}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground capitalize">
+                          {question.topic}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{question.type || "MCQ"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <span className="text-green-600">+{question.positiveMarks || 4}</span>
+                          {" / "}
+                          <span className="text-red-600">-{question.negativeMarks || 1}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewQuestion(question)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditQuestion(question)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Question
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-500 font-semibold"
+                              onClick={() => handleDeleteQuestion(question)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Question
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredQuestions.length)} of {filteredQuestions.length}{" "}
+                  questions
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNumber
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i
+                      } else {
+                        pageNumber = currentPage - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => handlePageChange(pageNumber)}
+                        >
+                          {pageNumber}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
 
         {/* Empty State */}
         {filteredQuestions.length === 0 && questions.length > 0 && (
@@ -201,6 +373,20 @@ export default function QuestionsPage() {
       </div>
 
       <CreateQuestionDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
+      <ViewQuestionDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen} question={selectedQuestion} />
+      <EditQuestionDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        question={selectedQuestion}
+        onQuestionUpdated={fetchQuestions}
+      />
+      <DeleteQuestionAlert
+        open={isDeleteAlertOpen}
+        onOpenChange={setIsDeleteAlertOpen}
+        onConfirm={confirmDeleteQuestion}
+        loading={deleteLoading}
+        questionTitle={questionToDelete?.title || ""}
+      />
     </div>
   )
 }
