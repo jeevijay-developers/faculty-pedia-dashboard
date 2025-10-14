@@ -34,12 +34,6 @@ interface VideoLesson {
   description: string
 }
 
-interface CoursePDF {
-  id: string
-  name: string
-  file: File | null
-}
-
 export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogProps) {
   const { educator, refreshEducator } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -62,7 +56,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
   })
 
   const [videoLessons, setVideoLessons] = useState<VideoLesson[]>([])
-  const [coursePDFs, setCoursePDFs] = useState<CoursePDF[]>([])
   const [currentStep, setCurrentStep] = useState(1)
 
   const addVideoLesson = () => {
@@ -81,23 +74,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
 
   const removeVideoLesson = (id: string) => {
     setVideoLessons((lessons) => lessons.filter((lesson) => lesson.id !== id))
-  }
-
-  const addPDF = () => {
-    const newPDF: CoursePDF = {
-      id: Date.now().toString(),
-      name: "",
-      file: null,
-    }
-    setCoursePDFs([...coursePDFs, newPDF])
-  }
-
-  const updatePDF = (id: string, field: keyof CoursePDF, value: string | File) => {
-    setCoursePDFs((pdfs) => pdfs.map((pdf) => (pdf.id === id ? { ...pdf, [field]: value } : pdf)))
-  }
-
-  const removePDF = (id: string) => {
-    setCoursePDFs((pdfs) => pdfs.filter((pdf) => pdf.id !== id))
   }
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -192,13 +168,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
               description: lesson.description,
             })),
         },
-        pdfs: coursePDFs
-          .filter((pdf) => pdf.name || pdf.file)
-          .map((pdf, index) => ({
-            order: index + 1,
-            name: pdf.name,
-            size: pdf.file?.size ?? null,
-          })),
       }
 
       const submissionData = new FormData()
@@ -233,7 +202,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
         validity: "",
       })
       setVideoLessons([])
-      setCoursePDFs([])
       setSelectedImage(null)
       setImagePreview(null)
       onOpenChange(false)
@@ -527,102 +495,20 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
     </div>
   )
 
-  const renderStep3 = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">Course Materials</h3>
-          <p className="text-sm text-muted-foreground">Upload PDF files and other course materials</p>
-        </div>
-        <Button onClick={addPDF} size="sm" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add PDF
-        </Button>
-      </div>
-
-      <div className="space-y-4 max-h-96 overflow-y-auto">
-        {coursePDFs.map((pdf, index) => (
-          <Card key={pdf.id} className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-blue-500" />
-                  PDF {index + 1}
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removePDF(pdf.id)}
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label>File Name</Label>
-                <Input
-                  value={pdf.name}
-                  onChange={(e) => updatePDF(pdf.id, "name", e.target.value)}
-                  placeholder="Enter file name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Upload PDF</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        updatePDF(pdf.id, "file", file)
-                        if (!pdf.name) {
-                          updatePDF(pdf.id, "name", file.name.replace(".pdf", ""))
-                        }
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  <Upload className="h-4 w-4 text-muted-foreground" />
-                </div>
-                {pdf.file && (
-                  <Badge variant="outline" className="text-xs">
-                    {pdf.file.name} ({(pdf.file.size / 1024 / 1024).toFixed(2)} MB)
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {coursePDFs.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No PDF materials added yet</p>
-          <p className="text-sm">Click &ldquo;Add PDF&rdquo; to upload course materials</p>
-        </div>
-      )}
-    </div>
-  )
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Course</DialogTitle>
           <DialogDescription>
-            Step {currentStep} of 3:{" "}
-            {currentStep === 1 ? "Basic Information" : currentStep === 2 ? "Video Lessons" : "Course Materials"}
+            Step {currentStep} of 2:{" "}
+            {currentStep === 1 ? "Basic Information" : "Video Lessons"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
         </div>
 
         <DialogFooter className="flex justify-between">
@@ -634,7 +520,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             )}
           </div>
           <div className="flex gap-2">
-            {currentStep < 3 ? (
+            {currentStep < 2 ? (
               <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
             ) : (
               <Button onClick={handleSubmit} disabled={isSubmitting}>

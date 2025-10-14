@@ -65,11 +65,11 @@ const navigation = [
   //   href: "/dashboard/students",
   //   icon: Users,
   // },
-  // {
-  //   name: "Settings",
-  //   href: "/dashboard/settings",
-  //   icon: Settings,
-  // },
+  {
+    name: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
+  },
 ];
 
 interface DashboardSidebarProps {
