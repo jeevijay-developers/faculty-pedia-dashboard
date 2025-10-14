@@ -68,7 +68,121 @@ export const updateEducatorProfile = async (data) => {
   }
 };
 
+// ============================================================
+// Educator Update APIs (from educatorUpdate.routes.js)
+// ============================================================
+
+// Update educator's basic info (name, email, mobile, bio, introVideoLink)
+export const updateEducatorBasicInfo = async (educatorId, data) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-name-email-number-bio-ivlink/${educatorId}`,
+      data,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator basic info:", error);
+    throw error;
+  }
+};
+
+// Update educator profile image
+export const updateEducatorImage = async (educatorId, imageFile) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-image/${educatorId}`,
+      formData,
+      {
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator image:", error);
+    throw error;
+  }
+};
+
+// Update educator work experience
+export const updateEducatorWorkExperience = async (educatorId, workExperience) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-work-experience/${educatorId}`,
+      { workExperience },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator work experience:", error);
+    throw error;
+  }
+};
+
+// Update educator qualifications
+export const updateEducatorQualifications = async (educatorId, qualification) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-qualifications/${educatorId}`,
+      { qualification },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator qualifications:", error);
+    throw error;
+  }
+};
+
+// Update educator social links
+export const updateEducatorSocialLinks = async (educatorId, socials) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-social-links/${educatorId}`,
+      { socials },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator social links:", error);
+    throw error;
+  }
+};
+
+// Update educator specialization and experience
+export const updateEducatorSpecializationAndExperience = async (educatorId, data) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/educator-update/update-specialization-experience/${educatorId}`,
+      data,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating educator specialization and experience:", error);
+    throw error;
+  }
+};
+
+// ============================================================
 // Course APIs
+// ============================================================
 export const getEducatorCourses = async () => {
   try {
     const response = await API_CLIENT.get("/api/educator/courses", {
