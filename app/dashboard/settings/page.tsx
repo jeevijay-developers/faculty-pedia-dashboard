@@ -293,14 +293,10 @@ export default function SettingsPage() {
 
       <div className="px-6 space-y-6">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               Profile
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2">
-              <Bell className="h-4 w-4" />
-              Notifications
             </TabsTrigger>
             <TabsTrigger value="preferences" className="gap-2">
               <Palette className="h-4 w-4" />
@@ -829,7 +825,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="notifications" className="space-y-6">
+          {/* <TabsContent value="notifications" className="space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-card-foreground">
@@ -956,7 +952,7 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="preferences" className="space-y-6">
             <Card className="bg-card border-border">
@@ -1105,7 +1101,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-
+{/* 
                 <div className="flex items-center justify-between p-4 border border-border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Two-Factor Authentication</Label>
@@ -1124,7 +1120,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <Button variant="outline">View Sessions</Button>
-                </div>
+                </div> */}
 
                 <Button className="gap-2">
                   <Save className="h-4 w-4" />
