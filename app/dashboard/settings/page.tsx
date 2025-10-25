@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -23,8 +22,16 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { User, Bell, Shield, Palette, Save, Loader2, Plus, X } from "lucide-react";
+import {
+  User,
+  Bell,
+  Shield,
+  Palette,
+  Save,
+  Loader2,
+  Plus,
+  X,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   getCurrentEducator,
@@ -87,7 +94,7 @@ export default function SettingsPage() {
         const response = await getCurrentEducator();
         const educator = response.educator; // Changed from response.data to response.educator
         console.log("Educator: ", educator);
-        
+
         setEducatorId(educator._id); // Changed from educator.id to educator._id
         setProfileImage(educator.image?.url || "");
         setProfileData({
@@ -148,7 +155,9 @@ export default function SettingsPage() {
   };
 
   // Handle image upload
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (!educatorId) return;
 
     const file = event.target.files?.[0];
@@ -315,9 +324,7 @@ export default function SettingsPage() {
                 <CardTitle className="text-card-foreground">
                   Basic Information
                 </CardTitle>
-                <CardDescription>
-                  Update your personal details
-                </CardDescription>
+                <CardDescription>Update your personal details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center space-x-4">
@@ -327,7 +334,8 @@ export default function SettingsPage() {
                       alt={`${profileData.firstName} ${profileData.lastName}`}
                     />
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {profileData.firstName?.[0]}{profileData.lastName?.[0]}
+                      {profileData.firstName?.[0]}
+                      {profileData.lastName?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="space-y-2">
@@ -340,9 +348,16 @@ export default function SettingsPage() {
                       disabled={loading}
                     />
                     <Label htmlFor="profile-image-upload">
-                      <Button variant="outline" size="sm" asChild disabled={loading}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        disabled={loading}
+                      >
                         <span className="cursor-pointer">
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                          {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : null}
                           Change Photo
                         </span>
                       </Button>
@@ -437,7 +452,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="introVideoLink">Introduction Video Link</Label>
+                  <Label htmlFor="introVideoLink">
+                    Introduction Video Link
+                  </Label>
                   <Input
                     id="introVideoLink"
                     type="url"
@@ -453,12 +470,16 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <Button 
-                  className="gap-2" 
+                <Button
+                  className="gap-2"
                   onClick={handleUpdateBasicInfo}
                   disabled={loading}
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Save Basic Information
                 </Button>
               </CardContent>
@@ -481,7 +502,10 @@ export default function SettingsPage() {
                     <Select
                       value={profileData.specialization}
                       onValueChange={(value) =>
-                        setProfileData((prev) => ({ ...prev, specialization: value }))
+                        setProfileData((prev) => ({
+                          ...prev,
+                          specialization: value,
+                        }))
                       }
                       disabled={loading}
                     >
@@ -517,12 +541,16 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Button 
+                <Button
                   className="gap-2"
                   onClick={handleUpdateSpecialization}
                   disabled={loading}
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Save Specialization
                 </Button>
               </CardContent>
@@ -540,7 +568,10 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {workExperience.map((exp, index) => (
-                  <div key={index} className="p-4 border border-border rounded-lg space-y-4">
+                  <div
+                    key={index}
+                    className="p-4 border border-border rounded-lg space-y-4"
+                  >
                     <div className="flex justify-between items-start">
                       <h4 className="font-semibold">Experience #{index + 1}</h4>
                       <Button
@@ -583,10 +614,12 @@ export default function SettingsPage() {
                         <Label>Start Date</Label>
                         <Input
                           type="date"
-                          value={exp.startDate?.split('T')[0] || ''}
+                          value={exp.startDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const updated = [...workExperience];
-                            updated[index].startDate = new Date(e.target.value).toISOString();
+                            updated[index].startDate = new Date(
+                              e.target.value
+                            ).toISOString();
                             setWorkExperience(updated);
                           }}
                           disabled={loading}
@@ -596,10 +629,12 @@ export default function SettingsPage() {
                         <Label>End Date</Label>
                         <Input
                           type="date"
-                          value={exp.endDate?.split('T')[0] || ''}
+                          value={exp.endDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const updated = [...workExperience];
-                            updated[index].endDate = new Date(e.target.value).toISOString();
+                            updated[index].endDate = new Date(
+                              e.target.value
+                            ).toISOString();
                             setWorkExperience(updated);
                           }}
                           disabled={loading}
@@ -624,7 +659,11 @@ export default function SettingsPage() {
                     disabled={loading || workExperience.length === 0}
                     className="gap-2"
                   >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
                     Save Work Experience
                   </Button>
                 </div>
@@ -643,9 +682,14 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {qualifications.map((qual, index) => (
-                  <div key={index} className="p-4 border border-border rounded-lg space-y-4">
+                  <div
+                    key={index}
+                    className="p-4 border border-border rounded-lg space-y-4"
+                  >
                     <div className="flex justify-between items-start">
-                      <h4 className="font-semibold">Qualification #{index + 1}</h4>
+                      <h4 className="font-semibold">
+                        Qualification #{index + 1}
+                      </h4>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -686,10 +730,12 @@ export default function SettingsPage() {
                         <Label>Start Date</Label>
                         <Input
                           type="date"
-                          value={qual.startDate?.split('T')[0] || ''}
+                          value={qual.startDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const updated = [...qualifications];
-                            updated[index].startDate = new Date(e.target.value).toISOString();
+                            updated[index].startDate = new Date(
+                              e.target.value
+                            ).toISOString();
                             setQualifications(updated);
                           }}
                           disabled={loading}
@@ -699,10 +745,12 @@ export default function SettingsPage() {
                         <Label>End Date</Label>
                         <Input
                           type="date"
-                          value={qual.endDate?.split('T')[0] || ''}
+                          value={qual.endDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const updated = [...qualifications];
-                            updated[index].endDate = new Date(e.target.value).toISOString();
+                            updated[index].endDate = new Date(
+                              e.target.value
+                            ).toISOString();
                             setQualifications(updated);
                           }}
                           disabled={loading}
@@ -727,7 +775,11 @@ export default function SettingsPage() {
                     disabled={loading || qualifications.length === 0}
                     className="gap-2"
                   >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
                     Save Qualifications
                   </Button>
                 </div>
@@ -753,7 +805,10 @@ export default function SettingsPage() {
                       type="url"
                       value={socialLinks.linkedin}
                       onChange={(e) =>
-                        setSocialLinks((prev) => ({ ...prev, linkedin: e.target.value }))
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          linkedin: e.target.value,
+                        }))
                       }
                       disabled={loading}
                       placeholder="https://linkedin.com/in/..."
@@ -766,7 +821,10 @@ export default function SettingsPage() {
                       type="url"
                       value={socialLinks.twitter}
                       onChange={(e) =>
-                        setSocialLinks((prev) => ({ ...prev, twitter: e.target.value }))
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          twitter: e.target.value,
+                        }))
                       }
                       disabled={loading}
                       placeholder="https://twitter.com/..."
@@ -779,7 +837,10 @@ export default function SettingsPage() {
                       type="url"
                       value={socialLinks.facebook}
                       onChange={(e) =>
-                        setSocialLinks((prev) => ({ ...prev, facebook: e.target.value }))
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          facebook: e.target.value,
+                        }))
                       }
                       disabled={loading}
                       placeholder="https://facebook.com/..."
@@ -792,7 +853,10 @@ export default function SettingsPage() {
                       type="url"
                       value={socialLinks.instagram}
                       onChange={(e) =>
-                        setSocialLinks((prev) => ({ ...prev, instagram: e.target.value }))
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          instagram: e.target.value,
+                        }))
                       }
                       disabled={loading}
                       placeholder="https://instagram.com/..."
@@ -805,7 +869,10 @@ export default function SettingsPage() {
                       type="url"
                       value={socialLinks.youtube}
                       onChange={(e) =>
-                        setSocialLinks((prev) => ({ ...prev, youtube: e.target.value }))
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          youtube: e.target.value,
+                        }))
                       }
                       disabled={loading}
                       placeholder="https://youtube.com/@..."
@@ -818,7 +885,11 @@ export default function SettingsPage() {
                   onClick={handleUpdateSocialLinks}
                   disabled={loading}
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Save Social Links
                 </Button>
               </CardContent>
@@ -1101,7 +1172,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-{/* 
+                {/* 
                 <div className="flex items-center justify-between p-4 border border-border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Two-Factor Authentication</Label>
