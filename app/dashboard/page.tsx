@@ -17,6 +17,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   BookOpen,
   FileQuestion,
@@ -36,6 +42,8 @@ import {
   Briefcase,
   GraduationCap,
   Share2,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
@@ -78,6 +86,18 @@ export default function DashboardPage() {
     instagram: "",
     youtube: "",
   });
+
+  // Options for multi-select
+  const specializationOptions = ["IIT-JEE", "NEET", "CBSE"];
+  const subjectOptions = [
+    "Class 6",
+    "Class 7",
+    "Class 8",
+    "Class 9",
+    "Class 10",
+    "Class 11",
+    "Class 12",
+  ];
 
   // Calculate stats from educator data
   const coursesCount = educator?.courses?.length || 0;
@@ -352,6 +372,42 @@ export default function DashboardPage() {
     setQualifications(qualifications.filter((_, i) => i !== index));
   };
 
+  // Handle specialization toggle
+  const toggleSpecialization = (value: string) => {
+    setProfileData((prev) => {
+      const currentSpecializations = prev.specialization;
+      if (currentSpecializations.includes(value)) {
+        return {
+          ...prev,
+          specialization: currentSpecializations.filter((s) => s !== value),
+        };
+      } else {
+        return {
+          ...prev,
+          specialization: [...currentSpecializations, value],
+        };
+      }
+    });
+  };
+
+  // Handle subject toggle
+  const toggleSubject = (value: string) => {
+    setProfileData((prev) => {
+      const currentSubjects = prev.subject;
+      if (currentSubjects.includes(value)) {
+        return {
+          ...prev,
+          subject: currentSubjects.filter((s) => s !== value),
+        };
+      } else {
+        return {
+          ...prev,
+          subject: [...currentSubjects, value],
+        };
+      }
+    });
+  };
+
   if (fetchingData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -379,7 +435,7 @@ export default function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
-              Profile
+              Personal Details
             </TabsTrigger>
             <TabsTrigger value="experience" className="gap-2">
               <Briefcase className="h-4 w-4" />
@@ -732,7 +788,7 @@ export default function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="yearsExperience">Years of Experience</Label>
                     <Input
@@ -749,22 +805,103 @@ export default function DashboardPage() {
                       disabled={loading}
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label>Specialization</Label>
-                  <div className="text-sm text-muted-foreground">
-                    {profileData.specialization.join(", ") || "Not set"}
+                  <div className="space-y-2">
+                    <Label>Specialization</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                          disabled={loading}
+                        >
+                          <span className="truncate">
+                            {profileData.specialization.length > 0
+                              ? profileData.specialization.join(", ")
+                              : "Select specializations..."}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <div className="p-4 space-y-2">
+                          {specializationOptions.map((option) => (
+                            <div
+                              key={option}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`spec-${option}`}
+                                checked={profileData.specialization.includes(
+                                  option
+                                )}
+                                onCheckedChange={() =>
+                                  toggleSpecialization(option)
+                                }
+                                disabled={loading}
+                              />
+                              <label
+                                htmlFor={`spec-${option}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {option}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more specializations
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Subjects/Classes</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                          disabled={loading}
+                        >
+                          <span className="truncate">
+                            {profileData.subject.length > 0
+                              ? profileData.subject.join(", ")
+                              : "Select classes..."}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+                          {subjectOptions.map((option) => (
+                            <div
+                              key={option}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`subject-${option}`}
+                                checked={profileData.subject.includes(option)}
+                                onCheckedChange={() => toggleSubject(option)}
+                                disabled={loading}
+                              />
+                              <label
+                                htmlFor={`subject-${option}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {option}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more classes you teach
+                    </p>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Subjects</Label>
-                  <div className="text-sm text-muted-foreground">
-                    {profileData.subject.join(", ") || "Not set"}
-                  </div>
-                </div>
-
                 <Button
                   className="gap-2"
                   onClick={handleUpdateSpecialization}

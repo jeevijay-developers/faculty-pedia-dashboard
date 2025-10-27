@@ -31,7 +31,7 @@ import {
 
 const navigation = [
   {
-    name: "Overview",
+    name: "Profile",
     href: "/dashboard",
     icon: BarChart3,
   },
