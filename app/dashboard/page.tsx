@@ -57,7 +57,7 @@ import {
   updateEducatorSpecializationAndExperience,
 } from "@/util/server";
 
-const ensureArray = (value: any) => {
+const ensureArray = (value: unknown) => {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
 };
@@ -70,6 +70,120 @@ const toTitleCase = (value: string) =>
 
 const getArrayCount = (value: unknown): number =>
   Array.isArray(value) ? value.length : 0;
+
+const SPECIALIZATION_OPTIONS = ["IIT-JEE", "NEET", "CBSE"] as const;
+
+const SUBJECT_OPTIONS = [
+  { label: "Biology", value: "biology" },
+  { label: "Physics", value: "physics" },
+  { label: "Mathematics", value: "mathematics" },
+  { label: "Chemistry", value: "chemistry" },
+  { label: "English", value: "english" },
+  { label: "Hindi", value: "hindi" },
+];
+
+const CLASS_OPTIONS = [
+  { label: "Class 6", value: "class-6th" },
+  { label: "Class 7", value: "class-7th" },
+  { label: "Class 8", value: "class-8th" },
+  { label: "Class 9", value: "class-9th" },
+  { label: "Class 10", value: "class-10th" },
+  { label: "Class 11", value: "class-11th" },
+  { label: "Class 12", value: "class-12th" },
+  { label: "Dropper", value: "dropper" },
+];
+
+const CLASS_VALUE_TO_LABEL = CLASS_OPTIONS.reduce<Record<string, string>>(
+  (acc, option) => {
+    acc[option.value] = option.label;
+    return acc;
+  },
+  {}
+);
+
+const CLASS_LABEL_TO_VALUE = CLASS_OPTIONS.reduce<Record<string, string>>(
+  (acc, option) => {
+    acc[option.label.toLowerCase()] = option.value;
+    acc[option.value.toLowerCase()] = option.value;
+    return acc;
+  },
+  {}
+);
+
+const SUBJECT_VALUE_TO_LABEL = SUBJECT_OPTIONS.reduce<Record<string, string>>(
+  (acc, option) => {
+    acc[option.value] = option.label;
+    return acc;
+  },
+  {}
+);
+
+const SUBJECT_LABEL_TO_VALUE = SUBJECT_OPTIONS.reduce<Record<string, string>>(
+  (acc, option) => {
+    acc[option.label.toLowerCase()] = option.value;
+    acc[option.value.toLowerCase()] = option.value;
+    return acc;
+  },
+  {}
+);
+
+const formatClassLabel = (value: string) =>
+  CLASS_VALUE_TO_LABEL[value] ||
+  toTitleCase(value.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim());
+
+const formatClassList = (values: string[]) =>
+  values.map((value) => formatClassLabel(value)).join(", ");
+
+const normalizeClassValues = (values: string[]) =>
+  values.map((value) => {
+    const normalizedKey = value?.toString().trim().toLowerCase();
+    if (!normalizedKey) return value;
+    return CLASS_LABEL_TO_VALUE[normalizedKey] || value;
+  });
+
+const formatSubjectLabel = (value: string) =>
+  SUBJECT_VALUE_TO_LABEL[value] || toTitleCase(value || "");
+
+const formatSubjectList = (values: string[]) =>
+  values.map((value) => formatSubjectLabel(value)).join(", ");
+
+const normalizeSubjectValues = (values: string[]) =>
+  values.map((value) => {
+    const normalizedKey = value?.toString().trim().toLowerCase();
+    if (!normalizedKey) return value;
+    return SUBJECT_LABEL_TO_VALUE[normalizedKey] || value;
+  });
+
+type WorkExperienceEntry = {
+  title?: string;
+  company?: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string;
+};
+
+type QualificationEntry = {
+  title?: string;
+  institute?: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string;
+};
+
+type SocialLinks = {
+  linkedin?: string;
+  twitter?: string;
+  facebook?: string;
+  instagram?: string;
+  youtube?: string;
+};
+
+type ExtendedEducator = EducatorType & {
+  workExperience?: WorkExperienceEntry[];
+  qualification?: QualificationEntry[];
+  socials?: SocialLinks;
+  liveTests?: string[];
+};
 
 export default function DashboardPage() {
   const { educator, getFullName } = useAuth();
@@ -91,10 +205,15 @@ export default function DashboardPage() {
 
     subject: [] as string[],
     yearsExperience: 0,
+    payPerHourFee: 0,
   });
 
-  const [workExperience, setWorkExperience] = useState<any[]>([]);
-  const [qualifications, setQualifications] = useState<any[]>([]);
+  const [workExperience, setWorkExperience] = useState<WorkExperienceEntry[]>(
+    []
+  );
+  const [qualifications, setQualifications] = useState<QualificationEntry[]>(
+    []
+  );
   const [socialLinks, setSocialLinks] = useState({
     linkedin: "",
     twitter: "",
@@ -102,89 +221,6 @@ export default function DashboardPage() {
     instagram: "",
     youtube: "",
   });
-
-  // Options for multi-select
-  const specializationOptions = ["IIT-JEE", "NEET", "CBSE"];
-  const subjectOptions = [
-    { label: "Biology", value: "biology" },
-    { label: "Physics", value: "physics" },
-    { label: "Mathematics", value: "mathematics" },
-    { label: "Chemistry", value: "chemistry" },
-    { label: "English", value: "english" },
-    { label: "Hindi", value: "hindi" },
-  ];
-  const classOptions = [
-    { label: "Class 6", value: "class-6th" },
-    { label: "Class 7", value: "class-7th" },
-    { label: "Class 8", value: "class-8th" },
-    { label: "Class 9", value: "class-9th" },
-    { label: "Class 10", value: "class-10th" },
-    { label: "Class 11", value: "class-11th" },
-    { label: "Class 12", value: "class-12th" },
-    { label: "Dropper", value: "dropper" },
-  ];
-
-  const classValueToLabel = classOptions.reduce<Record<string, string>>(
-    (acc, option) => {
-      acc[option.value] = option.label;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
-  const classLabelToValue = classOptions.reduce<Record<string, string>>(
-    (acc, option) => {
-      acc[option.label.toLowerCase()] = option.value;
-      acc[option.value.toLowerCase()] = option.value;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
-  const formatClassLabel = (value: string) =>
-    classValueToLabel[value] ||
-    toTitleCase(value.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim());
-
-  const formatClassList = (values: string[]) =>
-    values.map((value) => formatClassLabel(value)).join(", ");
-
-  const normalizeClassValues = (values: string[]) =>
-    values.map((value) => {
-      const normalizedKey = value?.toString().trim().toLowerCase();
-      if (!normalizedKey) return value;
-      return classLabelToValue[normalizedKey] || value;
-    });
-
-  const subjectValueToLabel = subjectOptions.reduce<Record<string, string>>(
-    (acc, option) => {
-      acc[option.value] = option.label;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
-  const subjectLabelToValue = subjectOptions.reduce<Record<string, string>>(
-    (acc, option) => {
-      acc[option.label.toLowerCase()] = option.value;
-      acc[option.value.toLowerCase()] = option.value;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
-  const formatSubjectLabel = (value: string) =>
-    subjectValueToLabel[value] || toTitleCase(value || "");
-
-  const formatSubjectList = (values: string[]) =>
-    values.map((value) => formatSubjectLabel(value)).join(", ");
-
-  const normalizeSubjectValues = (values: string[]) =>
-    values.map((value) => {
-      const normalizedKey = value?.toString().trim().toLowerCase();
-      if (!normalizedKey) return value;
-      return subjectLabelToValue[normalizedKey] || value;
-    });
-
   const hydrateFromEducator = useCallback(
     (educatorData: Partial<EducatorType> | null | undefined) => {
       if (!educatorData) return;
@@ -195,18 +231,21 @@ export default function DashboardPage() {
       );
 
       const fullName = educatorData.fullName || "";
-      const [firstName, ...restName] = fullName.trim().split(/\s+/);
+      const [derivedFirstName, ...restName] = fullName.trim().split(/\s+/);
       const lastName = restName.join(" ");
+      const firstName = derivedFirstName || educatorData.username || "";
+
+      const extendedEducator = educatorData as ExtendedEducator;
 
       const normalizedClasses = normalizeClassValues(
-        ensureArray((educatorData as any).class)
+        ensureArray(extendedEducator?.class as string[])
       );
       const normalizedSubjects = normalizeSubjectValues(
-        ensureArray(educatorData.subject)
+        ensureArray(extendedEducator?.subject)
       );
 
       setProfileData({
-        firstName: educatorData.username || "",
+        firstName,
         lastName,
         email: educatorData.email || "",
         mobileNumber: educatorData.mobileNumber || "",
@@ -217,19 +256,20 @@ export default function DashboardPage() {
         class: normalizedClasses,
         subject: normalizedSubjects,
         yearsExperience: educatorData.yoe || 0,
+        payPerHourFee: educatorData.payPerHourFee ?? 0,
       });
 
       setWorkExperience(
-        Array.isArray((educatorData as any)?.workExperience)
-          ? (educatorData as any).workExperience
+        Array.isArray(extendedEducator.workExperience)
+          ? extendedEducator.workExperience
           : []
       );
       setQualifications(
-        Array.isArray((educatorData as any)?.qualification)
-          ? (educatorData as any).qualification
+        Array.isArray(extendedEducator.qualification)
+          ? extendedEducator.qualification
           : []
       );
-      const socials = (educatorData as any)?.socials || {};
+      const socials = extendedEducator.socials || {};
       setSocialLinks({
         linkedin: socials.linkedin || "",
         twitter: socials.twitter || "",
@@ -247,8 +287,9 @@ export default function DashboardPage() {
   const testSeriesCount = getArrayCount(educator?.testSeries);
   const studentsCount = getArrayCount(educator?.followers);
   const webinarsCount = getArrayCount(educator?.webinars);
+  const educatorStats = educator as ExtendedEducator | null;
   const liveTestsCount = Math.max(
-    getArrayCount((educator as any)?.liveTests),
+    getArrayCount(educatorStats?.liveTests),
     getArrayCount(educator?.tests)
   );
 
@@ -365,9 +406,15 @@ export default function DashboardPage() {
       });
 
       toast.success("Profile updated successfully");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Update failed:", error);
-      toast.error(error.response?.data?.message || "Failed to update profile");
+      const apiMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message;
+      toast.error(apiMessage || "Failed to update profile");
     } finally {
       setLoading(false);
     }
@@ -459,6 +506,7 @@ export default function DashboardPage() {
         subject: profileData.subject,
         class: profileData.class,
         yearsExperience: Number(profileData.yearsExperience),
+        payPerHourFee: Math.max(0, Number(profileData.payPerHourFee) || 0),
       });
       toast.success("Specialization updated successfully");
     } catch (error) {
@@ -956,6 +1004,26 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="payPerHourFee">
+                      Pay per hour fee (INR)
+                    </Label>
+                    <Input
+                      id="payPerHourFee"
+                      type="number"
+                      min="0"
+                      value={profileData.payPerHourFee}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          payPerHourFee: Number(e.target.value),
+                        }))
+                      }
+                      disabled={loading}
+                      placeholder="Enter fee amount"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Specialization</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -974,7 +1042,7 @@ export default function DashboardPage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0" align="start">
                         <div className="p-4 space-y-2">
-                          {specializationOptions.map((option) => (
+                          {SPECIALIZATION_OPTIONS.map((option) => (
                             <div
                               key={option}
                               className="flex items-center space-x-2"
@@ -1024,7 +1092,7 @@ export default function DashboardPage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0" align="start">
                         <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
-                          {classOptions.map((option) => (
+                          {CLASS_OPTIONS.map((option) => (
                             <div
                               key={option.value}
                               className="flex items-center space-x-2"
@@ -1074,7 +1142,7 @@ export default function DashboardPage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0" align="start">
                         <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
-                          {subjectOptions.map((option) => (
+                          {SUBJECT_OPTIONS.map((option) => (
                             <div
                               key={option.value}
                               className="flex items-center space-x-2"

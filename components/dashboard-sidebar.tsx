@@ -50,10 +50,6 @@ const navigation = [
         href: "/dashboard/courses/live",
       },
       {
-        name: "Pay per hour",
-        href: "/dashboard/courses/pay-per-hour",
-      },
-      {
         name: "Webinar",
         href: "/dashboard/courses/webinar",
       },
