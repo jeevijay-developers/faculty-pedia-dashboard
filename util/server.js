@@ -194,14 +194,22 @@ export const updateEducatorSpecializationAndExperience = async (
 // ============================================================
 // Course APIs
 // ============================================================
-export const getEducatorCourses = async () => {
+export const getCoursesByEducator = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch courses");
+  }
+
   try {
-    const response = await API_CLIENT.get("/api/educator/courses", {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.get(
+      `/api/courses/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+        params,
+      }
+    );
     return response.data;
   } catch (error) {
-    console.error("Error fetching courses:", error);
+    console.error("Error fetching educator courses:", error);
     throw error;
   }
 };
@@ -239,23 +247,11 @@ export const getCoursesByIds = async (courseIds) => {
   }
 };
 
-export const createCourse = async (courseData, educatorId) => {
+export const createCourse = async (courseData) => {
   try {
-    const isFormData =
-      typeof FormData !== "undefined" && courseData instanceof FormData;
-
-    const config = {
-      headers: {
-        ...getAuthHeaders(),
-        ...(isFormData ? { "Content-Type": "multipart/form-data" } : {}),
-      },
-    };
-
-    const response = await API_CLIENT.post(
-      `/api/course/create/${educatorId}`,
-      courseData,
-      config
-    );
+    const response = await API_CLIENT.post("/api/courses", courseData, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error creating course:", error);
@@ -661,13 +657,13 @@ export const getLiveClassesByIds = async (liveClassIds) => {
 };
 
 // Image upload function
-export const uploadImage = async (imageFile) => {
+export const uploadImage = async (imageFile, type = "course") => {
   try {
     const formData = new FormData();
     formData.append("image", imageFile);
 
     const response = await API_CLIENT.post(
-      "/api/images/upload-image",
+      `/api/upload/image?type=${type}`,
       formData,
       {
         headers: {

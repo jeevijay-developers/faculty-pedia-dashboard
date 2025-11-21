@@ -21,9 +21,7 @@ import {
   BookOpen,
   FileQuestion,
   TestTube,
-  Video,
   BarChart3,
-  Settings,
   GraduationCap,
   Users,
   LogOut,
@@ -180,7 +178,7 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
   };
 
   // Check if any submenu item is active
-  const isSubmenuActive = (submenu: any[]) => {
+  const isSubmenuActive = (submenu: { name: string; href: string }[]) => {
     return submenu.some((subItem) => pathname === subItem.href);
   };
 
@@ -227,39 +225,24 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
                 return (
                   <div key={item.name}>
                     {/* Parent item with dropdown */}
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={item.href || "#"}
-                        onClick={(e) => handleNavigation(item.href, e)}
-                        className={cn(
-                          "flex-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                          isParentActive || hasActiveChild
-                            ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        )}
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span>{item.name}</span>
-                        {isNavigating && targetPath === item.href && (
-                          <Loader2 className="h-4 w-4 animate-spin ml-auto" />
-                        )}
-                      </Link>
-                      <button
-                        onClick={() => toggleSubmenu(item.name)}
-                        className={cn(
-                          "flex items-center justify-center rounded-lg p-2 text-sm font-medium transition-colors",
-                          isParentActive || hasActiveChild
-                            ? "text-sidebar-primary-foreground hover:bg-sidebar-primary/80"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        )}
-                      >
-                        {isOpen ? (
-                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                        )}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSubmenu(item.name)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
+                        isParentActive || hasActiveChild
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="flex-1 text-left">{item.name}</span>
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                      )}
+                    </button>
 
                     {/* Submenu items */}
                     {isOpen && (
@@ -361,8 +344,8 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to logout? You'll need to sign in again to
-              access your dashboard.
+              Are you sure you want to logout? You&apos;ll need to sign in again
+              to access your dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
