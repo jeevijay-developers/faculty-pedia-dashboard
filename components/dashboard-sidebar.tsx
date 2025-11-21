@@ -28,6 +28,7 @@ import {
   Users,
   LogOut,
 } from "lucide-react";
+import Image from "next/image";
 
 const navigation = [
   {
@@ -84,14 +85,15 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
   // Get educator initials
   const getInitials = () => {
     if (!educator) return "E";
-    const firstName = educator.firstName || "";
-    const lastName = educator.lastName || "";
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "E";
+    const name = educator.fullName || educator.username || "Educator";
+    const [first = "E", second = ""] = name.split(" ").filter(Boolean);
+    const initials = `${first.charAt(0)}${second.charAt(0)}`.trim();
+    return initials ? initials.toUpperCase() : first.charAt(0).toUpperCase();
   };
 
   // Get educator image
   const getProfileImage = () => {
-    return educator?.image?.url || null;
+    return educator?.profilePicture || educator?.image?.url || null;
   };
 
   return (
@@ -147,10 +149,12 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
         <div className="border-t border-sidebar-border p-4 space-y-3">
           <div className="flex items-center gap-3">
             {getProfileImage() ? (
-              <img
+              <Image
                 src={getProfileImage()!}
                 alt={getFullName()}
                 className="h-8 w-8 rounded-full object-cover"
+                width={32}
+                height={32}
               />
             ) : (
               <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard-header";
 import {
@@ -45,6 +45,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import type { Educator as EducatorType } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
 import {
   getCurrentEducator,
@@ -55,6 +56,20 @@ import {
   updateEducatorSocialLinks,
   updateEducatorSpecializationAndExperience,
 } from "@/util/server";
+
+const ensureArray = (value: any) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+};
+
+const toTitleCase = (value: string) =>
+  value.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+  );
+
+const getArrayCount = (value: unknown): number =>
+  Array.isArray(value) ? value.length : 0;
 
 export default function DashboardPage() {
   const { educator, getFullName } = useAuth();
@@ -89,22 +104,83 @@ export default function DashboardPage() {
   // Options for multi-select
   const specializationOptions = ["IIT-JEE", "NEET", "CBSE"];
   const subjectOptions = [
-    "Class 6",
-    "Class 7",
-    "Class 8",
-    "Class 9",
-    "Class 10",
-    "Class 11",
-    "Class 12",
+    "Biology",
+    "Physics",
+    "Mathematics",
+    "Chemistry",
+    "English",
+    "Hindi",
   ];
 
+  const hydrateFromEducator = useCallback(
+    (educatorData: Partial<EducatorType> | null | undefined) => {
+      if (!educatorData) return;
+
+      setEducatorId(educatorData._id || null);
+      setProfileImage(
+        educatorData.profilePicture || educatorData.image?.url || ""
+      );
+
+      const fullName = educatorData.fullName || "";
+      const [firstName, ...restName] = fullName.trim().split(/\s+/);
+      const lastName = restName.join(" ");
+
+      setProfileData({
+        firstName: firstName || educatorData.username || "",
+        lastName,
+        email: educatorData.email || "",
+        mobileNumber: educatorData.mobileNumber || "",
+        bio: educatorData.description || "",
+        description: educatorData.description || "",
+        introVideoLink: educatorData.introVideo || "",
+        specialization: ensureArray(educatorData.specialization),
+        subject: ensureArray(educatorData.subject),
+        yearsExperience: educatorData.yoe || 0,
+      });
+
+      setWorkExperience(
+        Array.isArray((educatorData as any)?.workExperience)
+          ? (educatorData as any).workExperience
+          : []
+      );
+      setQualifications(
+        Array.isArray((educatorData as any)?.qualification)
+          ? (educatorData as any).qualification
+          : []
+      );
+      const socials = (educatorData as any)?.socials || {};
+      setSocialLinks({
+        linkedin: socials.linkedin || "",
+        twitter: socials.twitter || "",
+        facebook: socials.facebook || "",
+        instagram: socials.instagram || "",
+        youtube: socials.youtube || "",
+      });
+    },
+    []
+  );
+
   // Calculate stats from educator data
-  const coursesCount = educator?.courses?.length || 0;
-  const questionsCount = educator?.questions?.length || 0;
-  const testSeriesCount = educator?.testSeries?.length || 0;
-  const studentsCount = educator?.followers?.length || 0;
-  const webinarsCount = educator?.webinars?.length || 0;
-  const liveTestsCount = educator?.liveTests?.length || 0;
+  const coursesCount = getArrayCount(educator?.courses);
+  const questionsCount = getArrayCount(educator?.questions);
+  const testSeriesCount = getArrayCount(educator?.testSeries);
+  const studentsCount = getArrayCount(educator?.followers);
+  const webinarsCount = getArrayCount(educator?.webinars);
+  const liveTestsCount = Math.max(
+    getArrayCount((educator as any)?.liveTests),
+    getArrayCount(educator?.tests)
+  );
+
+  const subjectTrend = Array.isArray(educator?.subject)
+    ? educator?.subject.map(toTitleCase).join(", ")
+    : educator?.subject || "N/A";
+  const specializationTrend = Array.isArray(educator?.specialization)
+    ? educator?.specialization.join(", ")
+    : educator?.specialization || "N/A";
+  const ratingValue =
+    typeof educator?.rating === "object"
+      ? educator?.rating?.average ?? 0
+      : educator?.rating ?? 0;
 
   const statsData = [
     {
@@ -112,11 +188,7 @@ export default function DashboardPage() {
       value: coursesCount.toString(),
       description: `${coursesCount} courses created`,
       icon: BookOpen,
-      trend: `Subject: ${
-        Array.isArray(educator?.subject)
-          ? educator.subject.join(", ")
-          : educator?.subject || "N/A"
-      }`,
+      trend: `Subject: ${subjectTrend}`,
       href: "/dashboard/courses",
     },
     {
@@ -124,11 +196,7 @@ export default function DashboardPage() {
       value: questionsCount.toString(),
       description: "Questions created",
       icon: FileQuestion,
-      trend: `Specialization: ${
-        Array.isArray(educator?.specialization)
-          ? educator.specialization.join(", ")
-          : educator?.specialization || "N/A"
-      }`,
+      trend: `Specialization: ${specializationTrend}`,
       href: "/dashboard/questions",
     },
     {
@@ -144,7 +212,7 @@ export default function DashboardPage() {
       value: studentsCount.toString(),
       description: "Total followers",
       icon: Users,
-      trend: `Rating: ${educator?.rating || 0}/5`,
+      trend: `Rating: ${ratingValue}/5`,
       href: "/dashboard/students",
     },
   ];
@@ -155,12 +223,12 @@ export default function DashboardPage() {
       value: webinarsCount.toString(),
       description: "Total webinars",
       icon: Calendar,
-      status: `${educator?.yearsExperience || 0} years exp`,
+      status: `${educator?.yoe || 0} years exp`,
       href: "/dashboard/live-classes",
     },
     {
       title: "Experience",
-      value: `${educator?.yearsExperience || 0}yr`,
+      value: `${educator?.yoe || 0}yr`,
       description: "Teaching experience",
       icon: Clock,
       status: educator?.status || "active",
@@ -171,38 +239,17 @@ export default function DashboardPage() {
   // Fetch educator data on mount
   useEffect(() => {
     const fetchEducatorData = async () => {
+      // Prefer context data if already loaded
+      if (educator) {
+        hydrateFromEducator(educator);
+        setFetchingData(false);
+        return;
+      }
+
       setFetchingData(true);
       try {
         const response = await getCurrentEducator();
-        const educatorData = response.educator;
-
-        setEducatorId(educatorData._id);
-        setProfileImage(educatorData.image?.url || "");
-        setProfileData({
-          firstName: educatorData.firstName || "",
-          lastName: educatorData.lastName || "",
-          email: educatorData.email || "",
-          mobileNumber: educatorData.mobileNumber || "",
-          bio: educatorData.bio || "",
-          description: educatorData.description || "",
-          introVideoLink: educatorData.introVideoLink || "",
-          specialization: Array.isArray(educatorData.specialization)
-            ? educatorData.specialization
-            : [educatorData.specialization].filter(Boolean),
-          subject: Array.isArray(educatorData.subject)
-            ? educatorData.subject
-            : [educatorData.subject].filter(Boolean),
-          yearsExperience: educatorData.yearsExperience || 0,
-        });
-        setWorkExperience(educatorData.workExperience || []);
-        setQualifications(educatorData.qualification || []);
-        setSocialLinks({
-          linkedin: educatorData.socials?.linkedin || "",
-          twitter: educatorData.socials?.twitter || "",
-          facebook: educatorData.socials?.facebook || "",
-          instagram: educatorData.socials?.instagram || "",
-          youtube: educatorData.socials?.youtube || "",
-        });
+        hydrateFromEducator(response.educator);
       } catch (error) {
         console.error("Error fetching educator data:", error);
         toast.error("Failed to load profile data");
@@ -212,7 +259,7 @@ export default function DashboardPage() {
     };
 
     fetchEducatorData();
-  }, []);
+  }, [educator, hydrateFromEducator]);
 
   // Handle basic info update
   const handleUpdateBasicInfo = async () => {
