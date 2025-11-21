@@ -87,6 +87,8 @@ export default function DashboardPage() {
     description: "",
     introVideoLink: "",
     specialization: [] as string[],
+    class: [] as string[],
+
     subject: [] as string[],
     yearsExperience: 0,
   });
@@ -373,6 +375,7 @@ export default function DashboardPage() {
       await updateEducatorSpecializationAndExperience(educatorId, {
         specialization: profileData.specialization,
         subject: profileData.subject,
+        class: profileData.class,
         yearsExperience: Number(profileData.yearsExperience),
       });
       toast.success("Specialization updated successfully");
@@ -449,6 +452,24 @@ export default function DashboardPage() {
         return {
           ...prev,
           subject: [...currentSubjects, value],
+        };
+      }
+    });
+  };
+
+  // Handle class toggle
+  const toggleClass = (value: string) => {
+    setProfileData((prev) => {
+      const currentClass = prev.class;
+      if (currentClass.includes(value)) {
+        return {
+          ...prev,
+          class: currentClass.filter((c) => c !== value),
+        };
+      } else {
+        return {
+          ...prev,
+          class: [...currentClass, value],
         };
       }
     });
@@ -903,7 +924,53 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Subjects/Classes</Label>
+                    <Label>Classes</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                          disabled={loading}
+                        >
+                          <span className="truncate">
+                            {profileData.class.length > 0
+                              ? profileData.class.join(", ")
+                              : "Select classes..."}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+                          {classOptions.map((option) => (
+                            <div
+                              key={option}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`class-${option}`}
+                                checked={profileData.class.includes(option)}
+                                onCheckedChange={() => toggleClass(option)}
+                                disabled={loading}
+                              />
+                              <label
+                                htmlFor={`class-${option}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {option}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more classes you teach
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Subjects</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -914,7 +981,7 @@ export default function DashboardPage() {
                           <span className="truncate">
                             {profileData.subject.length > 0
                               ? profileData.subject.join(", ")
-                              : "Select classes..."}
+                              : "Select subjects..."}
                           </span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -944,7 +1011,7 @@ export default function DashboardPage() {
                       </PopoverContent>
                     </Popover>
                     <p className="text-xs text-muted-foreground">
-                      Select one or more classes you teach
+                      Select one or more subjects you teach
                     </p>
                   </div>
                 </div>
@@ -974,8 +1041,9 @@ export default function DashboardPage() {
                   Connect your social media profiles
                 </CardDescription>
               </CardHeader>
+
               <CardContent className="space-y-6">
-                <div className="space-y-4">
+                <div className=" grid grid-cols-2 gap-3 space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="linkedin">LinkedIn</Label>
                     <Input
@@ -1069,6 +1137,48 @@ export default function DashboardPage() {
                     <Save className="h-4 w-4" />
                   )}
                   Save Social Links
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Video Section Card */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-card-foreground flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Add Demo Video
+                </CardTitle>
+                <CardDescription>Add your educational videos</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="videoTitle">Video Title</Label>
+                    <Input
+                      id="videoTitle"
+                      type="text"
+                      placeholder="Enter video title..."
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="videoLink">Video Link</Label>
+                    <Input
+                      id="videoLink"
+                      type="url"
+                      placeholder="https://youtube.com/..."
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <Button className="gap-2" disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Add Video
                 </Button>
               </CardContent>
             </Card>
