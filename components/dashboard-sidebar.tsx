@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +27,12 @@ import {
   GraduationCap,
   Users,
   LogOut,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  DollarSign,
+  MessageSquare,
+  Loader2,
 } from "lucide-react";
 
 const navigation = [
@@ -39,6 +45,68 @@ const navigation = [
     name: "Courses",
     href: "/dashboard/courses",
     icon: BookOpen,
+    submenu: [
+      {
+        name: "Live Courses",
+        href: "/dashboard/courses/live",
+      },
+      {
+        name: "Pay per hour",
+        href: "/dashboard/courses/pay-per-hour",
+      },
+      {
+        name: "Webinar",
+        href: "/dashboard/courses/webinar",
+      },
+    ],
+  },
+  {
+    name: "Test",
+    href: "/dashboard/test",
+    icon: TestTube,
+    submenu: [
+      {
+        name: "Test Bank",
+        href: "/dashboard/create-test",
+      },
+      {
+        name: "Test Series",
+        href: "/dashboard/test-series",
+      },
+    ],
+  },
+  {
+    name: "Content",
+    href: "/dashboard/content",
+    icon: FileText,
+    submenu: [
+      {
+        name: "Study material",
+        href: "/dashboard/content/study-material",
+      },
+      {
+        name: "Videos",
+        href: "/dashboard/content/videos",
+      },
+      {
+        name: "Live Classes",
+        href: "/dashboard/content/live-classes",
+      },
+      {
+        name: "Post",
+        href: "/dashboard/content/post",
+      },
+    ],
+  },
+  {
+    name: "Revenue",
+    href: "/dashboard/revenue",
+    icon: DollarSign,
+  },
+  {
+    name: "Students",
+    href: "/dashboard/students",
+    icon: Users,
   },
   {
     name: "Question Bank",
@@ -46,30 +114,25 @@ const navigation = [
     icon: FileQuestion,
   },
   {
-    name: "Test Bank",
-    href: "/dashboard/create-test",
-    icon: FileQuestion,
+    name: "Manage Queries",
+    href: "/dashboard/manage-queries",
+    icon: MessageSquare,
   },
-  {
-    name: "Test Series",
-    href: "/dashboard/test-series",
-    icon: TestTube,
-  },
-  {
-    name: "Pay Per Hour/Webinars",
-    href: "/dashboard/live-classes",
-    icon: Video,
-  },
+  // {
+  //   name: "Pay Per Hour/Webinars",
+  //   href: "/dashboard/live-classes",
+  //   icon: Video,
+  // },
   // {
   //   name: "Students",
   //   href: "/dashboard/students",
   //   icon: Users,
   // },
-  {
-    name: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+  // {
+  //   name: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  // },
 ];
 
 interface DashboardSidebarProps {
@@ -78,8 +141,12 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ className }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { educator, logout, getFullName } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [targetPath, setTargetPath] = useState<string | null>(null);
 
   // Get educator initials
   const getInitials = () => {
@@ -92,6 +159,32 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
   // Get educator image
   const getProfileImage = () => {
     return educator?.image?.url || null;
+  };
+
+  // Reset loading state when pathname changes
+  useEffect(() => {
+    setIsNavigating(false);
+    setTargetPath(null);
+  }, [pathname]);
+
+  // Handle navigation with loading state
+  const handleNavigation = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (href !== pathname) {
+      setIsNavigating(true);
+      setTargetPath(href);
+      router.push(href);
+    }
+  };
+
+  // Check if any submenu item is active
+  const isSubmenuActive = (submenu: any[]) => {
+    return submenu.some((subItem) => pathname === subItem.href);
+  };
+
+  // Toggle submenu
+  const toggleSubmenu = (itemName: string) => {
+    setOpenSubmenu(openSubmenu === itemName ? null : itemName);
   };
 
   return (
@@ -123,11 +216,86 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
             {navigation.map((item) => {
+              // Check if item has submenu
+              if (item.submenu) {
+                const isOpen = openSubmenu === item.name;
+                const hasActiveChild = isSubmenuActive(item.submenu);
+                const isParentActive = pathname === item.href;
+
+                return (
+                  <div key={item.name}>
+                    {/* Parent item with dropdown */}
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={item.href || "#"}
+                        onClick={(e) => handleNavigation(item.href, e)}
+                        className={cn(
+                          "flex-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          isParentActive || hasActiveChild
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        <span>{item.name}</span>
+                        {isNavigating && targetPath === item.href && (
+                          <Loader2 className="h-4 w-4 animate-spin ml-auto" />
+                        )}
+                      </Link>
+                      <button
+                        onClick={() => toggleSubmenu(item.name)}
+                        className={cn(
+                          "flex items-center justify-center rounded-lg p-2 text-sm font-medium transition-colors",
+                          isParentActive || hasActiveChild
+                            ? "text-sidebar-primary-foreground hover:bg-sidebar-primary/80"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Submenu items */}
+                    {isOpen && (
+                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
+                        {item.submenu.map((subItem) => {
+                          const isActive = pathname === subItem.href;
+                          return (
+                            <Link
+                              key={subItem.name}
+                              href={subItem.href}
+                              onClick={(e) => handleNavigation(subItem.href, e)}
+                              className={cn(
+                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                isActive
+                                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                              )}
+                            >
+                              <span>{subItem.name}</span>
+                              {isNavigating && targetPath === subItem.href && (
+                                <Loader2 className="h-4 w-4 animate-spin ml-auto" />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // Regular navigation item without submenu
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={item.href!}
+                  onClick={(e) => handleNavigation(item.href!, e)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     isActive
@@ -137,6 +305,9 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
                 >
                   <item.icon className="h-4 w-4 flex-shrink-0" />
                   <span>{item.name}</span>
+                  {isNavigating && targetPath === item.href && (
+                    <Loader2 className="h-4 w-4 animate-spin ml-auto" />
+                  )}
                 </Link>
               );
             })}
