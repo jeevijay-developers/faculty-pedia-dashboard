@@ -17,11 +17,10 @@ const getAuthHeaders = () => {
 // Auth APIs
 export const loginEducator = async (email, password) => {
   try {
-    const response = await API_CLIENT.post("/api/auth/login-educator", {
+    const response = await API_CLIENT.post("/api/auth/ed-login", {
       email,
       password,
     });
-    console.log("Educator login response:", response.data);
 
     return response.data;
   } catch (error) {
@@ -36,7 +35,7 @@ export const getCurrentEducator = async () => {
     const response = await API_CLIENT.get("/api/auth/educator/me", {
       headers: getAuthHeaders(),
     });
-    return response.data;
+    return response.data?.data || response.data;
   } catch (error) {
     console.error("Error fetching current educator:", error);
     throw error;
@@ -113,7 +112,10 @@ export const updateEducatorImage = async (educatorId, imageFile) => {
 };
 
 // Update educator work experience
-export const updateEducatorWorkExperience = async (educatorId, workExperience) => {
+export const updateEducatorWorkExperience = async (
+  educatorId,
+  workExperience
+) => {
   try {
     const response = await API_CLIENT.put(
       `/api/educator-update/update-work-experience/${educatorId}`,
@@ -130,7 +132,10 @@ export const updateEducatorWorkExperience = async (educatorId, workExperience) =
 };
 
 // Update educator qualifications
-export const updateEducatorQualifications = async (educatorId, qualification) => {
+export const updateEducatorQualifications = async (
+  educatorId,
+  qualification
+) => {
   try {
     const response = await API_CLIENT.put(
       `/api/educator-update/update-qualifications/${educatorId}`,
@@ -164,7 +169,10 @@ export const updateEducatorSocialLinks = async (educatorId, socials) => {
 };
 
 // Update educator specialization and experience
-export const updateEducatorSpecializationAndExperience = async (educatorId, data) => {
+export const updateEducatorSpecializationAndExperience = async (
+  educatorId,
+  data
+) => {
   try {
     const response = await API_CLIENT.put(
       `/api/educator-update/update-specialization-experience/${educatorId}`,
@@ -175,7 +183,10 @@ export const updateEducatorSpecializationAndExperience = async (educatorId, data
     );
     return response.data;
   } catch (error) {
-    console.error("Error updating educator specialization and experience:", error);
+    console.error(
+      "Error updating educator specialization and experience:",
+      error
+    );
     throw error;
   }
 };
@@ -255,14 +266,14 @@ export const createCourse = async (courseData, educatorId) => {
 export const updateCourse = async (courseId, courseData) => {
   try {
     const isFormData =
-      typeof FormData !== "undefined" && courseData instanceof FormData
+      typeof FormData !== "undefined" && courseData instanceof FormData;
 
     const config = {
       headers: {
         ...getAuthHeaders(),
         ...(isFormData ? { "Content-Type": "multipart/form-data" } : {}),
       },
-    }
+    };
 
     const response = await API_CLIENT.put(
       `/api/course/update/${courseId}`,
@@ -278,12 +289,9 @@ export const updateCourse = async (courseId, courseData) => {
 
 export const deleteCourse = async (courseId) => {
   try {
-    const response = await API_CLIENT.delete(
-      `/api/course/delete/${courseId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.delete(`/api/course/delete/${courseId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error deleting course:", error);
@@ -338,12 +346,9 @@ export const updateQuestion = async (questionId, questionData) => {
 
 export const deleteQuestion = async (questionId) => {
   try {
-    const response = await API_CLIENT.delete(
-      `/api/questions/${questionId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.delete(`/api/questions/${questionId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error deleting question:", error);
@@ -889,12 +894,9 @@ export const updateLiveTest = async (testId, testData) => {
 
 export const deleteLiveTest = async (testId) => {
   try {
-    const response = await API_CLIENT.delete(
-      `/api/live-test/${testId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.delete(`/api/live-test/${testId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error deleting live test:", error);
