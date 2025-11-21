@@ -106,13 +106,84 @@ export default function DashboardPage() {
   // Options for multi-select
   const specializationOptions = ["IIT-JEE", "NEET", "CBSE"];
   const subjectOptions = [
-    "Biology",
-    "Physics",
-    "Mathematics",
-    "Chemistry",
-    "English",
-    "Hindi",
+    { label: "Biology", value: "biology" },
+    { label: "Physics", value: "physics" },
+    { label: "Mathematics", value: "mathematics" },
+    { label: "Chemistry", value: "chemistry" },
+    { label: "English", value: "english" },
+    { label: "Hindi", value: "hindi" },
   ];
+  const classOptions = [
+    { label: "Class 6", value: "class-6th" },
+    { label: "Class 7", value: "class-7th" },
+    { label: "Class 8", value: "class-8th" },
+    { label: "Class 9", value: "class-9th" },
+    { label: "Class 10", value: "class-10th" },
+    { label: "Class 11", value: "class-11th" },
+    { label: "Class 12", value: "class-12th" },
+    { label: "Dropper", value: "dropper" },
+  ];
+
+  const classValueToLabel = classOptions.reduce<Record<string, string>>(
+    (acc, option) => {
+      acc[option.value] = option.label;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+
+  const classLabelToValue = classOptions.reduce<Record<string, string>>(
+    (acc, option) => {
+      acc[option.label.toLowerCase()] = option.value;
+      acc[option.value.toLowerCase()] = option.value;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+
+  const formatClassLabel = (value: string) =>
+    classValueToLabel[value] ||
+    toTitleCase(value.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim());
+
+  const formatClassList = (values: string[]) =>
+    values.map((value) => formatClassLabel(value)).join(", ");
+
+  const normalizeClassValues = (values: string[]) =>
+    values.map((value) => {
+      const normalizedKey = value?.toString().trim().toLowerCase();
+      if (!normalizedKey) return value;
+      return classLabelToValue[normalizedKey] || value;
+    });
+
+  const subjectValueToLabel = subjectOptions.reduce<Record<string, string>>(
+    (acc, option) => {
+      acc[option.value] = option.label;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+
+  const subjectLabelToValue = subjectOptions.reduce<Record<string, string>>(
+    (acc, option) => {
+      acc[option.label.toLowerCase()] = option.value;
+      acc[option.value.toLowerCase()] = option.value;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+
+  const formatSubjectLabel = (value: string) =>
+    subjectValueToLabel[value] || toTitleCase(value || "");
+
+  const formatSubjectList = (values: string[]) =>
+    values.map((value) => formatSubjectLabel(value)).join(", ");
+
+  const normalizeSubjectValues = (values: string[]) =>
+    values.map((value) => {
+      const normalizedKey = value?.toString().trim().toLowerCase();
+      if (!normalizedKey) return value;
+      return subjectLabelToValue[normalizedKey] || value;
+    });
 
   const hydrateFromEducator = useCallback(
     (educatorData: Partial<EducatorType> | null | undefined) => {
@@ -127,8 +198,15 @@ export default function DashboardPage() {
       const [firstName, ...restName] = fullName.trim().split(/\s+/);
       const lastName = restName.join(" ");
 
+      const normalizedClasses = normalizeClassValues(
+        ensureArray((educatorData as any).class)
+      );
+      const normalizedSubjects = normalizeSubjectValues(
+        ensureArray(educatorData.subject)
+      );
+
       setProfileData({
-        firstName: firstName || educatorData.username || "",
+        firstName: educatorData.username || "",
         lastName,
         email: educatorData.email || "",
         mobileNumber: educatorData.mobileNumber || "",
@@ -136,7 +214,8 @@ export default function DashboardPage() {
         description: educatorData.description || "",
         introVideoLink: educatorData.introVideo || "",
         specialization: ensureArray(educatorData.specialization),
-        subject: ensureArray(educatorData.subject),
+        class: normalizedClasses,
+        subject: normalizedSubjects,
         yearsExperience: educatorData.yoe || 0,
       });
 
@@ -173,9 +252,12 @@ export default function DashboardPage() {
     getArrayCount(educator?.tests)
   );
 
-  const subjectTrend = Array.isArray(educator?.subject)
-    ? educator?.subject.map(toTitleCase).join(", ")
-    : educator?.subject || "N/A";
+  const educatorSubjects = normalizeSubjectValues(
+    ensureArray(educator?.subject)
+  );
+  const subjectTrend = educatorSubjects.length
+    ? formatSubjectList(educatorSubjects)
+    : "N/A";
   const specializationTrend = Array.isArray(educator?.specialization)
     ? educator?.specialization.join(", ")
     : educator?.specialization || "N/A";
@@ -933,8 +1015,8 @@ export default function DashboardPage() {
                           disabled={loading}
                         >
                           <span className="truncate">
-                            {profileData.class.length > 0
-                              ? profileData.class.join(", ")
+                            {profileData?.class?.length > 0
+                              ? formatClassList(profileData.class)
                               : "Select classes..."}
                           </span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -944,20 +1026,24 @@ export default function DashboardPage() {
                         <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
                           {classOptions.map((option) => (
                             <div
-                              key={option}
+                              key={option.value}
                               className="flex items-center space-x-2"
                             >
                               <Checkbox
-                                id={`class-${option}`}
-                                checked={profileData.class.includes(option)}
-                                onCheckedChange={() => toggleClass(option)}
+                                id={`class-${option.value}`}
+                                checked={profileData.class.includes(
+                                  option.value
+                                )}
+                                onCheckedChange={() =>
+                                  toggleClass(option.value)
+                                }
                                 disabled={loading}
                               />
                               <label
-                                htmlFor={`class-${option}`}
+                                htmlFor={`class-${option.value}`}
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                               >
-                                {option}
+                                {option.label}
                               </label>
                             </div>
                           ))}
@@ -980,7 +1066,7 @@ export default function DashboardPage() {
                         >
                           <span className="truncate">
                             {profileData.subject.length > 0
-                              ? profileData.subject.join(", ")
+                              ? formatSubjectList(profileData.subject)
                               : "Select subjects..."}
                           </span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -990,20 +1076,24 @@ export default function DashboardPage() {
                         <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
                           {subjectOptions.map((option) => (
                             <div
-                              key={option}
+                              key={option.value}
                               className="flex items-center space-x-2"
                             >
                               <Checkbox
-                                id={`subject-${option}`}
-                                checked={profileData.subject.includes(option)}
-                                onCheckedChange={() => toggleSubject(option)}
+                                id={`subject-${option.value}`}
+                                checked={profileData.subject.includes(
+                                  option.value
+                                )}
+                                onCheckedChange={() =>
+                                  toggleSubject(option.value)
+                                }
                                 disabled={loading}
                               />
                               <label
-                                htmlFor={`subject-${option}`}
+                                htmlFor={`subject-${option.value}`}
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                               >
-                                {option}
+                                {option.label}
                               </label>
                             </div>
                           ))}
