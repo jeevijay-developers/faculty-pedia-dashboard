@@ -1,88 +1,98 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
-import { loginEducator } from "@/util/server"
-import { useAuth } from "@/contexts/auth-context"
-import toast from "react-hot-toast"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { loginEducator } from "@/util/server";
+import { useAuth } from "@/contexts/auth-context";
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const [error, setError] = useState("")
+  const router = useRouter();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState("");
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push("/dashboard")
+      router.push("/dashboard");
     }
-  }, [isAuthenticated, authLoading, router])
+  }, [isAuthenticated, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     // Show loading toast
-    const loadingToast = toast.loading("Signing in...")
-    
+    const loadingToast = toast.loading("Signing in...");
+
     try {
-      const response = await loginEducator(email, password)
-      
+      const response = await loginEducator(email, password);
+
       // Backend returns { TOKEN, educator } - we only need the token
-      const token = response.TOKEN || response.token
-      
+      const token = response.data.tokens.accessToken;
       if (token) {
         // Login function will fetch educator data from API
-        await login(token)
-        
+        await login(token);
+
         toast.success("Login successful! Redirecting...", {
           id: loadingToast,
           duration: 2000,
-        })
+        });
         // Navigation will happen automatically via useEffect
       } else {
-        const errorMsg = "Invalid response from server. Please try again."
-        setError(errorMsg)
+        const errorMsg = "Invalid response from server. Please try again.";
+        setError(errorMsg);
         toast.error(errorMsg, {
           id: loadingToast,
           duration: 4000,
-        })
+        });
       }
     } catch (err: any) {
-      console.error("Login error:", err)
-      
-      let errorMessage = "Invalid email or password. Please try again."
-      
+      console.error("Login error:", err);
+
+      let errorMessage = "Invalid email or password. Please try again.";
+
       // Handle specific error types
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        errorMessage = "Backend server is not responding. Please check if the server is running."
-      } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
-        errorMessage = "Cannot connect to server. Please ensure your backend is running."
+      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+        errorMessage =
+          "Backend server is not responding. Please check if the server is running.";
+      } else if (
+        err.code === "ERR_NETWORK" ||
+        err.message?.includes("Network Error")
+      ) {
+        errorMessage =
+          "Cannot connect to server. Please ensure your backend is running.";
       } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message
+        errorMessage = err.response.data.message;
       }
-      
-      setError(errorMessage)
+
+      setError(errorMessage);
       toast.error(errorMessage, {
         id: loadingToast,
         duration: 5000,
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Show loading screen if checking auth
   if (authLoading) {
@@ -93,7 +103,7 @@ export default function LoginPage() {
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -134,9 +144,12 @@ export default function LoginPage() {
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
-            
+
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
+              <Label
+                htmlFor="email"
+                className="text-sm font-semibold text-gray-700"
+              >
                 Email Address
               </Label>
               <div className="relative">
@@ -155,7 +168,10 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
+              <Label
+                htmlFor="password"
+                className="text-sm font-semibold text-gray-700"
+              >
                 Password
               </Label>
               <div className="relative">
@@ -243,5 +259,5 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

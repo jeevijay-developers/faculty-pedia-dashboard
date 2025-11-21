@@ -43,7 +43,6 @@ import {
   GraduationCap,
   Share2,
   ChevronDown,
-  Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
