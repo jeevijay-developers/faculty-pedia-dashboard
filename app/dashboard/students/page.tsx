@@ -1,9 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -11,185 +21,392 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Users } from "lucide-react"
+} from "@/components/ui/table";
+import { ViewStudentDetailsDialog } from "@/components/view-student-details-dialog";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  getEducatorEnrolledStudents,
+  getCoursesByEducator,
+} from "@/util/server";
+import { Users, Loader2, Eye, UserX } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface EnrolledStudent {
-  id: number
-  name: string
-  dateOfEnrollment: string
-  courseName: string
-  courseType: "one to one" | "one to all"
-  amountPaid: number
-  contactNumber: string
+  _id: string;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  username: string;
+  specialization: string;
+  class: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
+  };
+  image?: string;
+  joinedAt: string;
+  isEmailVerified: boolean;
+  courseId: string;
+  courseTitle: string;
+  courseType: string;
+  courseFees: number;
+  courseDiscount: number;
+  amountPaid: number;
+}
+
+interface Course {
+  _id: string;
+  title: string;
 }
 
 export default function StudentsPage() {
-  // Search state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const { educator } = useAuth();
+  const router = useRouter();
 
-  // Mock data
-  const totalFollowers = 1250
+  // State
+  const [students, setStudents] = useState<EnrolledStudent[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "joinedAt">("joinedAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedStudent, setSelectedStudent] =
+    useState<EnrolledStudent | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
-  const enrolledStudents: EnrolledStudent[] = [
-    {
-      id: 1,
-      name: "Arjun Sharma",
-      dateOfEnrollment: "2025-09-15",
-      courseName: "Physics Complete Course",
-      courseType: "one to all",
-      amountPaid: 5000,
-      contactNumber: "+91 98765 43210",
-    },
-    {
-      id: 2,
-      name: "Priya Patel",
-      dateOfEnrollment: "2025-09-20",
-      courseName: "Mathematics Advanced",
-      courseType: "one to one",
-      amountPaid: 8000,
-      contactNumber: "+91 98765 43211",
-    },
-    {
-      id: 3,
-      name: "Rahul Verma",
-      dateOfEnrollment: "2025-10-01",
-      courseName: "Chemistry Fundamentals",
-      courseType: "one to all",
-      amountPaid: 4000,
-      contactNumber: "+91 98765 43212",
-    },
-    {
-      id: 4,
-      name: "Ananya Singh",
-      dateOfEnrollment: "2025-10-05",
-      courseName: "Physics Complete Course",
-      courseType: "one to all",
-      amountPaid: 5000,
-      contactNumber: "+91 98765 43213",
-    },
-    {
-      id: 5,
-      name: "Vikram Reddy",
-      dateOfEnrollment: "2025-10-10",
-      courseName: "Mathematics Advanced",
-      courseType: "one to one",
-      amountPaid: 8000,
-      contactNumber: "+91 98765 43214",
-    },
-    {
-      id: 6,
-      name: "Sneha Gupta",
-      dateOfEnrollment: "2025-10-15",
-      courseName: "Chemistry Fundamentals",
-      courseType: "one to all",
-      amountPaid: 4000,
-      contactNumber: "+91 98765 43215",
-    },
-  ]
+  // Fetch enrolled students and courses
+  const fetchData = useCallback(async () => {
+    if (!educator?._id) return;
 
-  // Debounce effect for search query
+    try {
+      setLoading(true);
+
+      // Fetch enrolled students
+      const studentsResponse = await getEducatorEnrolledStudents(educator._id);
+      const studentsData = studentsResponse.data || [];
+      setStudents(studentsData);
+
+      // Fetch courses for filter dropdown
+      const coursesResponse = await getCoursesByEducator(educator._id, {
+        limit: 100,
+      });
+      const coursesData = Array.isArray(coursesResponse)
+        ? coursesResponse
+        : coursesResponse?.courses || [];
+      setCourses(coursesData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load students data");
+    } finally {
+      setLoading(false);
+    }
+  }, [educator?._id]);
+
+  useEffect(() => {
+    if (!educator?._id) {
+      router.push("/login");
+      return;
+    }
+    fetchData();
+  }, [educator, router, fetchData]);
+
+  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500) // 500ms delay
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
 
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [searchQuery])
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  // Filter students based on debounced search query
-  const filteredStudents = enrolledStudents.filter(student =>
-    student.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-    student.courseName.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-    student.contactNumber.includes(debouncedSearchQuery)
-  )
+  // Filter and sort students
+  const filteredAndSortedStudents = students
+    .filter((student) => {
+      // Course filter
+      if (selectedCourse !== "all" && student.courseId !== selectedCourse) {
+        return false;
+      }
+
+      // Search filter
+      if (debouncedSearchQuery) {
+        const query = debouncedSearchQuery.toLowerCase();
+        return (
+          student.name.toLowerCase().includes(query) ||
+          student.email.toLowerCase().includes(query) ||
+          student.mobileNumber.includes(query) ||
+          student.courseTitle.toLowerCase().includes(query)
+        );
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") {
+        const comparison = a.name.localeCompare(b.name);
+        return sortOrder === "asc" ? comparison : -comparison;
+      } else {
+        const dateA = new Date(a.joinedAt).getTime();
+        const dateB = new Date(b.joinedAt).getTime();
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      }
+    });
+
+  // Get unique student count
+  const uniqueStudents = new Set(students.map((s) => s._id)).size;
+
+  const handleViewDetails = (student: EnrolledStudent) => {
+    // Get all enrollments for this student
+    setSelectedStudent({
+      ...student,
+    });
+    setIsDetailsDialogOpen(true);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  if (!educator) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <DashboardHeader title="Students" />
+      <DashboardHeader
+        title="Students"
+        description="Manage your enrolled students"
+      />
       <div className="flex-1 p-6 space-y-6">
-        {/* Total Followers Section */}
-        <div className="flex flex-col items-center justify-center py-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Users className="h-8 w-8 text-primary" />
-            <h2 className="text-2xl font-bold">Total Followers</h2>
-          </div>
-          <p className="text-5xl  font-bold text-white">{totalFollowers.toLocaleString()}</p>
+        {/* Stats Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Total Students
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {uniqueStudents}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-500/10 rounded-lg">
+                  <Users className="h-6 w-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Total Enrollments
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {students.length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-500/10 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Active Courses
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {courses.length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Enrolled Students Table */}
         <Card>
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold mb-4">Enrolled Students</h3>
-            
-            {/* Search Bar */}
-            <div className="mb-4">
-              <Input
-                placeholder="Search by name, course, or contact number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-sm"
-              />
+
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by name, email, mobile, or course..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <SelectTrigger className="w-full md:w-[250px]">
+                  <SelectValue placeholder="Filter by course" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Courses</SelectItem>
+                  {courses.map((course) => (
+                    <SelectItem key={course._id} value={course._id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={`${sortBy}-${sortOrder}`}
+                onValueChange={(value) => {
+                  const [newSortBy, newSortOrder] = value.split("-") as [
+                    "name" | "joinedAt",
+                    "asc" | "desc"
+                  ];
+                  setSortBy(newSortBy);
+                  setSortOrder(newSortOrder);
+                }}
+              >
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                  <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                  <SelectItem value="joinedAt-desc">Newest First</SelectItem>
+                  <SelectItem value="joinedAt-asc">Oldest First</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Date of Enrollment</TableHead>
-                    <TableHead>Course Name</TableHead>
-                    <TableHead>Course Type</TableHead>
-                    <TableHead>Amount Paid</TableHead>
-                    <TableHead>Contact Number</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.length === 0 ? (
+            {/* Table */}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading students...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No enrolled students found
-                      </TableCell>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Mobile</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Course Type</TableHead>
+                      <TableHead>Specialization</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Joined Date</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell>
-                          {new Date(student.dateOfEnrollment).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAndSortedStudents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-12">
+                          <UserX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">
+                            {searchQuery || selectedCourse !== "all"
+                              ? "No students found matching your filters"
+                              : "No enrolled students yet"}
+                          </p>
                         </TableCell>
-                        <TableCell>{student.courseName}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              student.courseType === "one to one"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-green-100 text-green-700"
-                            }`}
-                          >
-                            {student.courseType}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          ₹{student.amountPaid.toLocaleString()}
-                        </TableCell>
-                        <TableCell>{student.contactNumber}</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ) : (
+                      filteredAndSortedStudents.map((student, index) => (
+                        <TableRow
+                          key={`${student._id}-${student.courseId}-${index}`}
+                        >
+                          <TableCell className="font-medium">
+                            {student.name}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {student.email}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            +91 {student.mobileNumber}
+                          </TableCell>
+                          <TableCell className="max-w-[200px]">
+                            <span className="line-clamp-1">
+                              {student.courseTitle}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                student.courseType === "OTO"
+                                  ? "border-blue-500/50 text-blue-500"
+                                  : "border-green-500/50 text-green-500"
+                              }`}
+                            >
+                              {student.courseType === "OTO"
+                                ? "One to One"
+                                : "One to All"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              {student.specialization}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {student.class}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(student.joinedAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDetails(student)}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* View Details Dialog */}
+      <ViewStudentDetailsDialog
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        student={selectedStudent}
+        allEnrollments={
+          selectedStudent
+            ? students.filter((s) => s._id === selectedStudent._id)
+            : []
+        }
+      />
     </div>
-  )
+  );
 }

@@ -904,6 +904,26 @@ export const getEducatorStudents = async () => {
   }
 };
 
+// Get all students enrolled in educator's courses
+export const getEducatorEnrolledStudents = async (educatorId) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required");
+  }
+
+  try {
+    const response = await API_CLIENT.get(
+      `/api/students/educator/${educatorId}/enrolled`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching enrolled students:", error);
+    throw error;
+  }
+};
+
 export const getStudentById = async (studentId) => {
   try {
     const response = await API_CLIENT.get(
