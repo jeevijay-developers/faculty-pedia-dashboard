@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ListChecks,
 } from "lucide-react";
 import {
   Table,
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { EditTestDialog } from "@/components/edit-test-dialog";
 import { DeleteTestAlert } from "@/components/delete-test-alert";
+import { AssignTestSeriesDialog } from "@/components/assign-test-series-dialog";
 import { getEducatorTests, deleteLiveTest } from "@/util/server";
 import { Test } from "@/lib/types/test";
 import toast from "react-hot-toast";
@@ -52,17 +55,10 @@ export default function CreateTestPage() {
   const [testToDelete, setTestToDelete] = useState<Test | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (!educator?._id) {
-      router.push("/login");
-      return;
-    }
-
-    fetchTests();
-  }, [educator, router]);
-
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
     if (!educator?._id) return;
 
     try {
@@ -77,7 +73,16 @@ export default function CreateTestPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [educator?._id]);
+
+  useEffect(() => {
+    if (!educator?._id) {
+      router.push("/login");
+      return;
+    }
+
+    fetchTests();
+  }, [educator, router, fetchTests]);
 
   const handleViewTest = (test: Test) => {
     router.push(`/dashboard/test/${test._id}`);
@@ -156,6 +161,31 @@ export default function CreateTestPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleSelectTest = (testId: string) => {
+    setSelectedTestIds((prev) =>
+      prev.includes(testId)
+        ? prev.filter((id) => id !== testId)
+        : [...prev, testId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTestIds.length === paginatedTests.length) {
+      setSelectedTestIds([]);
+    } else {
+      setSelectedTestIds(paginatedTests.map((test) => test._id));
+    }
+  };
+
+  const handleAssignToTestSeries = () => {
+    setIsAssignDialogOpen(true);
+  };
+
+  const handleAssignmentComplete = () => {
+    setSelectedTestIds([]);
+    fetchTests();
+  };
+
   if (!educator) {
     return null;
   }
@@ -178,13 +208,25 @@ export default function CreateTestPage() {
               Create comprehensive tests with custom questions and settings
             </p>
           </div>
-          <Button
-            onClick={() => router.push("/dashboard/test/create")}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Create Test
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedTestIds.length > 0 && (
+              <Button
+                onClick={handleAssignToTestSeries}
+                variant="outline"
+                className="gap-2"
+              >
+                <ListChecks className="h-4 w-4" />
+                Assign to Test Series ({selectedTestIds.length})
+              </Button>
+            )}
+            <Button
+              onClick={() => router.push("/dashboard/test/create")}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create Test
+            </Button>
+          </div>
         </div>
 
         {/* Test Grid */}
@@ -201,6 +243,15 @@ export default function CreateTestPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          paginatedTests.length > 0 &&
+                          selectedTestIds.length === paginatedTests.length
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Test Title</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Specialization</TableHead>
@@ -215,6 +266,12 @@ export default function CreateTestPage() {
                 <TableBody>
                   {paginatedTests.map((test) => (
                     <TableRow key={test._id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedTestIds.includes(test._id)}
+                          onCheckedChange={() => handleSelectTest(test._id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col max-w-xs">
                           <span className="font-medium text-foreground line-clamp-1">
@@ -403,6 +460,12 @@ export default function CreateTestPage() {
         onConfirm={confirmDeleteTest}
         loading={deleteLoading}
         testTitle={testToDelete?.title || ""}
+      />
+      <AssignTestSeriesDialog
+        open={isAssignDialogOpen}
+        onOpenChange={setIsAssignDialogOpen}
+        selectedTestIds={selectedTestIds}
+        onAssignmentComplete={handleAssignmentComplete}
       />
     </div>
   );
