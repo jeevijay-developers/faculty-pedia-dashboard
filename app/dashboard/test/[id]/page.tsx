@@ -6,8 +6,14 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   ArrowLeft,
   Calendar,
@@ -21,7 +27,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { getEducatorTests } from "@/util/server";
+import { getTestById } from "@/util/server";
 import { Test } from "@/lib/types/test";
 import toast from "react-hot-toast";
 
@@ -47,18 +53,19 @@ export default function TestDetailsPage() {
 
     try {
       setLoading(true);
-      const response = await getEducatorTests(educator._id);
-      const foundTest = response.tests.find((t: Test) => t._id === params.id);
+      const fetchedTest = await getTestById(params.id as string);
 
-      if (!foundTest) {
+      if (!fetchedTest) {
         setError("Test not found");
+        toast.error("Test not found");
         return;
       }
 
-      setTest(foundTest);
+      setTest(fetchedTest);
     } catch (error) {
       console.error("Error fetching test details:", error);
       setError("Failed to fetch test details");
+      toast.error("Failed to fetch test details");
     } finally {
       setLoading(false);
     }
@@ -93,7 +100,9 @@ export default function TestDetailsPage() {
       medium: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
       hard: "bg-red-500/10 text-red-600 border-red-200",
     };
-    return colors[difficulty?.toLowerCase() as keyof typeof colors] || "bg-muted";
+    return (
+      colors[difficulty?.toLowerCase() as keyof typeof colors] || "bg-muted"
+    );
   };
 
   if (!educator) {
@@ -103,7 +112,10 @@ export default function TestDetailsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <DashboardHeader title="Test Details" description="View comprehensive test information" />
+        <DashboardHeader
+          title="Test Details"
+          description="View comprehensive test information"
+        />
         <div className="px-6">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
@@ -119,7 +131,10 @@ export default function TestDetailsPage() {
   if (error || !test) {
     return (
       <div className="space-y-6">
-        <DashboardHeader title="Test Details" description="View comprehensive test information" />
+        <DashboardHeader
+          title="Test Details"
+          description="View comprehensive test information"
+        />
         <div className="px-6">
           <Card className="bg-card border-border">
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -128,9 +143,13 @@ export default function TestDetailsPage() {
                 {error || "Test not found"}
               </h3>
               <p className="text-muted-foreground text-center mb-4">
-                The test you're looking for doesn't exist or has been removed.
+                The test you&apos;re looking for doesn&apos;t exist or has been
+                removed.
               </p>
-              <Button onClick={() => router.push("/dashboard/create-test")} className="gap-2">
+              <Button
+                onClick={() => router.push("/dashboard/test")}
+                className="gap-2"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Back to Tests
               </Button>
@@ -141,24 +160,21 @@ export default function TestDetailsPage() {
     );
   }
 
-  // Group questions by subject
-  const questionsBySubject = test.questions.reduce((acc, question) => {
-    const subject = question.subject.toLowerCase();
-    if (!acc[subject]) {
-      acc[subject] = [];
-    }
-    acc[subject].push(question);
-    return acc;
-  }, {} as Record<string, typeof test.questions>);
-
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Test Details" description="View comprehensive test information" />
+      <DashboardHeader
+        title="Test Details"
+        description="View comprehensive test information"
+      />
 
       <div className="px-6 space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => router.push("/dashboard/create-test")} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/test")}
+            className="gap-2"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back to Tests
           </Button>
@@ -169,13 +185,25 @@ export default function TestDetailsPage() {
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="text-2xl font-bold text-foreground">{test.title}</CardTitle>
-                  <Badge className={`${getSubjectColor(test.subject)} capitalize`}>
-                    {test.subject}
-                  </Badge>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <CardTitle className="text-2xl font-bold text-foreground">
+                    {test.title}
+                  </CardTitle>
+                  {test.subjects.slice(0, 3).map((subject, index) => (
+                    <Badge
+                      key={index}
+                      className={`${getSubjectColor(subject)} capitalize`}
+                    >
+                      {subject}
+                    </Badge>
+                  ))}
+                  {test.subjects.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{test.subjects.length - 3} more
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-muted-foreground">{test.description.short}</p>
+                <p className="text-muted-foreground">{test.description}</p>
               </div>
             </div>
           </CardHeader>
@@ -190,8 +218,19 @@ export default function TestDetailsPage() {
                   <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Specialization</p>
-                  <p className="text-sm font-semibold text-foreground capitalize">{test.specialization}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Specialization
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {test.specialization.map((spec, index) => (
+                      <span
+                        key={index}
+                        className="text-xs font-semibold text-foreground capitalize"
+                      >
+                        {spec}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -205,7 +244,9 @@ export default function TestDetailsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="text-sm font-semibold text-foreground">{test.duration} minutes</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {test.duration} minutes
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -218,8 +259,10 @@ export default function TestDetailsPage() {
                   <Award className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Positive Marks</p>
-                  <p className="text-sm font-semibold text-green-600">+{test.overallMarks.positive}</p>
+                  <p className="text-xs text-muted-foreground">Overall Marks</p>
+                  <p className="text-sm font-semibold text-green-600">
+                    {test.overallMarks}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -232,8 +275,14 @@ export default function TestDetailsPage() {
                   <Award className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Negative Marks</p>
-                  <p className="text-sm font-semibold text-red-600">{test.overallMarks.negative}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Negative Marking
+                  </p>
+                  <p className="text-sm font-semibold text-red-600">
+                    {test.negativeMarking
+                      ? `Yes (${test.negativeMarkingRatio}x)`
+                      : "No"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -251,19 +300,51 @@ export default function TestDetailsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Start Date & Time</p>
-                <p className="font-medium text-foreground">{formatDate(test.startDate)}</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Created Date
+                </p>
+                <p className="font-medium text-foreground">
+                  {formatDate(test.createdAt)}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Marking Type</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Marking Type
+                </p>
                 <Badge variant="outline">
-                  {test.markingType === "PQM" ? "Per Question Marking" : "Overall Marking"}
+                  {test.markingType === "per_question"
+                    ? "Per Question Marking"
+                    : "Overall Marking"}
                 </Badge>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Questions</p>
-                <p className="font-medium text-foreground">{test.questions.length} questions</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Total Questions
+                </p>
+                <p className="font-medium text-foreground">
+                  {test.questions.length} questions
+                </p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Classes</p>
+                <div className="flex flex-wrap gap-1">
+                  {test.class.map((cls, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {cls}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              {test.passingMarks && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Passing Marks
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {test.passingMarks}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Test ID</p>
                 <p className="font-mono text-xs text-foreground">{test._id}</p>
@@ -272,17 +353,19 @@ export default function TestDetailsPage() {
           </CardContent>
         </Card>
 
-        {/* Description */}
-        {test.description.long && (
+        {/* Instructions */}
+        {test.instructions && (
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                Description
+                Instructions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground leading-relaxed">{test.description.long}</p>
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {test.instructions}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -296,77 +379,42 @@ export default function TestDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {Object.entries(questionsBySubject).map(([subject, questions]) => (
-                <div key={subject} className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Badge className={`${getSubjectColor(subject)} capitalize`}>
-                      {subject}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {questions.length} question{questions.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <Separator />
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[60px]">#</TableHead>
-                        <TableHead>Question</TableHead>
-                        <TableHead>Topic</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Difficulty</TableHead>
-                        <TableHead>Marks</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {questions.map((question, index) => (
-                        <TableRow key={question._id}>
-                          <TableCell>
-                            <Badge variant="outline">Q{index + 1}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <p className="max-w-2xl text-sm font-medium text-foreground line-clamp-1 truncate">
-                              {question.title}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {question.topic}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {(question as any)?.type || "MCQ"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {(question as any)?.difficulty ? (
-                              <Badge className={`text-xs ${getDifficultyColor((question as any).difficulty)}`}>
-                                {(question as any).difficulty}
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-xs">
-                              <span className="text-green-600">
-                                +{(question as any).positiveMarks || test.overallMarks.positive}
-                              </span>
-                              {" / "}
-                              <span className="text-red-600">
-                                -{Math.abs((question as any).negativeMarks || test.overallMarks.negative)}
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]">#</TableHead>
+                  <TableHead>Question</TableHead>
+                  <TableHead>Difficulty</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {test.questions.map((question, index) => (
+                  <TableRow key={question._id}>
+                    <TableCell>
+                      <Badge variant="outline">Q{index + 1}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <p className="max-w-2xl text-sm font-medium text-foreground line-clamp-2">
+                        {question.title}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {question.difficulty ? (
+                        <Badge
+                          className={`text-xs ${getDifficultyColor(
+                            question.difficulty
+                          )}`}
+                        >
+                          {question.difficulty}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
@@ -379,11 +427,15 @@ export default function TestDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground mb-1">Created</p>
-                <p className="font-medium text-foreground">{formatDate(test.createdAt)}</p>
+                <p className="font-medium text-foreground">
+                  {formatDate(test.createdAt)}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Last Updated</p>
-                <p className="font-medium text-foreground">{formatDate(test.updatedAt)}</p>
+                <p className="font-medium text-foreground">
+                  {formatDate(test.updatedAt)}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Test Slug</p>

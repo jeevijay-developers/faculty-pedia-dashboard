@@ -296,10 +296,11 @@ export const deleteCourse = async (courseId) => {
 };
 
 // Question Bank APIs
-export const getEducatorQuestions = async () => {
+export const getQuestions = async (params = {}) => {
   try {
-    const response = await API_CLIENT.get("/api/educator/questions", {
+    const response = await API_CLIENT.get("/api/questions", {
       headers: getAuthHeaders(),
+      params,
     });
     return response.data;
   } catch (error) {
@@ -308,15 +309,34 @@ export const getEducatorQuestions = async () => {
   }
 };
 
-export const createQuestion = async (questionData) => {
+export const getEducatorQuestions = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch questions");
+  }
+
   try {
-    const response = await API_CLIENT.post(
-      "/api/questions/create-question",
-      questionData,
+    const response = await API_CLIENT.get(
+      `/api/questions/educator/${educatorId}`,
       {
         headers: getAuthHeaders(),
+        params,
       }
     );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator questions:", error);
+    throw error;
+  }
+};
+
+export const createQuestion = async (questionData) => {
+  try {
+    const response = await API_CLIENT.post("/api/questions", questionData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+    });
     return response.data;
   } catch (error) {
     console.error("Error creating question:", error);
@@ -325,12 +345,19 @@ export const createQuestion = async (questionData) => {
 };
 
 export const updateQuestion = async (questionId, questionData) => {
+  if (!questionId) {
+    throw new Error("Question ID is required to update a question");
+  }
+
   try {
     const response = await API_CLIENT.put(
       `/api/questions/${questionId}`,
       questionData,
       {
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
       }
     );
     return response.data;
@@ -353,9 +380,16 @@ export const deleteQuestion = async (questionId) => {
 };
 
 export const getQuestionById = async (questionId) => {
+  if (!questionId) {
+    throw new Error("Question ID is required to fetch a question");
+  }
+
   try {
-    const response = await API_CLIENT.get(`/api/questions/${questionId}`);
-    return response.data;
+    const response = await API_CLIENT.get(`/api/questions/${questionId}`, {
+      headers: getAuthHeaders(),
+    });
+    const payload = response.data;
+    return payload?.data ?? payload;
   } catch (error) {
     console.error("Error fetching question by ID:", error);
     throw error;
@@ -834,68 +868,72 @@ export const getEducatorQuestionsByEducatorId = async (educatorId) => {
         headers: getAuthHeaders(),
       }
     );
-    return response.data;
+    const payload = response.data;
+    return payload?.data ?? payload;
   } catch (error) {
     console.error("Error fetching educator questions:", error);
     throw error;
   }
 };
 
-export const getEducatorTests = async (educatorId) => {
+export const getEducatorTests = async (educatorId, params = {}) => {
   try {
-    const response = await API_CLIENT.get(
-      `/api/live-test/educator/${educatorId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return response.data;
+    const response = await API_CLIENT.get(`/api/tests/educator/${educatorId}`, {
+      headers: getAuthHeaders(),
+      params,
+    });
+    const payload = response.data;
+    return payload?.data ?? payload;
   } catch (error) {
     console.error("Error fetching educator tests:", error);
     throw error;
   }
 };
 
+export const getTestById = async (testId) => {
+  try {
+    const response = await API_CLIENT.get(`/api/tests/${testId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data?.data || response.data;
+  } catch (error) {
+    console.error("Error fetching test:", error);
+    throw error;
+  }
+};
+
 export const createLiveTest = async (testData) => {
   try {
-    const response = await API_CLIENT.post(
-      "/api/live-test/create-test",
-      testData,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.post("/api/tests", testData, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
-    console.error("Error creating live test:", error);
+    console.error("Error creating test:", error);
     throw error;
   }
 };
 
 export const updateLiveTest = async (testId, testData) => {
   try {
-    const response = await API_CLIENT.put(
-      `/api/live-test/${testId}`,
-      testData,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.put(`/api/tests/${testId}`, testData, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
-    console.error("Error updating live test:", error);
+    console.error("Error updating test:", error);
     throw error;
   }
 };
 
 export const deleteLiveTest = async (testId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/live-test/${testId}`, {
+    const response = await API_CLIENT.delete(`/api/tests/${testId}`, {
       headers: getAuthHeaders(),
     });
     return response.data;
   } catch (error) {
-    console.error("Error deleting live test:", error);
+    console.error("Error deleting test:", error);
     throw error;
   }
 };

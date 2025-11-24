@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +14,19 @@ import {
 } from "@/components/ui/select";
 import { Search, Loader2 } from "lucide-react";
 import { Question } from "@/lib/types/test";
+
+const normalizeField = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value);
+};
 
 interface QuestionBankProps {
   questions: Question[];
@@ -37,71 +49,90 @@ export default function QuestionBank({
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [topicFilter, setTopicFilter] = useState("all");
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
+  const [questionTypeFilter, setQuestionTypeFilter] = useState("all");
 
-  useEffect(() => {
-    filterQuestions();
-  }, [questions, searchTerm, subjectFilter, topicFilter]);
-
-  const filterQuestions = () => {
+  const filterQuestions = useCallback(() => {
     let filtered = questions;
 
     if (searchTerm) {
       filtered = filtered.filter(
         (q) =>
           q.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          q.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          q.subject.toLowerCase().includes(searchTerm.toLowerCase())
+          normalizeField(q.topic)
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          normalizeField(q.subject)
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
 
     if (subjectFilter !== "all") {
       filtered = filtered.filter(
-        (q) => q.subject.toLowerCase() === subjectFilter.toLowerCase()
+        (q) =>
+          normalizeField(q.subject).toLowerCase() ===
+          subjectFilter.toLowerCase()
       );
     }
 
     if (topicFilter !== "all") {
       filtered = filtered.filter(
-        (q) => q.topic.toLowerCase() === topicFilter.toLowerCase()
+        (q) =>
+          normalizeField(q.topic).toLowerCase() === topicFilter.toLowerCase()
       );
+    }
+
+    if (questionTypeFilter !== "all") {
+      filtered = filtered.filter((q) => {
+        const typeValue = getQuestionTypeValue(q);
+        return typeValue === questionTypeFilter;
+      });
     }
 
     setFilteredQuestions(filtered);
+  }, [questions, searchTerm, subjectFilter, topicFilter, questionTypeFilter]);
+
+  useEffect(() => {
+    filterQuestions();
+  }, [filterQuestions]);
+
+  const getQuestionTypeValue = (question: Question) => {
+    const rawType =
+      (question as { questionType?: string }).questionType ??
+      (question as { type?: string }).type ??
+      "";
+    return normalizeField(rawType).toLowerCase();
   };
 
-  const subjects = Array.from(new Set(questions.map((q) => q.subject)));
-  const topics = Array.from(new Set(questions.map((q) => q.topic)));
-
-  const getSubjectColor = (subject: string) => {
-    if (darkTheme) {
-      const colors = {
-        physics: "bg-blue-900/50 text-blue-300",
-        chemistry: "bg-green-900/50 text-green-300",
-        mathematics: "bg-purple-900/50 text-purple-300",
-        math: "bg-purple-900/50 text-purple-300",
-      };
-      return (
-        colors[subject.toLowerCase() as keyof typeof colors] ||
-        "bg-gray-700 text-gray-300"
-      );
-    } else {
-      const colors = {
-        physics: "bg-blue-100 text-blue-800",
-        chemistry: "bg-green-100 text-green-800",
-        mathematics: "bg-purple-100 text-purple-800",
-        math: "bg-purple-100 text-purple-800",
-      };
-      return (
-        colors[subject.toLowerCase() as keyof typeof colors] ||
-        "bg-gray-100 text-gray-800"
-      );
+  const formatQuestionTypeLabel = (type: string) => {
+    switch (type) {
+      case "single-select":
+        return "Single Select";
+      case "multi-select":
+        return "Multi Select";
+      case "integer":
+        return "Integer";
+      default:
+        return type
+          ? type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "Unknown";
     }
   };
 
+  const subjects = Array.from(
+    new Set(questions.map((q) => normalizeField(q.subject)))
+  ).filter(Boolean);
+  const topics = Array.from(
+    new Set(questions.map((q) => normalizeField(q.topic)))
+  ).filter(Boolean);
+  const questionTypes = Array.from(
+    new Set(questions.map((q) => getQuestionTypeValue(q)))
+  ).filter(Boolean);
+
   return (
-    <div className={`space-y-4 ${darkTheme ? "text-gray-100" : ""}`}>
+    <div className={`px-1 space-y-4 ${darkTheme ? "text-gray-100" : ""}`}>
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="relative">
           <Search
             className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
@@ -181,6 +212,40 @@ export default function QuestionBank({
             ))}
           </SelectContent>
         </Select>
+
+        <Select
+          value={questionTypeFilter}
+          onValueChange={setQuestionTypeFilter}
+        >
+          <SelectTrigger
+            className={
+              darkTheme
+                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
+                : ""
+            }
+          >
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent
+            className={darkTheme ? "bg-gray-800 border-gray-700" : ""}
+          >
+            <SelectItem
+              value="all"
+              className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
+            >
+              All Types
+            </SelectItem>
+            {questionTypes.map((type) => (
+              <SelectItem
+                key={type}
+                value={type}
+                className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
+              >
+                {formatQuestionTypeLabel(type)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Selection Summary */}
@@ -202,7 +267,14 @@ export default function QuestionBank({
       </div>
 
       {/* Questions List */}
-      <ScrollArea className={height} style={{ height: height.includes('vh') ? height.replace('h-[', '').replace(']', '') : undefined }}>
+      <ScrollArea
+        className={height}
+        style={{
+          height: height.includes("vh")
+            ? height.replace("h-[", "").replace("]", "")
+            : undefined,
+        }}
+      >
         {loading ? (
           <div className="flex justify-center items-center h-32">
             <Loader2
@@ -229,7 +301,6 @@ export default function QuestionBank({
                 question={question}
                 selected={selectedQuestions.includes(question._id)}
                 onSelect={onQuestionSelect}
-                getSubjectColor={getSubjectColor}
                 darkTheme={darkTheme}
               />
             ))}
@@ -244,7 +315,6 @@ interface QuestionCardProps {
   question: Question;
   selected: boolean;
   onSelect: (questionId: string, selected: boolean) => void;
-  getSubjectColor: (subject: string) => string;
   darkTheme?: boolean;
 }
 
@@ -252,12 +322,11 @@ function QuestionCard({
   question,
   selected,
   onSelect,
-  getSubjectColor,
   darkTheme = false,
 }: QuestionCardProps) {
   return (
     <Card
-      className={`p-4 transition-all duration-200 ${
+      className={`rounded-md m-2 p-4 transition-all duration-200 cursor-pointer ${
         selected
           ? darkTheme
             ? "ring-2 ring-blue-400 bg-blue-900/20 border-blue-600"
@@ -266,6 +335,7 @@ function QuestionCard({
           ? "hover:shadow-lg bg-gray-700/30 border-gray-600 hover:border-gray-500"
           : "hover:shadow-md"
       }`}
+      onClick={() => onSelect(question._id, !selected)}
     >
       <div className="flex items-start gap-3">
         <Checkbox
@@ -279,74 +349,14 @@ function QuestionCard({
               : ""
           }`}
         />
-        <div className="flex-1 space-y-3">
-          <div
-            className={`font-medium text-sm leading-relaxed ${
-              darkTheme ? "text-gray-200" : ""
+        <div className="flex-1">
+          <p
+            className={`text-sm font-medium leading-relaxed ${
+              darkTheme ? "text-gray-200" : "text-card-foreground"
             }`}
           >
             {question.title}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge className={getSubjectColor(question.subject)}>
-              {question.subject}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`text-xs ${
-                darkTheme ? "border-gray-500 text-gray-300" : ""
-              }`}
-            >
-              {question.topic}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`text-xs ${
-                darkTheme ? "border-gray-500 text-gray-300" : ""
-              }`}
-            >
-              +{question.marks.positive} / {question.marks.negative}
-            </Badge>
-          </div>
-
-          <div
-            className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-xs ${
-              darkTheme ? "text-gray-400" : "text-gray-600"
-            }`}
-          >
-            <div className="space-y-1">
-              <div>
-                <span className="font-medium">A)</span>{" "}
-                {question.options.A.text}
-              </div>
-              <div>
-                <span className="font-medium">B)</span>{" "}
-                {question.options.B.text}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div>
-                <span className="font-medium">C)</span>{" "}
-                {question.options.C.text}
-              </div>
-              <div>
-                <span className="font-medium">D)</span>{" "}
-                {question.options.D.text}
-              </div>
-            </div>
-          </div>
-
-          {question.correctOptions.length > 0 && (
-            <div
-              className={`text-xs ${
-                darkTheme ? "text-green-400" : "text-green-600"
-              }`}
-            >
-              <span className="font-medium">Correct:</span>{" "}
-              {question.correctOptions.join(", ")}
-            </div>
-          )}
+          </p>
         </div>
       </div>
     </Card>
