@@ -6,6 +6,7 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import type {
   Course,
   CoursePaginationMeta,
+  CourseType,
   EducatorCourseResponse,
 } from "@/lib/types/course";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,17 @@ import { deleteCourse, getCoursesByEducator } from "@/util/server";
 import toast from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 10;
+
+const formatCourseType = (type?: CourseType | string) => {
+  if (!type) return "One To All";
+  const normalized =
+    type === "OTO"
+      ? "one-to-one"
+      : type === "OTA"
+      ? "one-to-all"
+      : type;
+  return normalized === "one-to-one" ? "One To One" : "One To All";
+};
 
 export default function LiveCoursesPage() {
   const { educator } = useAuth();
@@ -104,6 +116,7 @@ export default function LiveCoursesPage() {
     if (page < 1 || (pagination && page > pagination.totalPages)) {
       return;
     }
+    setCurrentPage(page);
     fetchCourses(page);
   };
 
@@ -279,7 +292,7 @@ export default function LiveCoursesPage() {
                       <TableCell>{renderClasses(course)}</TableCell>
                       <TableCell>
                         <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                          {course.courseType || "OTA"}
+                          {formatCourseType(course.courseType)}
                         </Badge>
                       </TableCell>
                       <TableCell>

@@ -1,18 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -20,18 +21,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Eye, Edit, Trash2, MoreHorizontal, ChevronDown, X } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,479 +38,719 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Loader2, MoreHorizontal, Plus, Trash2, Eye, X, Edit } from "lucide-react";
+import toast from "react-hot-toast";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  createEducatorPost,
+  deleteEducatorPost,
+  getEducatorPosts,
+  updateEducatorPost,
+} from "@/util/server";
+
+const SUBJECT_OPTIONS = [
+  "biology",
+  "physics",
+  "mathematics",
+  "chemistry",
+  "english",
+  "hindi",
+] as const;
+
+const SPECIALIZATION_OPTIONS = ["IIT-JEE", "NEET", "CBSE"] as const;
+
+type SubjectOption = (typeof SUBJECT_OPTIONS)[number];
+type SpecializationOption = (typeof SPECIALIZATION_OPTIONS)[number];
 
 interface Post {
-  id: number
-  title: string
-  detail: string
-  date: string
+  _id: string;
+  title: string;
+  description: string;
+  subjects?: string[];
+  specializations?: string[];
+  subject?: string;
+  specialization?: string;
+  createdAt: string;
 }
 
-export default function PostPage() {
-  const [open, setOpen] = useState(false)
-  const [viewOpen, setViewOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [assignOpen, setAssignOpen] = useState(false)
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
-  const [editFormData, setEditFormData] = useState<Post | null>(null)
-  const [postToDelete, setPostToDelete] = useState<Post | null>(null)
-  const [postToAssign, setPostToAssign] = useState<Post | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-  
-  // Assignment form data
-  const [jeeChecked, setJeeChecked] = useState(false)
-  const [neetChecked, setNeetChecked] = useState(false)
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
-  const [classDropdownOpen, setClassDropdownOpen] = useState(false)
-  
-  // Form data for creating new post
-  const [formData, setFormData] = useState({
-    title: "",
-    detail: "",
-    date: ""
-  })
+type FormState = {
+  title: string;
+  description: string;
+  subjects: string[];
+  specializations: string[];
+};
 
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: 1,
-      title: "Important Announcement",
-      detail: "Classes will resume from next Monday",
-      date: "2025-11-01"
-    },
-    {
-      id: 2,
-      title: "New Course Launch",
-      detail: "We are launching a new advanced physics course",
-      date: "2025-11-05"
-    }
-  ])
+const initialFormState: FormState = {
+  title: "",
+  description: "",
+  subjects: [],
+  specializations: [],
+};
 
-  const cbseClasses = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"]
-
-  // Debounce effect for search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500) // 500ms delay
-
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [searchQuery])
-
-  // Handle create form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newPost: Post = {
-      id: posts.length + 1,
-      title: formData.title,
-      detail: formData.detail,
-      date: formData.date
-    }
-    setPosts([...posts, newPost])
-    setFormData({ title: "", detail: "", date: "" })
-    setOpen(false)
-  }
-
-  // Handle view
-  const handleView = (post: Post) => {
-    setSelectedPost(post)
-    setViewOpen(true)
-  }
-
-  // Handle edit
-  const handleEdit = (post: Post) => {
-    setEditFormData(post)
-    setEditOpen(true)
-  }
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editFormData) {
-      setPosts(posts.map(p => p.id === editFormData.id ? editFormData : p))
-      setEditOpen(false)
-      setEditFormData(null)
-    }
-  }
-
-  // Handle assign to course
-  const handleAssignClick = (post: Post) => {
-    setPostToAssign(post)
-    setJeeChecked(false)
-    setNeetChecked(false)
-    setSelectedClasses([])
-    setAssignOpen(true)
-  }
-
-  const handleClassToggle = (className: string) => {
-    setSelectedClasses(prev =>
-      prev.includes(className)
-        ? prev.filter(c => c !== className)
-        : [...prev, className]
+const formatLabel = (value: string) =>
+  value
+    .split(/[-_]/)
+    .map((segment) =>
+      segment.length > 0
+        ? segment.charAt(0).toUpperCase() + segment.slice(1)
+        : segment
     )
-  }
+    .join(" ");
 
-  const handleAssignSubmit = () => {
-    console.log("Assigning post:", postToAssign?.title)
-    console.log("JEE:", jeeChecked, "NEET:", neetChecked)
-    console.log("Selected Classes:", selectedClasses)
-    setAssignOpen(false)
-    setPostToAssign(null)
-    setJeeChecked(false)
-    setNeetChecked(false)
-    setSelectedClasses([])
+const formatDate = (value?: string) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
   }
+  return parsed.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
-  // Handle delete
-  const handleDeleteClick = (post: Post) => {
-    setPostToDelete(post)
-    setDeleteOpen(true)
+const truncate = (value: string, length = 80) =>
+  value.length > length ? `${value.slice(0, length - 3)}...` : value;
+
+const resolveSubjects = (post?: Post) => {
+  if (!post) return [] as string[];
+  if (Array.isArray(post.subjects) && post.subjects.length > 0) {
+    return post.subjects;
   }
+  return post.subject ? [post.subject] : [];
+};
 
-  const handleDeleteConfirm = () => {
-    if (postToDelete) {
-      setPosts(posts.filter(p => p.id !== postToDelete.id))
-      setDeleteOpen(false)
-      setPostToDelete(null)
+const resolveSpecializations = (post?: Post) => {
+  if (!post) return [] as string[];
+  if (
+    Array.isArray(post.specializations) &&
+    post.specializations.length > 0
+  ) {
+    return post.specializations;
+  }
+  return post.specialization ? [post.specialization] : [];
+};
+
+export default function PostPage() {
+  const { educator, isLoading: authLoading } = useAuth();
+  const educatorId = educator?._id;
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<FormState>(initialFormState);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [postBeingEdited, setPostBeingEdited] = useState<Post | null>(null);
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
+  const [showSpecializationDropdown, setShowSpecializationDropdown] = useState(false);
+  const [viewPost, setViewPost] = useState<Post | null>(null);
+  const [postPendingDelete, setPostPendingDelete] = useState<Post | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isEditMode = dialogMode === "edit";
+
+  const isTableLoading = authLoading || isFetching;
+
+  const closeDropdowns = () => {
+    setShowSubjectDropdown(false);
+    setShowSpecializationDropdown(false);
+  };
+
+  const openCreateDialog = () => {
+    if (isSubmitting) return;
+    setDialogMode("create");
+    setPostBeingEdited(null);
+    setFormData(initialFormState);
+    closeDropdowns();
+    setIsDialogOpen(true);
+  };
+
+  const startEditingPost = (post: Post) => {
+    setDialogMode("edit");
+    setPostBeingEdited(post);
+    setFormData({
+      title: post.title || "",
+      description: post.description || "",
+      subjects: resolveSubjects(post),
+      specializations: resolveSpecializations(post),
+    });
+    closeDropdowns();
+    setIsDialogOpen(true);
+  };
+
+  const toggleSubject = (value: string) => {
+    setFormData((prev) => {
+      const exists = prev.subjects.includes(value);
+      return {
+        ...prev,
+        subjects: exists
+          ? prev.subjects.filter((item) => item !== value)
+          : [...prev.subjects, value],
+      };
+    });
+  };
+
+  const toggleSpecialization = (value: string) => {
+    setFormData((prev) => {
+      const exists = prev.specializations.includes(value);
+      return {
+        ...prev,
+        specializations: exists
+          ? prev.specializations.filter((item) => item !== value)
+          : [...prev.specializations, value],
+      };
+    });
+  };
+
+  const fetchPosts = useCallback(async () => {
+    if (!educatorId) {
+      setPosts([]);
+      return;
     }
-  }
 
-  // Filter posts based on debounced search query
-  const filteredPosts = posts.filter(post =>
-    post.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-  )
+    setIsFetching(true);
+    try {
+      const response = await getEducatorPosts(educatorId, { page: 1, limit: 50 });
+      const list =
+        response?.posts ||
+        response?.data?.posts ||
+        (Array.isArray(response) ? response : []);
+      setPosts(Array.isArray(list) ? list : []);
+    } catch (error: any) {
+      console.error("Error fetching posts:", error);
+      toast.error(error?.response?.data?.message || "Failed to load posts");
+    } finally {
+      setIsFetching(false);
+    }
+  }, [educatorId]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const handleDialogChange = (open: boolean) => {
+    if (!open && isSubmitting) {
+      return;
+    }
+    setIsDialogOpen(open);
+    if (!open) {
+      setFormData(initialFormState);
+      setDialogMode("create");
+      setPostBeingEdited(null);
+      closeDropdowns();
+    }
+  };
+
+  const handleViewDialogChange = (open: boolean) => {
+    if (!open) {
+      setViewPost(null);
+    }
+  };
+
+  const handleDeleteDialogChange = (open: boolean) => {
+    if (!open && !isDeleting) {
+      setIsDeleteDialogOpen(false);
+      setPostPendingDelete(null);
+    } else if (open) {
+      setIsDeleteDialogOpen(true);
+    }
+  };
+
+  const handleViewPost = (post: Post) => {
+    setViewPost(post);
+  };
+
+  const handleDeletePrompt = (post: Post) => {
+    setPostPendingDelete(post);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!postPendingDelete?._id) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteEducatorPost(postPendingDelete._id);
+      setPosts((prev) =>
+        prev.filter((post) => post._id !== postPendingDelete._id)
+      );
+      toast.success("Post deleted successfully");
+      setIsDeleteDialogOpen(false);
+      setPostPendingDelete(null);
+    } catch (error: any) {
+      console.error("Error deleting post:", error);
+      toast.error(error?.response?.data?.message || "Failed to delete post");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSubmitPost = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!educatorId) {
+      toast.error("Educator context missing. Please re-login and try again.");
+      return;
+    }
+
+    if (formData.subjects.length === 0) {
+      toast.error("Select at least one subject");
+      return;
+    }
+
+    if (formData.specializations.length === 0) {
+      toast.error("Select at least one specialization");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const trimmedTitle = formData.title.trim();
+      const trimmedDescription = formData.description.trim();
+
+      const payload = {
+        educatorId,
+        title: trimmedTitle,
+        description: trimmedDescription,
+        subjects: formData.subjects,
+        specializations: formData.specializations,
+      };
+
+      if (dialogMode === "edit" && postBeingEdited?._id) {
+        await updateEducatorPost(postBeingEdited._id, payload);
+        toast.success("Post updated successfully");
+      } else {
+        await createEducatorPost(payload);
+        toast.success("Post created successfully");
+      }
+
+      setFormData(initialFormState);
+      setDialogMode("create");
+      setPostBeingEdited(null);
+      setIsDialogOpen(false);
+      closeDropdowns();
+      fetchPosts();
+    } catch (error: any) {
+      const defaultMessage =
+        dialogMode === "edit" ? "Failed to update post" : "Failed to create post";
+      console.error(
+        dialogMode === "edit" ? "Error updating post:" : "Error creating post:",
+        error
+      );
+      const validationErrors = error?.response?.data?.errors;
+      if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+        validationErrors.forEach((err) =>
+          toast.error(err?.msg || err?.message || defaultMessage)
+        );
+      } else {
+        toast.error(error?.response?.data?.message || defaultMessage);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const postCountLabel = useMemo(() => {
+    if (posts.length === 1) return "1 post";
+    return `${posts.length} posts`;
+  }, [posts.length]);
 
   return (
-    <div className="flex flex-col h-full">
-      <DashboardHeader title="Post" />
-      <div className="flex-1 p-6">
-        <Card>
-          <CardContent className="p-6">
-            {/* Search Bar and Add Post Button */}
-            <div className="flex justify-between items-center mb-6 gap-4">
-              <div className="flex-1 max-w-sm">
-                <Input
-                  placeholder="Search by title..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Post
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Post</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Title</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        placeholder="Enter post title"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="detail">Detail</Label>
-                      <Textarea
-                        id="detail"
-                        value={formData.detail}
-                        onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-                        placeholder="Enter post details"
-                        rows={4}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button type="submit">Add</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
+    <div className="space-y-6">
+      <DashboardHeader
+        title="Posts"
+        description="Share course updates, announcements, and resources with your learners."
+      />
 
-            {/* Posts Table */}
-            <div className="rounded-md border">
+      <Card>
+        <CardContent className="space-y-6 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                {postCountLabel}
+              </p>
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Your Published Posts
+              </h2>
+            </div>
+            <Button
+              className="gap-2"
+              onClick={openCreateDialog}
+              disabled={!educatorId}
+            >
+              <Plus className="h-4 w-4" /> Add Post
+            </Button>
+          </div>
+
+          <div className="rounded-md border">
+            {isTableLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-sm text-muted-foreground">
+                  You have not published any posts yet.
+                </p>
+                <Button
+                  className="mt-4 gap-2"
+                  onClick={openCreateDialog}
+                  disabled={!educatorId}
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4" /> Create your first post
+                </Button>
+              </div>
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Detail</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Assign to Course</TableHead>
+                    <TableHead className="w-[35%]">Title</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Exam</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPosts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No posts found
+                  {posts.map((post) => (
+                    <TableRow key={post._id}>
+                      <TableCell>
+                        <p className="font-medium text-foreground">{post.title}</p>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPosts.map((post) => (
-                      <TableRow key={post.id}>
-                        <TableCell className="font-medium">{post.title}</TableCell>
-                        <TableCell className="max-w-md truncate">{post.detail}</TableCell>
-                        <TableCell>
-                          {post.date
-                            ? new Date(post.date).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })
-                            : "N/A"}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleAssignClick(post)}
-                          >
-                            Assign
-                          </Button>
-                        </TableCell>
-                        <TableCell className="text-right">
+                      <TableCell>
+                        {resolveSubjects(post).length ? (
+                          <div className="flex flex-wrap gap-1">
+                            {resolveSubjects(post).map((subject) => (
+                              <Badge key={subject} variant="outline">
+                                {formatLabel(subject)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {resolveSpecializations(post).length ? (
+                          <div className="flex flex-wrap gap-1">
+                            {resolveSpecializations(post).map((specialization) => (
+                              <Badge key={specialization}>
+                                {formatLabel(specialization)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {truncate(post.description, 90)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {formatDate(post.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="icon">
                               <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(post)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
+                            <DropdownMenuItem onClick={() => handleViewPost(post)}>
+                              <Eye className="mr-2 h-4 w-4" /> View 
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(post)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
+                            <DropdownMenuItem onClick={() => startEditingPost(post)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(post)}
-                              className="text-red-600"
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => handleDeletePrompt(post)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
+                              <Trash2 className="mr-2 h-4 w-4 text-red-900 font-semibold" /> Delete 
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* View Dialog */}
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>View Post</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Post" : "Create Post"}</DialogTitle>
           </DialogHeader>
-          {selectedPost && (
+
+          <form className="space-y-4" onSubmit={handleSubmitPost}>
+            <div className="space-y-2">
+              <Label htmlFor="title">Title *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, title: event.target.value }))
+                }
+                placeholder="e.g., Important announcement for Class 12"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description *</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Write the full details of your announcement..."
+                rows={5}
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 relative">
+                <Label>Subjects *</Label>
+                <div
+                  className="min-h-[40px] w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm flex flex-wrap items-center gap-1"
+                  onClick={() => {
+                    if (isSubmitting) return;
+                    setShowSubjectDropdown((prev) => !prev);
+                    setShowSpecializationDropdown(false);
+                  }}
+                >
+                  {formData.subjects.length ? (
+                    formData.subjects.map((subject) => (
+                      <Badge
+                        key={subject}
+                        variant="secondary"
+                        className="gap-1 capitalize cursor-pointer"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isSubmitting) return;
+                          toggleSubject(subject);
+                        }}
+                      >
+                        {formatLabel(subject)}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">Select subjects</span>
+                  )}
+                </div>
+                {showSubjectDropdown && (
+                  <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover p-2 shadow-md">
+                    {SUBJECT_OPTIONS.map((subject) => (
+                      <button
+                        key={subject}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-accent"
+                        onClick={() => toggleSubject(subject)}
+                        disabled={isSubmitting}
+                      >
+                        <input
+                          type="checkbox"
+                          className="pointer-events-none"
+                          checked={formData.subjects.includes(subject)}
+                          readOnly
+                        />
+                        <span>{formatLabel(subject)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 relative">
+                <Label>Exam *</Label>
+                <div
+                  className="min-h-[40px] w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm flex flex-wrap items-center gap-1"
+                  onClick={() => {
+                    if (isSubmitting) return;
+                    setShowSpecializationDropdown((prev) => !prev);
+                    setShowSubjectDropdown(false);
+                  }}
+                >
+                  {formData.specializations.length ? (
+                    formData.specializations.map((specialization) => (
+                      <Badge
+                        key={specialization}
+                        variant="secondary"
+                        className="gap-1 cursor-pointer"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isSubmitting) return;
+                          toggleSpecialization(specialization);
+                        }}
+                      >
+                        {specialization}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Select Exam
+                    </span>
+                  )}
+                </div>
+                {showSpecializationDropdown && (
+                  <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover p-2 shadow-md">
+                    {SPECIALIZATION_OPTIONS.map((specialization) => (
+                      <button
+                        key={specialization}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                        onClick={() => toggleSpecialization(specialization)}
+                        disabled={isSubmitting}
+                      >
+                        <input
+                          type="checkbox"
+                          className="pointer-events-none"
+                          checked={formData.specializations.includes(specialization)}
+                          readOnly
+                        />
+                        <span>{specialization}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDialogChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="gap-2">
+                {isSubmitting && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {isEditMode ? "Save Changes" : "Publish Post"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(viewPost)} onOpenChange={handleViewDialogChange}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Post Details</DialogTitle>
+          </DialogHeader>
+          {viewPost && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={selectedPost.title} readOnly />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Title</p>
+                <p className="text-base font-semibold text-foreground">
+                  {viewPost.title}
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Detail</Label>
-                <Textarea value={selectedPost.detail} readOnly rows={4} />
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Description
+                </p>
+                <p className="whitespace-pre-line text-sm text-muted-foreground">
+                  {viewPost.description}
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input value={selectedPost.date} readOnly />
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Subjects</p>
+                <div className="flex flex-wrap gap-1">
+                  {resolveSubjects(viewPost).map((subject) => (
+                    <Badge key={subject} variant="outline">
+                      {formatLabel(subject)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Specializations
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {resolveSpecializations(viewPost).map((specialization) => (
+                    <Badge key={specialization}>{formatLabel(specialization)}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Created At
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(viewPost.createdAt)}
+                </p>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Post</DialogTitle>
-          </DialogHeader>
-          {editFormData && (
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  value={editFormData.title}
-                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-detail">Detail</Label>
-                <Textarea
-                  id="edit-detail"
-                  value={editFormData.detail}
-                  onChange={(e) => setEditFormData({ ...editFormData, detail: e.target.value })}
-                  rows={4}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-date">Date</Label>
-                <Input
-                  id="edit-date"
-                  type="date"
-                  value={editFormData.date}
-                  onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Alert Dialog */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={handleDeleteDialogChange}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the post
-              &quot;{postToDelete?.title}&quot;.
+              This action cannot be undone. It will permanently remove
+              {" "}
+              <span className="font-semibold">
+                {postPendingDelete?.title ? `"${postPendingDelete.title}"` : "this post"}
+              </span>
+              .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Assign Dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Assign Post: {postToAssign?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            {/* JEE and NEET Checkboxes */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="jee" 
-                  checked={jeeChecked}
-                  onCheckedChange={(checked) => setJeeChecked(checked as boolean)}
-                />
-                <Label htmlFor="jee" className="text-sm font-medium cursor-pointer">
-                  JEE
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="neet" 
-                  checked={neetChecked}
-                  onCheckedChange={(checked) => setNeetChecked(checked as boolean)}
-                />
-                <Label htmlFor="neet" className="text-sm font-medium cursor-pointer">
-                  NEET
-                </Label>
-              </div>
-            </div>
-
-            {/* CBSE Classes Multi-Select Dropdown */}
-            <div className="space-y-2">
-              <Label>CBSE</Label>
-              <DropdownMenu open={classDropdownOpen} onOpenChange={setClassDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start min-h-[40px] h-auto"
-                  >
-                    <div className="flex flex-wrap items-center gap-1 flex-1">
-                      {selectedClasses.length === 0 ? (
-                        <span className="text-sm text-muted-foreground">Select classes</span>
-                      ) : (
-                        selectedClasses.map((className) => (
-                          <Badge
-                            key={className}
-                            variant="secondary"
-                            className="gap-1 pr-1"
-                          >
-                            <span>{className}</span>
-                            <button
-                              type="button"
-                              className="ml-1 rounded-full hover:bg-muted-foreground/20"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleClassToggle(className)
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))
-                      )}
-                    </div>
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  {cbseClasses.map((className) => (
-                    <DropdownMenuCheckboxItem
-                      key={className}
-                      checked={selectedClasses.includes(className)}
-                      onCheckedChange={() => handleClassToggle(className)}
-                    >
-                      {className}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleAssignSubmit}>
-                Submit
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
-  )
+  );
 }

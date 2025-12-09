@@ -3,7 +3,7 @@ export interface CourseMedia {
   public_id?: string;
 }
 
-export type CourseType = "OTO" | "OTA";
+export type CourseType = "one-to-one" | "one-to-all";
 
 export type CourseClass =
   | "class-6th"

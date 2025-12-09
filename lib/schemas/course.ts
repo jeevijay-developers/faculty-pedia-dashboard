@@ -53,8 +53,13 @@ const courseSchema = new mongoose.Schema(
     },
     courseType: {
       type: String,
-      enum: ["OTA", "OTO"],
-      default: "OTA",
+      enum: ["one-to-all", "one-to-one"],
+      default: "one-to-all",
+      set: (value: string) => {
+        if (value === "OTO") return "one-to-one";
+        if (value === "OTA") return "one-to-all";
+        return value;
+      },
     },
     startDate: {
       type: Date,

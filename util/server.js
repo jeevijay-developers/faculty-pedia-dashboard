@@ -259,6 +259,77 @@ export const createCourse = async (courseData) => {
   }
 };
 
+// ============================================================
+// Video APIs
+// ============================================================
+
+const normalizeVideoLinksPayload = (links = []) =>
+  (Array.isArray(links) ? links : [links])
+    .map((link) => (typeof link === "string" ? link.trim() : ""))
+    .filter((link) => link.length > 0);
+
+export const getVideos = async (params = {}) => {
+  try {
+    const response = await API_CLIENT.get("/api/videos", {
+      headers: getAuthHeaders(),
+      params,
+    });
+    return response.data?.data || response.data;
+  } catch (error) {
+    console.error("Error fetching videos:", error);
+    throw error;
+  }
+};
+
+export const createVideo = async ({
+  title,
+  links,
+  isCourseSpecific = false,
+  courseId,
+}) => {
+  try {
+    const normalizedLinks = normalizeVideoLinksPayload(links);
+
+    if (!normalizedLinks.length) {
+      throw new Error("At least one video link is required");
+    }
+
+    const payload = {
+      title: title?.trim?.() || "",
+      links: normalizedLinks,
+      isCourseSpecific,
+    };
+
+    if (isCourseSpecific && courseId) {
+      payload.courseId = courseId;
+    }
+
+    const response = await API_CLIENT.post("/api/videos", payload, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating video:", error);
+    throw error;
+  }
+};
+
+export const deleteVideo = async (videoId) => {
+  if (!videoId) {
+    throw new Error("Video ID is required to delete a video");
+  }
+
+  try {
+    const response = await API_CLIENT.delete(`/api/videos/${videoId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting video:", error);
+    throw error;
+  }
+};
+
 export const updateCourse = async (courseId, courseData) => {
   try {
     const isFormData =
@@ -336,6 +407,101 @@ export const updateQuestion = async (questionId, questionData) => {
     return response.data;
   } catch (error) {
     console.error("Error updating question:", error);
+    throw error;
+  }
+};
+
+// ============================================================
+// Study Material APIs
+// ============================================================
+
+export const getStudyMaterialsByEducator = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch study materials");
+  }
+
+  try {
+    const response = await API_CLIENT.get(
+      `/api/study-materials/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+        params,
+      }
+    );
+    return response.data?.data || response.data;
+  } catch (error) {
+    console.error("Error fetching study materials:", error);
+    throw error;
+  }
+};
+
+export const createStudyMaterialEntry = async ({
+  educatorID,
+  title,
+  description,
+  docs = [],
+  tags = [],
+  isCourseSpecific = false,
+  courseId,
+}) => {
+  if (!educatorID) {
+    throw new Error("Educator ID is required to create study material");
+  }
+
+  if (typeof FormData === "undefined") {
+    throw new Error("FormData is not supported in this environment");
+  }
+
+  const formData = new FormData();
+  formData.append("educatorID", educatorID);
+  formData.append("title", title);
+
+  if (description) {
+    formData.append("description", description);
+  }
+
+  formData.append("isCourseSpecific", String(isCourseSpecific));
+
+  if (isCourseSpecific && courseId) {
+    formData.append("courseId", courseId);
+  }
+
+  tags
+    .filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+    .forEach((tag) => formData.append("tags[]", tag.trim()));
+
+  docs.forEach((file) => {
+    if (file) {
+      formData.append("docs", file);
+    }
+  });
+
+  try {
+    const response = await API_CLIENT.post("/api/study-materials", formData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating study material:", error);
+    throw error;
+  }
+};
+
+export const deleteStudyMaterialEntry = async (studyMaterialId) => {
+  if (!studyMaterialId) {
+    throw new Error("Study material ID is required to delete study material");
+  }
+
+  try {
+    const response = await API_CLIENT.delete(`/api/study-materials/${studyMaterialId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting study material:", error);
     throw error;
   }
 };
@@ -549,29 +715,38 @@ export const deletePayPerHourSession = async (sessionId) => {
   }
 };
 
-export const getEducatorWebinars = async (educatorId) => {
+export const getEducatorWebinars = async (educatorId, params = {}) => {
   try {
     const response = await API_CLIENT.get(
       `/api/webinars/educator/${educatorId}`,
       {
         headers: getAuthHeaders(),
+        params,
       }
     );
-    return response.data;
+    return response.data?.data || response.data;
   } catch (error) {
     console.error("Error fetching educator webinars:", error);
     throw error;
   }
 };
 
-export const getEducatorLiveClasses = async () => {
+export const getLiveClassesByEducator = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch live classes");
+  }
+
   try {
-    const response = await API_CLIENT.get("/api/educator/live-classes", {
+    const response = await API_CLIENT.get(`/api/live-classes`, {
       headers: getAuthHeaders(),
+      params: {
+        educatorID: educatorId,
+        ...params,
+      },
     });
     return response.data;
   } catch (error) {
-    console.error("Error fetching Pay Per Hour:", error);
+    console.error("Error fetching educator live classes:", error);
     throw error;
   }
 };
@@ -579,7 +754,7 @@ export const getEducatorLiveClasses = async () => {
 export const createLiveClass = async (liveClassData) => {
   try {
     const response = await API_CLIENT.post(
-      "/api/educator/live-classes",
+      "/api/live-classes",
       liveClassData,
       {
         headers: getAuthHeaders(),
@@ -595,7 +770,7 @@ export const createLiveClass = async (liveClassData) => {
 export const updateLiveClass = async (liveClassId, liveClassData) => {
   try {
     const response = await API_CLIENT.put(
-      `/api/educator/live-classes/${liveClassId}`,
+      `/api/live-classes/${liveClassId}`,
       liveClassData,
       {
         headers: getAuthHeaders(),
@@ -611,7 +786,7 @@ export const updateLiveClass = async (liveClassId, liveClassData) => {
 export const deleteLiveClass = async (liveClassId) => {
   try {
     const response = await API_CLIENT.delete(
-      `/api/educator/live-classes/${liveClassId}`,
+      `/api/live-classes/${liveClassId}`,
       {
         headers: getAuthHeaders(),
       }
@@ -625,7 +800,9 @@ export const deleteLiveClass = async (liveClassId) => {
 
 export const getLiveClassById = async (liveClassId) => {
   try {
-    const response = await API_CLIENT.get(`/api/live-class/${liveClassId}`);
+    const response = await API_CLIENT.get(`/api/live-classes/${liveClassId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching live class by ID:", error);
@@ -679,15 +856,166 @@ export const uploadImage = async (imageFile, type = "course") => {
   }
 };
 
+const combineDateAndTime = (dateValue, timeValue) => {
+  if (!dateValue) {
+    return undefined;
+  }
+
+  const normalizedDate = dateValue.includes("T")
+    ? dateValue.split("T")[0]
+    : dateValue;
+
+  if (!timeValue && dateValue.includes("T")) {
+    const parsed = new Date(dateValue);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+  }
+
+  const isoCandidate = `${normalizedDate}T${timeValue || "00:00"}`;
+  const parsed = new Date(isoCandidate);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+};
+
+const normalizeWebinarPayload = (
+  webinarData = {},
+  educatorId,
+  { applyDefaults = false } = {}
+) => {
+  const {
+    description,
+    shortDescription,
+    longDescription,
+    webinarType,
+    subject,
+    specialization,
+    seatLimit,
+    duration,
+    fees,
+    class: classLevels,
+    classes,
+    classList,
+    className,
+    date,
+    time,
+    timing,
+    assetsLink,
+    assetLinks,
+    assetsLinks,
+    educatorID,
+    educatorId: payloadEducatorId,
+    ...rest
+  } = webinarData;
+
+  const descriptionPieces = [
+    typeof description === "string" ? description : undefined,
+    description?.short,
+    description?.long,
+    shortDescription,
+    longDescription,
+  ].filter((value) => typeof value === "string" && value.trim().length > 0);
+
+  const normalizedDescription = descriptionPieces.join("\n\n").trim();
+
+  const normalizedTiming =
+    timing ||
+    combineDateAndTime(date, time) ||
+    (date ? combineDateAndTime(date) : undefined);
+
+  const subjects = Array.isArray(subject)
+    ? subject
+    : typeof subject === "string"
+    ? subject
+        .split(",")
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+
+  const specializations = Array.isArray(specialization)
+    ? specialization
+    : specialization
+    ? [specialization]
+    : [];
+
+  const classOptions =
+    classLevels || classes || classList || (className ? [className] : undefined);
+  const classArray = Array.isArray(classOptions)
+    ? classOptions.filter(Boolean)
+    : classOptions
+    ? [classOptions]
+    : [];
+
+  const normalizedClass =
+    classArray.length > 0
+      ? classArray
+      : applyDefaults
+      ? ["class-12th"]
+      : undefined;
+
+  const normalizedAssets = (() => {
+    if (Array.isArray(assetsLink)) {
+      return assetsLink.filter(Boolean);
+    }
+    if (Array.isArray(assetsLinks)) {
+      return assetsLinks.filter(Boolean);
+    }
+    if (Array.isArray(assetLinks)) {
+      return assetLinks
+        .map((asset) =>
+          typeof asset === "string"
+            ? asset
+            : typeof asset?.link === "string"
+            ? asset.link.trim()
+            : null
+        )
+        .filter(Boolean);
+    }
+    if (typeof assetsLink === "string") {
+      return [assetsLink];
+    }
+    return undefined;
+  })();
+
+  const normalizedWebinarType = (() => {
+    if (typeof webinarType === "string" && webinarType.trim().length > 0) {
+      const lowered = webinarType.trim().toLowerCase();
+      return lowered === "oto" || lowered === "one-to-one"
+        ? "one-to-one"
+        : "one-to-all";
+    }
+    return applyDefaults ? "one-to-all" : undefined;
+  })();
+
+  const payload = {
+    ...rest,
+    ...(normalizedDescription && { description: normalizedDescription }),
+    ...(normalizedTiming && { timing: normalizedTiming }),
+    ...(subjects.length > 0 && { subject: subjects }),
+    ...(specializations.length > 0 && { specialization: specializations }),
+    ...(typeof seatLimit !== "undefined" && { seatLimit: Number(seatLimit) }),
+    ...(typeof duration !== "undefined" && { duration: String(duration) }),
+    ...(typeof fees !== "undefined" && { fees: Number(fees) }),
+    ...(normalizedClass && { class: normalizedClass }),
+    ...(normalizedAssets && normalizedAssets.length > 0 && {
+      assetsLink: normalizedAssets,
+    }),
+    ...(normalizedWebinarType && { webinarType: normalizedWebinarType }),
+  };
+
+  const educatorIdentifier = educatorID || payloadEducatorId || educatorId;
+  if (educatorIdentifier) {
+    payload.educatorID = educatorIdentifier;
+  }
+
+  return payload;
+};
+
 export const createWebinar = async (educatorId, webinarData) => {
   try {
-    const response = await API_CLIENT.post(
-      `/api/webinars/create-webinar/${educatorId}`,
-      webinarData,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const payload = normalizeWebinarPayload(webinarData, educatorId, {
+      applyDefaults: true,
+    });
+    const response = await API_CLIENT.post(`/api/webinars`, payload, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error creating webinar:", error);
@@ -697,9 +1025,10 @@ export const createWebinar = async (educatorId, webinarData) => {
 
 export const updateWebinar = async (webinarId, webinarData) => {
   try {
+    const payload = normalizeWebinarPayload(webinarData);
     const response = await API_CLIENT.put(
-      `/api/webinars/update/${webinarId}`,
-      webinarData,
+      `/api/webinars/${webinarId}`,
+      payload,
       {
         headers: getAuthHeaders(),
       }
@@ -713,12 +1042,9 @@ export const updateWebinar = async (webinarId, webinarData) => {
 
 export const deleteWebinar = async (webinarId) => {
   try {
-    const response = await API_CLIENT.delete(
-      `/api/webinars/delete/${webinarId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.delete(`/api/webinars/${webinarId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error deleting webinar:", error);
@@ -728,9 +1054,9 @@ export const deleteWebinar = async (webinarId) => {
 
 export const getWebinarById = async (webinarId) => {
   try {
-    const response = await API_CLIENT.get(
-      `/api/webinar/webinar-by-id/${webinarId}`
-    );
+    const response = await API_CLIENT.get(`/api/webinars/${webinarId}`, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching webinar by ID:", error);
@@ -757,6 +1083,63 @@ export const getWebinarsByIds = async (webinarIds) => {
     return results.filter((webinar) => webinar !== null);
   } catch (error) {
     console.error("Error fetching webinars by IDs:", error);
+    throw error;
+  }
+};
+
+// Post APIs
+export const getEducatorPosts = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch posts");
+  }
+
+  try {
+    const response = await API_CLIENT.get(
+      `/api/posts/educator/${educatorId}`,
+      {
+        headers: getAuthHeaders(),
+        params,
+      }
+    );
+    return response.data?.data || response.data;
+  } catch (error) {
+    console.error("Error fetching educator posts:", error);
+    throw error;
+  }
+};
+
+export const createEducatorPost = async (postData) => {
+  try {
+    const response = await API_CLIENT.post("/api/posts", postData, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating post:", error);
+    throw error;
+  }
+};
+
+export const updateEducatorPost = async (postId, postData) => {
+  try {
+    const response = await API_CLIENT.put(`/api/posts/${postId}`, postData, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating post:", error);
+    throw error;
+  }
+};
+
+export const deleteEducatorPost = async (postId) => {
+  try {
+    const response = await API_CLIENT.delete(`/api/posts/${postId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting post:", error);
     throw error;
   }
 };

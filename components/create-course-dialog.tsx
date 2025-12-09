@@ -42,6 +42,9 @@ export function CreateCourseDialog({
   // Form States
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
+  const [courseType, setCourseType] = useState<"one-to-all" | "one-to-one">(
+    "one-to-all"
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
@@ -153,6 +156,10 @@ export function CreateCourseDialog({
       toast.error("Duration is required");
       return;
     }
+    if (!courseType) {
+      toast.error("Select a course type");
+      return;
+    }
     if (!startDate || !endDate || !validDate) {
       toast.error("Select start, end, and validity dates");
       return;
@@ -191,7 +198,7 @@ export function CreateCourseDialog({
       const coursePayload = {
         title: title.trim(),
         description: aboutCourse.trim(),
-        courseType: "OTA",
+        courseType,
         educatorID: educator._id,
         specialization: selectedExams,
         class: selectedClasses,
@@ -223,6 +230,7 @@ export function CreateCourseDialog({
       // Reset form
       setTitle("");
       setDuration("");
+      setCourseType("one-to-all");
       setStartDate("");
       setEndDate("");
       setSelectedExams([]);
@@ -326,7 +334,7 @@ export function CreateCourseDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input
@@ -335,6 +343,23 @@ export function CreateCourseDialog({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Course Title"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="courseType">Course Type *</Label>
+              <Select
+                value={courseType}
+                onValueChange={(value) =>
+                  setCourseType(value as "one-to-all" | "one-to-one")
+                }
+              >
+                <SelectTrigger id="courseType">
+                  <SelectValue placeholder="Select course type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="one-to-all">One To All</SelectItem>
+                  <SelectItem value="one-to-one">One To One</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="duration">Duration</Label>

@@ -18,6 +18,13 @@ interface EditCourseDialogProps {
   onCourseUpdated: () => void
 }
 
+const normalizeCourseType = (value?: string) => {
+  if (!value) return "one-to-all"
+  if (value === "OTO") return "one-to-one"
+  if (value === "OTA") return "one-to-all"
+  return value === "one-to-one" ? "one-to-one" : "one-to-all"
+}
+
 export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }: EditCourseDialogProps) {
   const [loading, setLoading] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -27,7 +34,7 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
     subject: "",
     courseClass: "",
     specialization: "",
-    courseType: "OTA",
+    courseType: "one-to-all",
     fees: "",
     startDate: "",
     endDate: "",
@@ -45,7 +52,7 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
         subject: course.subject || "",
         courseClass: course.courseClass || "",
         specialization: course.specialization || "",
-        courseType: course.courseType || "OTA",
+        courseType: normalizeCourseType(course.courseType),
         fees: course.fees?.toString() || "",
         startDate: course.startDate ? new Date(course.startDate).toISOString().slice(0, 16) : "",
         endDate: course.endDate ? new Date(course.endDate).toISOString().slice(0, 16) : "",
@@ -236,11 +243,11 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                 onValueChange={(value) => setFormData({ ...formData, courseType: value })}
               >
                 <SelectTrigger id="edit-type">
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder="Select course type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OTA">One Time Access (OTA)</SelectItem>
-                  <SelectItem value="subscription">Subscription</SelectItem>
+                  <SelectItem value="one-to-all">One To All</SelectItem>
+                  <SelectItem value="one-to-one">One To One</SelectItem>
                 </SelectContent>
               </Select>
             </div>

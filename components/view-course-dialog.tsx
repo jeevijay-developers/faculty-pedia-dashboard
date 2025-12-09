@@ -12,6 +12,17 @@ interface ViewCourseDialogProps {
   course: any
 }
 
+const getCourseTypeLabel = (type?: string) => {
+  if (!type) return "One To All"
+  const normalized =
+    type === "OTO"
+      ? "one-to-one"
+      : type === "OTA"
+      ? "one-to-all"
+      : type
+  return normalized === "one-to-one" ? "One To One" : "One To All"
+}
+
 export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialogProps) {
   if (!course) return null
 
@@ -96,7 +107,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
               <div>
                 <p className="text-sm text-muted-foreground">Course Type</p>
                 <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                  {course.courseType || "OTA"}
+                  {getCourseTypeLabel(course.courseType)}
                 </Badge>
               </div>
               <div>

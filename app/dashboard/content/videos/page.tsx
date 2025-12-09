@@ -1,17 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,16 +12,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Eye, Edit, Trash2, MoreHorizontal } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,313 +29,338 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Loader2, Link2, Plus } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import toast from "react-hot-toast";
+import { deleteVideo, getCoursesByEducator, getVideos } from "@/util/server";
+import { CreateVideoDialog } from "@/components/create-video-dialog";
 
-interface Video {
-  id: number
-  title: string
-  link: string
+interface CourseSummary {
+  _id: string;
+  title: string;
 }
 
+interface VideoItem {
+  _id: string;
+  title: string;
+  links?: string[];
+  isCourseSpecific?: boolean;
+  courseId?: string | { _id: string; title?: string };
+  createdAt?: string;
+  educatorID?: string | { _id: string };
+}
+
+type ValidationErrorEntry = {
+  msg?: string;
+  message?: string;
+};
+
+type ApiErrorResponse = {
+  response?: {
+    data?: {
+      message?: string;
+      errors?: ValidationErrorEntry[];
+    };
+  };
+  message?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+function extractArray<T>(value: unknown, key: string): T[] | null {
+  if (!value) return null
+  if (Array.isArray(value)) return value as T[]
+  if (!isRecord(value)) return null
+  if (Array.isArray(value[key as keyof typeof value])) {
+    return value[key as keyof typeof value] as T[]
+  }
+  if (isRecord(value.data)) {
+    return extractArray<T>(value.data, key)
+  }
+  return null
+}
+
+const normalizeVideos = (payload: unknown): VideoItem[] =>
+  extractArray<VideoItem>(payload, "videos") ?? [];
+
+const normalizeCourses = (payload: unknown): CourseSummary[] =>
+  extractArray<CourseSummary>(payload, "courses") ?? [];
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message || fallback;
+  if (isRecord(error) && (error as ApiErrorResponse).response) {
+    const apiError = error as ApiErrorResponse;
+    const validationMessage = apiError.response?.data?.errors?.[0];
+    if (validationMessage) {
+      return (
+        (typeof validationMessage.msg === "string" && validationMessage.msg) ||
+        (typeof validationMessage.message === "string" && validationMessage.message) ||
+        fallback
+      );
+    }
+    const nestedMessage = apiError.response?.data?.message;
+    if (typeof nestedMessage === "string") {
+      return nestedMessage;
+    }
+    if (typeof apiError.message === "string") {
+      return apiError.message;
+    }
+  }
+  return fallback;
+};
+
+const formatDate = (value?: string) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const resolveReferenceId = (value?: unknown): string | undefined => {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (isRecord(value) && typeof value._id === "string") {
+    return value._id;
+  }
+  return undefined;
+};
+
 export default function VideosPage() {
-  const [open, setOpen] = useState(false)
-  const [viewOpen, setViewOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [assignOpen, setAssignOpen] = useState(false)
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
-  const [editFormData, setEditFormData] = useState<Video | null>(null)
-  const [videoToDelete, setVideoToDelete] = useState<Video | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-  const [courseSearchQuery, setCourseSearchQuery] = useState("")
-  const [debouncedCourseSearchQuery, setDebouncedCourseSearchQuery] = useState("")
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([])
-  const [videoToAssign, setVideoToAssign] = useState<Video | null>(null)
-  
-  // Form data for creating new video
-  const [formData, setFormData] = useState({
-    title: "",
-    link: ""
-  })
+  const { educator } = useAuth();
 
-  const [videos, setVideos] = useState<Video[]>([
-    {
-      id: 1,
-      title: "Introduction to Physics",
-      link: "https://youtube.com/watch?v=example1"
-    },
-    {
-      id: 2,
-      title: "Advanced Mathematics",
-      link: "https://youtube.com/watch?v=example2"
-    }
-  ])
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [videoBeingViewed, setVideoBeingViewed] = useState<VideoItem | null>(null);
+  const [videoPendingDelete, setVideoPendingDelete] = useState<VideoItem | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Mock courses data (similar to courses page)
-  const mockCourses = [
-    {
-      _id: "1",
-      title: "Physics Complete Course",
-      subject: "physics",
-      courseClass: "12",
-      courseType: "OTA",
-      fees: 5000,
-      startDate: "2025-11-01",
-      image: { url: "/physics-course.jpg" },
-      description: { shortDesc: "Complete physics course for class 12" },
-      enrolledStudents: [1, 2, 3]
-    },
-    {
-      _id: "2",
-      title: "Mathematics Advanced",
-      subject: "mathematics",
-      courseClass: "11",
-      courseType: "OTA",
-      fees: 4500,
-      startDate: "2025-11-05",
-      image: { url: "/mathematics-course.png" },
-      description: { shortDesc: "Advanced mathematics for class 11" },
-      enrolledStudents: [1, 2]
-    },
-    {
-      _id: "3",
-      title: "Chemistry Fundamentals",
-      subject: "chemistry",
-      courseClass: "10",
-      courseType: "OTA",
-      fees: 4000,
-      startDate: "2025-11-10",
-      image: { url: "/chemistry-course.png" },
-      description: { shortDesc: "Basic chemistry concepts" },
-      enrolledStudents: [1]
-    }
-  ]
-
-  // Debounce effect for search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500) // 500ms delay
+      setDebouncedSearchQuery(searchQuery.trim().toLowerCase());
+    }, 400);
 
-    return () => {
-      clearTimeout(timer)
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchVideosList = useCallback(async () => {
+    setIsFetching(true);
+    setFetchError(null);
+    try {
+      const response = await getVideos();
+      setVideos(normalizeVideos(response));
+    } catch (error) {
+      setFetchError(getApiErrorMessage(error, "Failed to load videos"));
+    } finally {
+      setIsFetching(false);
     }
-  }, [searchQuery])
+  }, []);
 
-  // Debounce effect for course search query in assign dialog
+  const fetchCoursesList = useCallback(async () => {
+    if (!educator?._id) {
+      setCourses([]);
+      return;
+    }
+
+    try {
+      const response = await getCoursesByEducator(educator._id, { limit: 100 });
+      setCourses(normalizeCourses(response));
+    } catch (error) {
+      console.warn("Unable to load courses for videos page", error);
+    }
+  }, [educator?._id]);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCourseSearchQuery(courseSearchQuery)
-    }, 500) // 500ms delay
+    fetchVideosList();
+  }, [fetchVideosList]);
 
-    return () => {
-      clearTimeout(timer)
+  useEffect(() => {
+    fetchCoursesList();
+  }, [fetchCoursesList]);
+
+  const videosByEducator = useMemo(() => {
+    if (!educator?._id) {
+      return videos;
     }
-  }, [courseSearchQuery])
+    return videos.filter((video) => {
+      const ownerId = resolveReferenceId(video.educatorID);
+      return ownerId ? ownerId === educator._id : true;
+    });
+  }, [videos, educator?._id]);
 
-  // Handle create form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newVideo: Video = {
-      id: videos.length + 1,
-      title: formData.title,
-      link: formData.link
+  const filteredVideos = useMemo(() => {
+    if (!debouncedSearchQuery) {
+      return videosByEducator;
     }
-    setVideos([...videos, newVideo])
-    setFormData({ title: "", link: "" })
-    setOpen(false)
-  }
+    return videosByEducator.filter((video) =>
+      video.title?.toLowerCase().includes(debouncedSearchQuery)
+    );
+  }, [videosByEducator, debouncedSearchQuery]);
 
-  // Handle view
-  const handleView = (video: Video) => {
-    setSelectedVideo(video)
-    setViewOpen(true)
-  }
+  const courseLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    courses.forEach((course) => map.set(course._id, course.title));
+    return map;
+  }, [courses]);
 
-  // Handle edit
-  const handleEdit = (video: Video) => {
-    setEditFormData(video)
-    setEditOpen(true)
-  }
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editFormData) {
-      setVideos(videos.map(v => v.id === editFormData.id ? editFormData : v))
-      setEditOpen(false)
-      setEditFormData(null)
+  const resolveCourseTitle = (courseField?: VideoItem["courseId"]) => {
+    const id = resolveReferenceId(courseField);
+    if (!id) {
+      return "-";
     }
-  }
+    return courseLookup.get(id) || "Linked course";
+  };
 
-  // Handle assign to course
-  const handleAssignToCourse = (video: Video) => {
-    setVideoToAssign(video)
-    setSelectedCourses([])
-    setCourseSearchQuery("")
-    setAssignOpen(true)
-  }
-
-  const handleCourseToggle = (courseId: string) => {
-    setSelectedCourses(prev =>
-      prev.includes(courseId)
-        ? prev.filter(id => id !== courseId)
-        : [...prev, courseId]
-    )
-  }
-
-  const handleAssignSubmit = () => {
-    // Handle the assignment logic here
-    console.log("Assigning video:", videoToAssign?.title, "to courses:", selectedCourses)
-    setAssignOpen(false)
-    setVideoToAssign(null)
-    setSelectedCourses([])
-  }
-
-  // Handle delete
-  const handleDeleteClick = (video: Video) => {
-    setVideoToDelete(video)
-    setDeleteOpen(true)
-  }
-
-  const handleDeleteConfirm = () => {
-    if (videoToDelete) {
-      setVideos(videos.filter(v => v.id !== videoToDelete.id))
-      setDeleteOpen(false)
-      setVideoToDelete(null)
+  const handleViewDialogChange = (open: boolean) => {
+    if (!open) {
+      setVideoBeingViewed(null);
     }
-  }
+  };
 
-  // Filter videos based on debounced search query
-  const filteredVideos = videos.filter(video =>
-    video.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-  )
+  const handleDeleteDialogChange = (open: boolean) => {
+    if (!open && !isDeleting) {
+      setIsDeleteDialogOpen(false);
+      setVideoPendingDelete(null);
+    } else if (open) {
+      setIsDeleteDialogOpen(true);
+    }
+  };
 
-  // Filter courses based on debounced search query in assign dialog
-  const filteredCourses = mockCourses.filter(course =>
-    course.title.toLowerCase().includes(debouncedCourseSearchQuery.toLowerCase())
-  )
+  const handleDeleteVideo = async () => {
+    if (!videoPendingDelete?._id) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const toastId = toast.loading("Deleting video...");
+
+    try {
+      await deleteVideo(videoPendingDelete._id);
+      setVideos((prev) => prev.filter((video) => video._id !== videoPendingDelete._id));
+      toast.success("Video deleted successfully", { id: toastId });
+      setIsDeleteDialogOpen(false);
+      setVideoPendingDelete(null);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Failed to delete video"), { id: toastId });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full">
-      <DashboardHeader title="Videos" />
+    <div className="flex h-full flex-col">
+      <DashboardHeader title="Videos" description="Manage your recorded content." />
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="p-6">
-            {/* Search Bar and Add Video Button */}
-            <div className="flex justify-between items-center mb-6 gap-4">
-              <div className="flex-1 max-w-sm">
-                <Input
-                  placeholder="Search by title..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
-                />
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
+              <Input
+                placeholder="Search videos by title"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="md:max-w-sm"
+              />
+              <div className="flex flex-1 justify-end">
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Video
+                </Button>
               </div>
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Video
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Video</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Title</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        placeholder="Enter video title"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="link">Add Link</Label>
-                      <Input
-                        id="link"
-                        value={formData.link}
-                        onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                        placeholder="Enter video link"
-                        required
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button type="submit">Add</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
             </div>
 
-            {/* Videos Table */}
+            {fetchError && (
+              <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                {fetchError}
+              </div>
+            )}
+
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead>Links</TableHead>
-                    <TableHead>Assign to Course</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredVideos.length === 0 ? (
+                  {isFetching ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No videos found
+                      <TableCell colSpan={6} className="text-center">
+                        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading videos...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredVideos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                        No videos found. Use the button above to add your first video.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredVideos.map((video) => (
-                      <TableRow key={video.id}>
+                      <TableRow key={video._id}>
                         <TableCell className="font-medium">{video.title}</TableCell>
                         <TableCell>
-                          <a 
-                            href={video.link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {video.link}
-                          </a>
+                          <div className="flex flex-col gap-1">
+                            {(video.links || []).map((link, index) => (
+                              <a
+                                key={`${video._id}-link-${index}`}
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                                Link {index + 1}
+                              </a>
+                            ))}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm" onClick={() => handleAssignToCourse(video)}>
-                            Assign
-                          </Button>
+                          {video.isCourseSpecific ? "Course-specific" : "All courses"}
                         </TableCell>
+                        <TableCell>
+                          {video.isCourseSpecific ? resolveCourseTitle(video.courseId) : "-"}
+                        </TableCell>
+                        <TableCell>{formatDate(video.createdAt)}</TableCell>
                         <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(video)}>
-                              <Eye className="mr-2 h-4 w-4" />
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setVideoBeingViewed(video)}>
                               View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(video)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(video)}
-                              className="text-red-600"
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setVideoPendingDelete(video);
+                                setIsDeleteDialogOpen(true);
+                              }}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
                               Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -354,197 +370,101 @@ export default function VideosPage() {
         </Card>
       </div>
 
-      {/* View Dialog */}
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      <CreateVideoDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            fetchVideosList();
+          }
+        }}
+        courses={courses}
+        onSuccess={fetchVideosList}
+      />
+
+      <Dialog open={Boolean(videoBeingViewed)} onOpenChange={handleViewDialogChange}>
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>View Video</DialogTitle>
+            <DialogTitle>Video Details</DialogTitle>
+            <DialogDescription>Review the links and course scope for this video.</DialogDescription>
           </DialogHeader>
-          {selectedVideo && (
+          {videoBeingViewed && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={selectedVideo.title} readOnly />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Title</p>
+                <p className="text-base font-semibold text-foreground">{videoBeingViewed.title}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Scope</p>
+                <p className="text-sm text-foreground">
+                  {videoBeingViewed.isCourseSpecific ? "Course-specific" : "All courses"}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Course</p>
+                <p className="text-sm text-foreground">
+                  {videoBeingViewed.isCourseSpecific
+                    ? resolveCourseTitle(videoBeingViewed.courseId)
+                    : "-"}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label>Link</Label>
-                <Input value={selectedVideo.link} readOnly />
+                <p className="text-sm font-medium text-muted-foreground">Video Links</p>
+                <div className="space-y-1">
+                  {(videoBeingViewed.links || []).map((link, index) => (
+                    <a
+                      key={`${videoBeingViewed._id}-view-link-${index}`}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      {link}
+                    </a>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Created</p>
+                <p className="text-sm text-foreground">{formatDate(videoBeingViewed.createdAt)}</p>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Video</DialogTitle>
-          </DialogHeader>
-          {editFormData && (
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  value={editFormData.title}
-                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-link">Link</Label>
-                <Input
-                  id="edit-link"
-                  value={editFormData.link}
-                  onChange={(e) => setEditFormData({ ...editFormData, link: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Alert Dialog */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete video?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the video
-              &quot;{videoToDelete?.title}&quot;.
+              This action cannot be undone. It will permanently remove
+              {" "}
+              <span className="font-semibold">
+                {videoPendingDelete?.title ? `"${videoPendingDelete.title}"` : "this video"}
+              </span>
+              .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
-              Delete
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={handleDeleteVideo}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Assign to Course Dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="sm:max-w-[900px] max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Assign Video to Courses</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Select courses to assign &quot;{videoToAssign?.title}&quot;
-            </p>
-          </DialogHeader>
-          
-          {/* Search Bar for Courses */}
-          <div className="mb-4">
-            <Input
-              placeholder="Search courses by title..."
-              value={courseSearchQuery}
-              onChange={(e) => setCourseSearchQuery(e.target.value)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="overflow-y-auto max-h-[60vh]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Image</TableHead>
-                  <TableHead>Course Title</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Students</TableHead>
-                  <TableHead>Fees</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead className="text-center">Select</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCourses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-4">
-                      No courses found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCourses.map((course) => (
-                    <TableRow key={course._id}>
-                    <TableCell>
-                      <div className="w-16 h-12 rounded overflow-hidden">
-                        <img
-                          src={course.image?.url || "/placeholder.svg"}
-                          alt={course.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground capitalize line-clamp-1">
-                          {course.title}
-                        </span>
-                        <span className="text-xs text-muted-foreground line-clamp-1">
-                          {course.description?.shortDesc || "No description"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="capitalize">{course.subject}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">Class {course.courseClass}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{course.courseType || "OTA"}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">
-                        {course.enrolledStudents?.length || 0}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">₹{course.fees?.toLocaleString() || 0}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {course.startDate
-                          ? new Date(course.startDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "N/A"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={selectedCourses.includes(course._id)}
-                        onCheckedChange={() => handleCourseToggle(course._id)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setAssignOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleAssignSubmit}>
-              Submit
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
-  )
+  );
 }
