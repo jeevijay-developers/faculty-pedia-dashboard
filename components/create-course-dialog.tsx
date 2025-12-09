@@ -345,6 +345,15 @@ export function CreateCourseDialog({
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="duration">Duration</Label>
+              <Input
+                id="duration"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="e.g. 3 months"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="courseType">Course Type *</Label>
               <Select
                 value={courseType}
@@ -360,15 +369,6 @@ export function CreateCourseDialog({
                   <SelectItem value="one-to-one">One To One</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duration</Label>
-              <Input
-                id="duration"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g. 3 months"
-              />
             </div>
           </div>
 

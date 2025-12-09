@@ -1,18 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -21,9 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Eye, Edit, Trash2, MoreHorizontal } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
+import {
+  Plus,
+  Loader2,
+  Eye,
+  Edit,
+  Trash2,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,155 +39,288 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { CreateWebinarDialog } from "@/components/create-webinar-dialog"
+import { ViewWebinarDialog } from "@/components/view-webinar-dialog"
+import { deleteWebinar, getEducatorWebinars } from "@/util/server"
+import { useAuth } from "@/contexts/auth-context"
+import toast from "react-hot-toast"
 
 interface Webinar {
-  id: number
+  _id: string
   title: string
-  about: string
-  introVideo: string
-  date: string
-  time: string
-  duration: string
-  fee: string
-  isPublished: boolean
+  description?: string | { short?: string; long?: string }
+  webinarType?: string
+  timing?: string
+  subject?: string[] | string
+  specialization?: string[] | string
+  duration?: string | number
+  fees?: number
+  seatLimit?: number
+  class?: string[]
+  webinarLink?: string
+  isActive?: boolean
+  date?: string
+  time?: string
+}
+
+interface WebinarPaginationMeta {
+  currentPage: number
+  totalPages: number
+  totalWebinars: number
+}
+
+const ITEMS_PER_PAGE = 10
+const MULTI_SELECT_SCROLL_THRESHOLD = 2
+const WIDE_COLUMN_CLASS = "min-w-[260px]"
+const DESCRIPTION_WORD_LIMIT = 20
+
+const getDescription = (value: Webinar["description"]) => {
+  if (!value) return "-"
+  const resolved =
+    typeof value === "string"
+      ? value.trim()
+      : (value.long || value.short || "-").toString().trim()
+  if (!resolved || resolved === "-") return "-"
+
+  const words = resolved.split(/\s+/).filter(Boolean)
+  if (words.length <= DESCRIPTION_WORD_LIMIT) {
+    return resolved
+  }
+
+  return `${words.slice(0, DESCRIPTION_WORD_LIMIT).join(" ")}...`
+}
+
+const toArray = (value?: string[] | string) => {
+  if (!value) return []
+  return Array.isArray(value)
+    ? value
+    : value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+}
+
+const formatCurrency = (value?: number) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return "-"
+  return `₹${value.toLocaleString("en-IN")}`
+}
+
+const parseDate = (value?: string) => {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+const formatDateValue = (webinar: Webinar) => {
+  const parsed = parseDate(webinar.timing || webinar.date)
+  if (parsed) {
+    return parsed.toLocaleDateString(undefined, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+  }
+  return webinar.date || "-"
+}
+
+const formatTimeValue = (webinar: Webinar) => {
+  const parsed = parseDate(webinar.timing)
+  if (parsed) {
+    return parsed.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+  return webinar.time || "-"
+}
+
+const formatDuration = (duration?: string | number) => {
+  if (typeof duration === "number" && !Number.isNaN(duration)) {
+    return `${duration} min`
+  }
+  if (typeof duration === "string" && duration.trim().length > 0) {
+    return duration
+  }
+  return "-"
 }
 
 export default function WebinarPage() {
-  const [open, setOpen] = useState(false)
-  const [viewOpen, setViewOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [selectedWebinar, setSelectedWebinar] = useState<Webinar | null>(null)
-  const [editFormData, setEditFormData] = useState<Webinar | null>(null)
+  const { educator } = useAuth()
+  const educatorId = educator?._id
+
+  const [webinars, setWebinars] = useState<Webinar[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create")
+  const [webinarToEdit, setWebinarToEdit] = useState<Webinar | null>(null)
+  const [pagination, setPagination] = useState<WebinarPaginationMeta | null>(
+    null
+  )
+  const [currentPage, setCurrentPage] = useState(1)
   const [webinarToDelete, setWebinarToDelete] = useState<Webinar | null>(null)
-  
-  // Form data for creating new webinar
-  const [formData, setFormData] = useState({
-    title: "",
-    about: "",
-    introVideo: "",
-    date: "",
-    time: "",
-    duration: "",
-    fee: ""
-  })
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [selectedWebinar, setSelectedWebinar] = useState<Webinar | null>(null)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
 
-  const [webinars, setWebinars] = useState<Webinar[]>([
-    {
-      id: 1,
-      title: "Introduction to Physics",
-      about: "Learn basic physics concepts",
-      introVideo: "https://youtube.com/watch?v=example",
-      date: "2025-11-01",
-      time: "10:00",
-      duration: "2",
-      fee: "500",
-      isPublished: true
+  const fetchWebinars = useCallback(
+    async (page = 1) => {
+      if (!educatorId) {
+        setWebinars([])
+        setPagination(null)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        const response = await getEducatorWebinars(educatorId, {
+          page,
+          limit: ITEMS_PER_PAGE,
+        })
+        const webinarList = response?.webinars || []
+        setWebinars(webinarList)
+        if (response?.pagination) {
+          setPagination(response.pagination)
+          setCurrentPage(response.pagination.currentPage || page)
+        } else {
+          setPagination(null)
+          setCurrentPage(page)
+        }
+        setError(null)
+      } catch (fetchError) {
+        console.error("Error fetching webinars:", fetchError)
+        setError("Failed to load webinars. Please try again.")
+        setWebinars([])
+      } finally {
+        setIsLoading(false)
+      }
     },
-    {
-      id: 2,
-      title: "Advanced Mathematics",
-      about: "Complex mathematical problems",
-      introVideo: "https://youtube.com/watch?v=example2",
-      date: "2025-11-05",
-      time: "14:00",
-      duration: "1.5",
-      fee: "750",
-      isPublished: false
-    }
-  ])
+    [educatorId]
+  )
 
-  const togglePublishStatus = (webinarId: number) => {
-    setWebinars(webinars.map(webinar => 
-      webinar.id === webinarId 
-        ? { ...webinar, isPublished: !webinar.isPublished }
-        : webinar
-    ))
+  useEffect(() => {
+    fetchWebinars(1)
+  }, [fetchWebinars])
+
+  const openCreateDialog = () => {
+    setDialogMode("create")
+    setWebinarToEdit(null)
+    setIsDialogOpen(true)
+  }
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open)
+    if (!open) {
+      setDialogMode("create")
+      setWebinarToEdit(null)
+      fetchWebinars(currentPage)
+    }
+  }
+
+  const handleWebinarCreated = () => {
+    fetchWebinars(currentPage)
+  }
+
+  const handleWebinarUpdated = () => {
+    fetchWebinars(currentPage)
+  }
+
+  const handlePageChange = (page: number) => {
+    const maxPages = pagination?.totalPages || 1
+    if (page < 1 || page > maxPages) return
+    fetchWebinars(page)
   }
 
   const handleViewWebinar = (webinar: Webinar) => {
     setSelectedWebinar(webinar)
-    setViewOpen(true)
+    setIsViewDialogOpen(true)
   }
 
   const handleEditWebinar = (webinar: Webinar) => {
-    setEditFormData(webinar)
-    setEditOpen(true)
+    setDialogMode("edit")
+    setWebinarToEdit(webinar)
+    setIsDialogOpen(true)
   }
 
-  const handleSaveEdit = () => {
-    if (!editFormData) return
-    
-    setWebinars(webinars.map(webinar =>
-      webinar.id === editFormData.id ? editFormData : webinar
-    ))
-    setEditOpen(false)
-    setEditFormData(null)
-  }
-
-  const handleEditChange = (field: keyof Webinar, value: string | boolean) => {
-    if (!editFormData) return
-    setEditFormData({ ...editFormData, [field]: value })
-  }
-
-  const handleDeleteWebinar = (webinar: Webinar) => {
+  const handleDeleteRequest = (webinar: Webinar) => {
     setWebinarToDelete(webinar)
-    setDeleteOpen(true)
+    setIsDeleteDialogOpen(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDeleteWebinar = async () => {
     if (!webinarToDelete) return
-    
-    setWebinars(webinars.filter(webinar => webinar.id !== webinarToDelete.id))
-    setDeleteOpen(false)
-    setWebinarToDelete(null)
-  }
 
-  const cancelDelete = () => {
-    setDeleteOpen(false)
-    setWebinarToDelete(null)
-  }
-
-  const handleFormChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value })
-  }
-
-  const handleSubmitWebinar = () => {
-    // Validate form
-    if (!formData.title || !formData.about || !formData.date || !formData.time || !formData.duration || !formData.fee) {
-      alert("Please fill all fields")
-      return
+    try {
+      setDeleteLoading(true)
+      await deleteWebinar(webinarToDelete._id)
+      toast.success("Webinar deleted successfully")
+      setIsDeleteDialogOpen(false)
+      setWebinarToDelete(null)
+      fetchWebinars(currentPage)
+    } catch (deleteError) {
+      console.error("Error deleting webinar:", deleteError)
+      const serverMessage =
+        typeof deleteError === "object" &&
+        deleteError !== null &&
+        "response" in deleteError &&
+        (deleteError as {
+          response?: { data?: { message?: string } }
+        }).response?.data?.message
+      toast.error(serverMessage || "Failed to delete webinar")
+    } finally {
+      setDeleteLoading(false)
     }
+  }
 
-    // Create new webinar
-    const newWebinar: Webinar = {
-      id: webinars.length > 0 ? Math.max(...webinars.map(w => w.id)) + 1 : 1,
-      title: formData.title,
-      about: formData.about,
-      introVideo: formData.introVideo,
-      date: formData.date,
-      time: formData.time,
-      duration: formData.duration,
-      fee: formData.fee,
-      isPublished: false // Default to unpublished
+  const handleDeleteDialogChange = (open: boolean) => {
+    setIsDeleteDialogOpen(open)
+    if (!open && !deleteLoading) {
+      setWebinarToDelete(null)
     }
+  }
 
-    // Add to webinars list
-    setWebinars([...webinars, newWebinar])
+  const handleViewDialogChange = (open: boolean) => {
+    setIsViewDialogOpen(open)
+    if (!open) {
+      setSelectedWebinar(null)
+    }
+  }
 
-    // Reset form
-    setFormData({
-      title: "",
-      about: "",
-      introVideo: "",
-      date: "",
-      time: "",
-      duration: "",
-      fee: ""
-    })
+  const totalPages = pagination?.totalPages || 1
+  const totalWebinars = pagination?.totalWebinars ?? webinars.length
 
-    // Close dialog
-    setOpen(false)
+  const humanizeLabel = (value: string) =>
+    value
+      .split(/[-_]/)
+      .map((segment) =>
+        segment.length > 0
+          ? segment.charAt(0).toUpperCase() + segment.slice(1)
+          : segment
+      )
+      .join(" ")
+
+  const renderBadgeGroup = (
+    items: string[],
+    formatter?: (value: string) => string
+  ) => {
+    if (!items.length) {
+      return <Badge variant="outline">N/A</Badge>
+    }
+    const badgeItems = items.map((item) => (
+      <Badge key={item} variant="outline">
+        {formatter ? formatter(item) : humanizeLabel(item)}
+      </Badge>
+    ))
+    return <div className="flex flex-wrap gap-1">{badgeItems}</div>
+  }
+
+  const formatClassLabel = (value: string) => {
+    if (value === "dropper") return "Dropper"
+    if (value.startsWith("class-")) {
+      return value.replace("class-", "Class ")
+    }
+    return value
   }
 
   return (
@@ -198,541 +330,309 @@ export default function WebinarPage() {
         description="Manage your webinars and online sessions"
       />
 
-      <div className="px-6">
-        {/* Create Webinar Button */}
-        <div className="flex justify-end mb-4">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Webinar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Webinar</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                {/* Title and About - 2 Column Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Title */}
-                  <div className="space-y-2">
-                    <Label htmlFor="title" className="text-base font-semibold">
-                      Title
-                    </Label>
-                    <Input
-                      id="title"
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => handleFormChange('title', e.target.value)}
-                      placeholder="Enter webinar title"
-                      className="w-full"
-                    />
-                  </div>
+      <div className="px-6 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Your Webinars
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Track schedules, seats, and fees for every session
+            </p>
+          </div>
+          <Button
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
+            onClick={openCreateDialog}
+          >
+            <Plus className="h-4 w-4" />
+            Create Webinar
+          </Button>
+        </div>
 
-                  {/* About */}
-                  <div className="space-y-2">
-                    <Label htmlFor="about" className="text-base font-semibold">
-                      About
-                    </Label>
-                    <Textarea
-                      id="about"
-                      value={formData.about}
-                      onChange={(e) => handleFormChange('about', e.target.value)}
-                      placeholder="Enter webinar description"
-                      className="w-full min-h-[40px]"
-                    />
-                  </div>
-                </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading webinars...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <Card className="bg-card border-border">
+            <CardContent className="py-12 text-center text-red-600">
+              {error}
+            </CardContent>
+          </Card>
+        ) : webinars.length > 0 ? (
+          <>
+            <Card className="bg-card border-border">
+              <div className="overflow-x-auto">
+                <Table className="min-w-[1100px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title & Description</TableHead>
+                      <TableHead
+                        className={
+                          webinars.some(
+                            (webinar) =>
+                              toArray(webinar.subject).length >
+                              MULTI_SELECT_SCROLL_THRESHOLD
+                          )
+                            ? WIDE_COLUMN_CLASS
+                            : undefined
+                        }
+                      >
+                        Subjects
+                      </TableHead>
+                      <TableHead
+                        className={
+                          webinars.some(
+                            (webinar) =>
+                              toArray(webinar.specialization).length >
+                              MULTI_SELECT_SCROLL_THRESHOLD
+                          )
+                            ? WIDE_COLUMN_CLASS
+                            : undefined
+                        }
+                      >
+                        Specialization
+                      </TableHead>
+                      <TableHead
+                        className={
+                          webinars.some(
+                            (webinar) =>
+                              (Array.isArray(webinar.class)
+                                ? webinar.class
+                                : []
+                              ).length > MULTI_SELECT_SCROLL_THRESHOLD
+                          )
+                            ? WIDE_COLUMN_CLASS
+                            : undefined
+                        }
+                      >
+                        Classes
+                      </TableHead>
+                      <TableHead>Seats</TableHead>
+                      <TableHead>Fees</TableHead>
+                      <TableHead>Schedule</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {webinars.map((webinar) => {
+                      const subjects = toArray(webinar.subject)
+                      const specializations = toArray(webinar.specialization)
+                      const classList = Array.isArray(webinar.class)
+                        ? webinar.class
+                        : []
+                      const subjectsClassName =
+                        subjects.length > MULTI_SELECT_SCROLL_THRESHOLD
+                          ? WIDE_COLUMN_CLASS
+                          : undefined
+                      const specializationClassName =
+                        specializations.length > MULTI_SELECT_SCROLL_THRESHOLD
+                          ? WIDE_COLUMN_CLASS
+                          : undefined
+                      const classesClassName =
+                        classList.length > MULTI_SELECT_SCROLL_THRESHOLD
+                          ? WIDE_COLUMN_CLASS
+                          : undefined
+                      return (
+                        <TableRow key={webinar._id}>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground line-clamp-1">
+                                  {webinar.title}
+                                </span>
+                                <Badge
+                                  variant={webinar.isActive === false ? "outline" : "default"}
+                                  className={
+                                    webinar.isActive === false
+                                      ? "text-orange-600 border-orange-200"
+                                      : "bg-green-600 text-white"
+                                  }
+                                >
+                                  {webinar.isActive === false ? "Inactive" : "Active"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {getDescription(webinar.description)}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className={subjectsClassName}>
+                            {renderBadgeGroup(subjects)}
+                          </TableCell>
+                          <TableCell className={specializationClassName}>
+                            {renderBadgeGroup(specializations)}
+                          </TableCell>
+                          <TableCell className={classesClassName}>
+                            {renderBadgeGroup(classList, formatClassLabel)}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {webinar.seatLimit ?? "-"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium">
+                              {formatCurrency(webinar.fees)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">
+                              <div>{formatDateValue(webinar)}</div>
+                              <div>{formatTimeValue(webinar)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {formatDuration(webinar.duration)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  aria-label="Webinar actions"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleViewWebinar(webinar)}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditWebinar(webinar)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-500 font-semibold"
+                                  onClick={() => handleDeleteRequest(webinar)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
 
-                {/* Intro Video - Full Width */}
-                <div className="space-y-2">
-                  <Label htmlFor="introVideo" className="text-base font-semibold">
-                    Intro video
-                  </Label>
-                  <Input
-                    id="introVideo"
-                    type="text"
-                    value={formData.introVideo}
-                    onChange={(e) => handleFormChange('introVideo', e.target.value)}
-                    placeholder="Paste YouTube video link here"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Date and Time - 2 Column Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Date */}
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="text-base font-semibold">
-                      Date
-                    </Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => handleFormChange('date', e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Time */}
-                  <div className="space-y-2">
-                    <Label htmlFor="time" className="text-base font-semibold">
-                      Time
-                    </Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.time}
-                      onChange={(e) => handleFormChange('time', e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                {/* Duration and Fee - 2 Column Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Duration */}
-                  <div className="space-y-2">
-                    <Label htmlFor="duration" className="text-base font-semibold">
-                      Duration (Hours)
-                    </Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      value={formData.duration}
-                      onChange={(e) => handleFormChange('duration', e.target.value)}
-                      placeholder="e.g., 1, 1.5, 2"
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Fee */}
-                  <div className="space-y-2">
-                    <Label htmlFor="fee" className="text-base font-semibold">
-                      Fee
-                    </Label>
-                    <Input
-                      id="fee"
-                      type="number"
-                      value={formData.fee}
-                      onChange={(e) => handleFormChange('fee', e.target.value)}
-                      placeholder="Enter fee amount"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end pt-4">
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, totalWebinars)} of{" "}
+                  {totalWebinars} webinars
+                </p>
+                <div className="flex items-center gap-2">
                   <Button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={handleSubmitWebinar}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
                   >
-                    Submit
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => handlePageChange(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Webinars Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">Sr. No.</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>About</TableHead>
-                  <TableHead>Intro Video</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Duration (Hours)</TableHead>
-                  <TableHead>Fee</TableHead>
-                  <TableHead className="w-[100px]">Publish</TableHead>
-                  <TableHead className="w-[60px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {webinars.length > 0 ? (
-                  webinars.map((webinar, index) => (
-                    <TableRow key={webinar.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">{webinar.title}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{webinar.about}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">
-                        <a 
-                          href={webinar.introVideo} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {webinar.introVideo}
-                        </a>
-                      </TableCell>
-                      <TableCell>{webinar.date}</TableCell>
-                      <TableCell>{webinar.time}</TableCell>
-                      <TableCell>{webinar.duration}</TableCell>
-                      <TableCell>₹{webinar.fee}</TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={webinar.isPublished}
-                          onCheckedChange={() => togglePublishStatus(webinar.id)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewWebinar(webinar)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditWebinar(webinar)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-500 font-semibold" 
-                              onClick={() => handleDeleteWebinar(webinar)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      No webinars found. Create your first webinar!
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+            )}
+          </>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="rounded-full bg-blue-50 p-4 mb-4">
+                <Plus className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
+                No webinars yet
+              </h3>
+              <p className="text-muted-foreground text-center mb-4">
+                Create your first webinar to connect with students live
+              </p>
+              <Button
+                className="gap-2"
+                onClick={openCreateDialog}
+              >
+                <Plus className="h-4 w-4" />
+                Create Your First Webinar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* View Webinar Dialog */}
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>View Webinar Details</DialogTitle>
-          </DialogHeader>
-          {selectedWebinar && (
-            <div className="space-y-6 py-4">
-              {/* Title and About - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-title" className="text-base font-semibold">
-                    Title
-                  </Label>
-                  <Input
-                    id="view-title"
-                    type="text"
-                    value={selectedWebinar.title}
-                    className="w-full"
-                    readOnly
-                    disabled
-                  />
-                </div>
+      <CreateWebinarDialog
+        open={isDialogOpen}
+        onOpenChange={handleDialogChange}
+        onWebinarCreated={handleWebinarCreated}
+        onWebinarUpdated={handleWebinarUpdated}
+        mode={dialogMode}
+        webinar={webinarToEdit}
+      />
 
-                {/* About */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-about" className="text-base font-semibold">
-                    About
-                  </Label>
-                  <Textarea
-                    id="view-about"
-                    value={selectedWebinar.about}
-                    className="w-full min-h-[40px]"
-                    readOnly
-                    disabled
-                  />
-                </div>
-              </div>
+      <ViewWebinarDialog
+        open={isViewDialogOpen}
+        onOpenChange={handleViewDialogChange}
+        webinar={selectedWebinar}
+      />
 
-              {/* Intro Video - Full Width */}
-              <div className="space-y-2">
-                <Label htmlFor="view-introVideo" className="text-base font-semibold">
-                  Intro video
-                </Label>
-                <Input
-                  id="view-introVideo"
-                  type="text"
-                  value={selectedWebinar.introVideo}
-                  className="w-full"
-                  readOnly
-                  disabled
-                />
-              </div>
-
-              {/* Date and Time - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-date" className="text-base font-semibold">
-                    Date
-                  </Label>
-                  <Input
-                    id="view-date"
-                    type="date"
-                    value={selectedWebinar.date}
-                    className="w-full"
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                {/* Time */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-time" className="text-base font-semibold">
-                    Time
-                  </Label>
-                  <Input
-                    id="view-time"
-                    type="time"
-                    value={selectedWebinar.time}
-                    className="w-full"
-                    readOnly
-                    disabled
-                  />
-                </div>
-              </div>
-
-              {/* Duration and Fee - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Duration */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-duration" className="text-base font-semibold">
-                    Duration (Hours)
-                  </Label>
-                  <Input
-                    id="view-duration"
-                    type="number"
-                    value={selectedWebinar.duration}
-                    className="w-full"
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                {/* Fee */}
-                <div className="space-y-2">
-                  <Label htmlFor="view-fee" className="text-base font-semibold">
-                    Fee
-                  </Label>
-                  <Input
-                    id="view-fee"
-                    type="number"
-                    value={selectedWebinar.fee}
-                    className="w-full"
-                    readOnly
-                    disabled
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                  Status
-                </Label>
-                <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedWebinar.isPublished 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {selectedWebinar.isPublished ? 'Published' : 'Unpublished'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Close Button */}
-              <div className="flex justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setViewOpen(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Webinar Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Webinar</DialogTitle>
-          </DialogHeader>
-          {editFormData && (
-            <div className="space-y-6 py-4">
-              {/* Title and About - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-title" className="text-base font-semibold">
-                    Title
-                  </Label>
-                  <Input
-                    id="edit-title"
-                    type="text"
-                    value={editFormData.title}
-                    onChange={(e) => handleEditChange('title', e.target.value)}
-                    placeholder="Enter webinar title"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* About */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-about" className="text-base font-semibold">
-                    About
-                  </Label>
-                  <Textarea
-                    id="edit-about"
-                    value={editFormData.about}
-                    onChange={(e) => handleEditChange('about', e.target.value)}
-                    placeholder="Enter webinar description"
-                    className="w-full min-h-[40px]"
-                  />
-                </div>
-              </div>
-
-              {/* Intro Video - Full Width */}
-              <div className="space-y-2">
-                <Label htmlFor="edit-introVideo" className="text-base font-semibold">
-                  Intro video
-                </Label>
-                <Input
-                  id="edit-introVideo"
-                  type="text"
-                  value={editFormData.introVideo}
-                  onChange={(e) => handleEditChange('introVideo', e.target.value)}
-                  placeholder="Paste YouTube video link here"
-                  className="w-full"
-                />
-              </div>
-
-              {/* Date and Time - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-date" className="text-base font-semibold">
-                    Date
-                  </Label>
-                  <Input
-                    id="edit-date"
-                    type="date"
-                    value={editFormData.date}
-                    onChange={(e) => handleEditChange('date', e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Time */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-time" className="text-base font-semibold">
-                    Time
-                  </Label>
-                  <Input
-                    id="edit-time"
-                    type="time"
-                    value={editFormData.time}
-                    onChange={(e) => handleEditChange('time', e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Duration and Fee - 2 Column Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Duration */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-duration" className="text-base font-semibold">
-                    Duration (Hours)
-                  </Label>
-                  <Input
-                    id="edit-duration"
-                    type="number"
-                    value={editFormData.duration}
-                    onChange={(e) => handleEditChange('duration', e.target.value)}
-                    placeholder="e.g., 1, 1.5, 2"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Fee */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-fee" className="text-base font-semibold">
-                    Fee
-                  </Label>
-                  <Input
-                    id="edit-fee"
-                    type="number"
-                    value={editFormData.fee}
-                    onChange={(e) => handleEditChange('fee', e.target.value)}
-                    placeholder="Enter fee amount"
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Save and Cancel Buttons */}
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setEditOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={handleSaveEdit}
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete webinar?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the webinar
-              {webinarToDelete && ` "${webinarToDelete.title}"`}.
+              This action cannot be undone. {webinarToDelete?.title ?? "This"}
+              webinar will be removed permanently.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDelete}>No</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-600/90"
+              onClick={confirmDeleteWebinar}
+              disabled={deleteLoading}
             >
-              Yes
+              {deleteLoading ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
