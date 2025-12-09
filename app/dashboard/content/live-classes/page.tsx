@@ -704,7 +704,7 @@ export default function LiveClassesPage() {
                           <span className="text-sm">
                             {liveClass.isCourseSpecific
                               ? getCourseLabel(liveClass.assignInCourse)
-                              : "All Courses"}
+                              : "No Course Assigned"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
