@@ -50,10 +50,6 @@ const navigation = [
         href: "/dashboard/courses/live",
       },
       {
-        name: "Pay per hour",
-        href: "/dashboard/courses/pay-per-hour",
-      },
-      {
         name: "Webinar",
         href: "/dashboard/courses/webinar",
       },
@@ -65,8 +61,13 @@ const navigation = [
     icon: TestTube,
     submenu: [
       {
+        name: "Question Bank",
+        href: "/dashboard/questions",
+        icon: FileQuestion,
+      },
+      {
         name: "Test Bank",
-        href: "/dashboard/create-test",
+        href: "/dashboard/test",
       },
       {
         name: "Test Series",
@@ -106,11 +107,6 @@ const navigation = [
     name: "Students",
     href: "/dashboard/students",
     icon: Users,
-  },
-  {
-    name: "Question Bank",
-    href: "/dashboard/questions",
-    icon: FileQuestion,
   },
   {
     name: "Manage Queries",

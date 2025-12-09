@@ -20,7 +20,6 @@ import {
   Eye,
   MoreHorizontal,
   Trash2,
-  User,
   BookOpen,
   MessageSquare,
 } from "lucide-react";

@@ -1,88 +1,150 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
-import toast from "react-hot-toast"
-import { updateLiveTest } from "@/util/server"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
+import { updateLiveTest } from "@/util/server";
+import {
+  CLASS_OPTIONS,
+  SUBJECT_OPTIONS,
+  SPECIALIZATION_OPTIONS,
+} from "@/lib/test-form";
+import { Test } from "@/lib/types/test";
 
 interface EditTestDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  test: any
-  onTestUpdated: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  test: Test | null;
+  onTestUpdated: () => void;
 }
 
-export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: EditTestDialogProps) {
-  const [loading, setLoading] = useState(false)
+export function EditTestDialog({
+  open,
+  onOpenChange,
+  test,
+  onTestUpdated,
+}: EditTestDialogProps) {
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    subject: "",
-    specialization: "",
-    shortDesc: "",
-    longDesc: "",
-    startDate: "",
+    description: "",
+    subjects: [] as string[],
+    class: [] as string[],
+    specialization: [] as string[],
     duration: "",
-    positiveMarks: "",
-    negativeMarks: "",
-    markingType: "PQM",
-  })
+    overallMarks: "",
+    markingType: "per_question" as "overall" | "per_question",
+    instructions: "",
+    passingMarks: "",
+    negativeMarking: false,
+    negativeMarkingRatio: "0.25",
+    shuffleQuestions: false,
+    showResult: true,
+    allowReview: true,
+  });
 
   useEffect(() => {
     if (test) {
       setFormData({
         title: test.title || "",
-        subject: test.subject?.toLowerCase() || "",
-        specialization: test.specialization || "",
-        shortDesc: test.description?.short || "",
-        longDesc: test.description?.long || "",
-        startDate: test.startDate ? new Date(test.startDate).toISOString().slice(0, 16) : "",
+        description: test.description || "",
+        subjects: Array.isArray(test.subjects) ? test.subjects : [],
+        class: Array.isArray(test.class) ? test.class : [],
+        specialization: Array.isArray(test.specialization)
+          ? test.specialization
+          : [],
         duration: test.duration?.toString() || "",
-        positiveMarks: test.overallMarks?.positive?.toString() || "",
-        negativeMarks: test.overallMarks?.negative?.toString() || "",
-        markingType: test.markingType || "PQM",
-      })
+        overallMarks: test.overallMarks?.toString() || "",
+        markingType: test.markingType || "per_question",
+        instructions: test.instructions || "",
+        passingMarks: test.passingMarks?.toString() || "",
+        negativeMarking: test.negativeMarking ?? false,
+        negativeMarkingRatio: test.negativeMarkingRatio?.toString() || "0.25",
+        shuffleQuestions: test.shuffleQuestions ?? false,
+        showResult: test.showResult ?? true,
+        allowReview: test.allowReview ?? true,
+      });
     }
-  }, [test])
+  }, [test, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+
+    if (!test) return;
+
+    // Validation
+    if (formData.subjects.length === 0) {
+      toast.error("Please select at least one subject");
+      return;
+    }
+    if (formData.class.length === 0) {
+      toast.error("Please select at least one class");
+      return;
+    }
+    if (formData.specialization.length === 0) {
+      toast.error("Please select at least one specialization");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const updateData = {
         title: formData.title,
-        subject: formData.subject,
+        description: formData.description,
+        subjects: formData.subjects,
+        class: formData.class,
         specialization: formData.specialization,
-        description: {
-          short: formData.shortDesc,
-          long: formData.longDesc,
-        },
-        startDate: new Date(formData.startDate).toISOString(),
         duration: Number(formData.duration),
-        overallMarks: {
-          positive: Number(formData.positiveMarks),
-          negative: Number(formData.negativeMarks),
-        },
+        overallMarks: Number(formData.overallMarks),
         markingType: formData.markingType,
-      }
+        instructions: formData.instructions,
+        negativeMarking: formData.negativeMarking,
+        negativeMarkingRatio: Number(formData.negativeMarkingRatio),
+        shuffleQuestions: formData.shuffleQuestions,
+        showResult: formData.showResult,
+        allowReview: formData.allowReview,
+        ...(formData.passingMarks && {
+          passingMarks: Number(formData.passingMarks),
+        }),
+      };
 
-      await updateLiveTest(test._id, updateData)
-  toast.success("Test updated successfully!")
-      onTestUpdated()
-      onOpenChange(false)
-    } catch (error: any) {
-      console.error("Error updating test:", error)
-  toast.error(error.response?.data?.message || "Failed to update test")
+      await updateLiveTest(test._id, updateData);
+      toast.success("Test updated successfully!");
+      onTestUpdated();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error updating test:", error);
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "data" in error.response &&
+        error.response.data &&
+        typeof error.response.data === "object" &&
+        "message" in error.response.data
+          ? String(error.response.data.message)
+          : "Failed to update test";
+      toast.error(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,86 +161,67 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
               id="edit-title"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               placeholder="Enter test title"
             />
           </div>
 
-          {/* Subject and Specialization */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-subject">Subject *</Label>
-              <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
-                <SelectTrigger id="edit-subject">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="physics">Physics</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="mathematics">Mathematics</SelectItem>
-                  <SelectItem value="biology">Biology</SelectItem>
-                  <SelectItem value="mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-specialization">Specialization *</Label>
-              <Select
-                value={formData.specialization}
-                onValueChange={(value) => setFormData({ ...formData, specialization: value })}
-              >
-                <SelectTrigger id="edit-specialization">
-                  <SelectValue placeholder="Select specialization" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IIT-JEE">IIT-JEE</SelectItem>
-                  <SelectItem value="NEET">NEET</SelectItem>
-                  <SelectItem value="CBSE">CBSE</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           {/* Description */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-short-desc">Short Description *</Label>
-              <Input
-                id="edit-short-desc"
-                required
-                value={formData.shortDesc}
-                onChange={(e) => setFormData({ ...formData, shortDesc: e.target.value })}
-                placeholder="Brief description (shown in cards)"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-long-desc">Long Description *</Label>
-              <Textarea
-                id="edit-long-desc"
-                required
-                value={formData.longDesc}
-                onChange={(e) => setFormData({ ...formData, longDesc: e.target.value })}
-                placeholder="Detailed test description"
-                rows={4}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-description">Description *</Label>
+            <Textarea
+              id="edit-description"
+              required
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              placeholder="Enter test description"
+              rows={3}
+            />
           </div>
 
-          {/* Date and Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-start-date">Start Date & Time *</Label>
-              <Input
-                id="edit-start-date"
-                type="datetime-local"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
-            </div>
+          {/* Subjects */}
+          <div className="space-y-2">
+            <Label>Subjects *</Label>
+            <MultiSelect
+              options={SUBJECT_OPTIONS}
+              value={formData.subjects}
+              onChange={(values) =>
+                setFormData({ ...formData, subjects: values })
+              }
+              placeholder="Select subjects"
+            />
+          </div>
 
+          {/* Class */}
+          <div className="space-y-2">
+            <Label>Class *</Label>
+            <MultiSelect
+              options={CLASS_OPTIONS}
+              value={formData.class}
+              onChange={(values) => setFormData({ ...formData, class: values })}
+              placeholder="Select classes"
+            />
+          </div>
+
+          {/* Specialization */}
+          <div className="space-y-2">
+            <Label>Specialization *</Label>
+            <MultiSelect
+              options={SPECIALIZATION_OPTIONS}
+              value={formData.specialization}
+              onChange={(values) =>
+                setFormData({ ...formData, specialization: values })
+              }
+              placeholder="Select specialization"
+            />
+          </div>
+
+          {/* Duration and Marks */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-duration">Duration (minutes) *</Label>
               <Input
@@ -186,68 +229,216 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
                 type="number"
                 required
                 value={formData.duration}
-                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, duration: e.target.value })
+                }
                 placeholder="e.g., 180"
+                min="1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-marks">Overall Marks *</Label>
+              <Input
+                id="edit-marks"
+                type="number"
+                required
+                value={formData.overallMarks}
+                onChange={(e) =>
+                  setFormData({ ...formData, overallMarks: e.target.value })
+                }
+                placeholder="e.g., 300"
                 min="1"
               />
             </div>
           </div>
 
-          {/* Marks and Marking Type */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Passing Marks and Marking Type */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-positive">Positive Marks *</Label>
+              <Label htmlFor="edit-passing">Passing Marks</Label>
               <Input
-                id="edit-positive"
+                id="edit-passing"
                 type="number"
-                required
-                value={formData.positiveMarks}
-                onChange={(e) => setFormData({ ...formData, positiveMarks: e.target.value })}
-                placeholder="e.g., 4"
-                step="0.01"
+                value={formData.passingMarks}
+                onChange={(e) =>
+                  setFormData({ ...formData, passingMarks: e.target.value })
+                }
+                placeholder="Optional"
                 min="0"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-negative">Negative Marks *</Label>
-              <Input
-                id="edit-negative"
-                type="number"
-                required
-                value={formData.negativeMarks}
-                onChange={(e) => setFormData({ ...formData, negativeMarks: e.target.value })}
-                placeholder="e.g., 1"
-                step="0.01"
+              <Label htmlFor="edit-marking-type">Marking Type *</Label>
+              <div className="flex gap-4 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="markingType"
+                    value="per_question"
+                    checked={formData.markingType === "per_question"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        markingType: e.target.value as "per_question",
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Per Question</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="markingType"
+                    value="overall"
+                    checked={formData.markingType === "overall"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        markingType: e.target.value as "overall",
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Overall</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Negative Marking */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="negative-marking"
+                checked={formData.negativeMarking}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    negativeMarking: checked as boolean,
+                  })
+                }
               />
+              <Label htmlFor="negative-marking" className="cursor-pointer">
+                Enable Negative Marking
+              </Label>
             </div>
 
+            {formData.negativeMarking && (
+              <div className="space-y-2 pl-6">
+                <Label htmlFor="edit-negative-ratio">
+                  Negative Marking Ratio
+                </Label>
+                <Input
+                  id="edit-negative-ratio"
+                  type="number"
+                  value={formData.negativeMarkingRatio}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      negativeMarkingRatio: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., 0.25"
+                  step="0.01"
+                  min="0"
+                  max="1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Value between 0 and 1 (e.g., 0.25 means -1 for every 4 marks)
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-instructions">Instructions</Label>
+            <Textarea
+              id="edit-instructions"
+              value={formData.instructions}
+              onChange={(e) =>
+                setFormData({ ...formData, instructions: e.target.value })
+              }
+              placeholder="Optional test instructions for students"
+              rows={3}
+            />
+          </div>
+
+          {/* Test Options */}
+          <div className="space-y-3">
+            <Label>Test Options</Label>
             <div className="space-y-2">
-              <Label htmlFor="edit-marking-type">Marking Type *</Label>
-              <Select
-                value={formData.markingType}
-                onValueChange={(value) => setFormData({ ...formData, markingType: value })}
-              >
-                <SelectTrigger id="edit-marking-type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PQM">Per Question Marks (PQM)</SelectItem>
-                  <SelectItem value="OAM">Overall Marks (OAM)</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="shuffle-questions"
+                  checked={formData.shuffleQuestions}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      shuffleQuestions: checked as boolean,
+                    })
+                  }
+                />
+                <Label
+                  htmlFor="shuffle-questions"
+                  className="cursor-pointer font-normal"
+                >
+                  Shuffle Questions
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="show-result"
+                  checked={formData.showResult}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, showResult: checked as boolean })
+                  }
+                />
+                <Label
+                  htmlFor="show-result"
+                  className="cursor-pointer font-normal"
+                >
+                  Show Result After Test
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="allow-review"
+                  checked={formData.allowReview}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      allowReview: checked as boolean,
+                    })
+                  }
+                />
+                <Label
+                  htmlFor="allow-review"
+                  className="cursor-pointer font-normal"
+                >
+                  Allow Answer Review
+                </Label>
+              </div>
             </div>
           </div>
 
           <div className="bg-muted/50 p-4 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              <strong>Note:</strong> Questions cannot be edited from this dialog. To modify questions, please delete and
-              recreate the test.
+              <strong>Note:</strong> Questions cannot be edited from this
+              dialog. Questions are managed separately.
             </p>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
@@ -264,5 +455,5 @@ export function EditTestDialog({ open, onOpenChange, test, onTestUpdated }: Edit
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

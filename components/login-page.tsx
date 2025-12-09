@@ -65,23 +65,28 @@ export default function LoginPage() {
           duration: 4000,
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login error:", err);
 
       let errorMessage = "Invalid email or password. Please try again.";
 
       // Handle specific error types
-      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+      const error = err as {
+        code?: string;
+        message?: string;
+        response?: { data?: { message?: string } };
+      };
+      if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
         errorMessage =
           "Backend server is not responding. Please check if the server is running.";
       } else if (
-        err.code === "ERR_NETWORK" ||
-        err.message?.includes("Network Error")
+        error.code === "ERR_NETWORK" ||
+        error.message?.includes("Network Error")
       ) {
         errorMessage =
           "Cannot connect to server. Please ensure your backend is running.";
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
 
       setError(errorMessage);

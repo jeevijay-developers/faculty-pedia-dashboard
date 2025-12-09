@@ -1,10 +1,11 @@
-// Frontend TypeScript interfaces for test bank functionality
+// Shared TypeScript models for the test workflow
 
 export interface Question {
   _id: string;
   title: string;
   subject: string;
   topic: string;
+  questionType?: string;
   marks: {
     positive: number;
     negative: number;
@@ -34,32 +35,43 @@ export interface QuestionsResponse {
   };
 }
 
+export interface TestQuestionSummary {
+  _id: string;
+  title: string;
+  difficulty?: string;
+}
+
 export interface Test {
   _id: string;
   title: string;
-  description: {
-    short: string;
-    long: string;
-  };
-  subject: string;
-  specialization: string;
-  startDate: string;
+  description: string;
+  image?: string;
+  subjects: string[];
+  class: string[];
+  specialization: string[];
   duration: number;
-  overallMarks: {
-    positive: number;
-    negative: number;
-  };
-  markingType: string;
-  questions: Array<{
+  overallMarks: number;
+  markingType: "overall" | "per_question";
+  questions: TestQuestionSummary[];
+  isTestSeriesSpecific: boolean;
+  testSeriesID?: {
     _id: string;
     title: string;
-    subject: string;
-    topic: string;
-  }>;
-  educatorId: {
+    description?: string;
+  } | null;
+  educatorID: {
     _id: string;
-    email: string;
+    name?: string;
+    email?: string;
   };
+  instructions?: string;
+  passingMarks?: number;
+  negativeMarking: boolean;
+  negativeMarkingRatio: number;
+  shuffleQuestions: boolean;
+  showResult: boolean;
+  allowReview: boolean;
+  isActive: boolean;
   slug: string;
   createdAt: string;
   updatedAt: string;
@@ -67,31 +79,40 @@ export interface Test {
 }
 
 export interface TestsResponse {
-  tests: Test[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalTests: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
+  success: boolean;
+  message: string;
+  data: {
+    tests: Test[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalTests: number;
+      hasNextPage?: boolean;
+      hasPrevPage?: boolean;
+    };
   };
 }
 
-export interface CreateTestData {
+export interface CreateTestPayload {
   title: string;
-  description: {
-    short: string;
-    long: string;
-  };
-  subject: string;
-  specialization: string;
-  startDate: string;
+  description: string;
+  subjects: string[];
+  class: string[];
+  specialization: string[];
   duration: number;
-  overallMarks: {
-    positive: number;
-    negative: number;
-  };
-  markingType: string;
+  overallMarks: number;
+  markingType: "overall" | "per_question";
   questions: string[];
-  educatorId: string;
+  educatorID: string;
+  instructions?: string;
+  passingMarks?: number;
+  negativeMarking?: boolean;
+  negativeMarkingRatio?: number;
+  shuffleQuestions?: boolean;
+  showResult?: boolean;
+  allowReview?: boolean;
+  isTestSeriesSpecific?: boolean;
+  testSeriesID?: string;
 }
+
+export type UpdateTestPayload = Partial<CreateTestPayload>;

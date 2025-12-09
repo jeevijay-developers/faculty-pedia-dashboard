@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,117 +9,199 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Upload, ImageIcon } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
-import { createQuestion } from "@/util/server"
-import toast from "react-hot-toast"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Upload, ImageIcon } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { createQuestion, uploadImage } from "@/util/server";
+import toast from "react-hot-toast";
 
 interface CreateQuestionDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
+
+type QuestionType = "single-select" | "multi-select" | "integer";
 
 interface QuestionOption {
-  text: string
-  image: File | string | null
+  text: string;
+  image: File | string | null;
 }
 
-export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialogProps) {
-  const { educator, refreshEducator } = useAuth()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function CreateQuestionDialog({
+  open,
+  onOpenChange,
+}: CreateQuestionDialogProps) {
+  const { educator, refreshEducator } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
     topic: "",
     positiveMarks: "4",
     negativeMarks: "1",
-  })
+    questionType: "single-select" as QuestionType,
+    explanation: "",
+  });
 
   const [options, setOptions] = useState<Record<string, QuestionOption>>({
     A: { text: "", image: null },
     B: { text: "", image: null },
     C: { text: "", image: null },
     D: { text: "", image: null },
-  })
+  });
 
-  const [correctOptions, setCorrectOptions] = useState<string[]>([])
-  const [questionImage, setQuestionImage] = useState<File | null>(null)
+  const [correctOptions, setCorrectOptions] = useState<string[]>([]);
+  const [questionImage, setQuestionImage] = useState<File | null>(null);
+  const [integerAnswer, setIntegerAnswer] = useState("");
 
-  const updateOption = (key: string, field: keyof QuestionOption, value: string | File | null) => {
+  const updateOption = (
+    key: string,
+    field: keyof QuestionOption,
+    value: string | File | null
+  ) => {
     setOptions((prev) => ({
       ...prev,
       [key]: { ...prev[key], [field]: value },
-    }))
-  }
+    }));
+  };
 
   const toggleCorrectOption = (option: string) => {
-    setCorrectOptions((prev) => (prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]))
-  }
+    setCorrectOptions((prev) => {
+      if (formData.questionType === "single-select") {
+        return prev.includes(option) ? [] : [option];
+      }
+      return prev.includes(option)
+        ? prev.filter((o) => o !== option)
+        : [...prev, option];
+    });
+  };
+
+  const handleQuestionTypeChange = (value: QuestionType) => {
+    setFormData((prev) => ({ ...prev, questionType: value }));
+    setCorrectOptions([]);
+    if (value !== "integer") {
+      setIntegerAnswer("");
+    }
+  };
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!formData.title || !formData.subject || !formData.topic || correctOptions.length === 0) {
-      toast.error("Please fill in all required fields and select correct option(s)")
-      return
+    if (!formData.title.trim() || !formData.subject || !formData.questionType) {
+      toast.error("Please fill in the required fields");
+      return;
+    }
+
+    if (formData.questionType !== "integer" && correctOptions.length === 0) {
+      toast.error("Select at least one correct option");
+      return;
+    }
+
+    if (
+      formData.questionType === "single-select" &&
+      correctOptions.length !== 1
+    ) {
+      toast.error("Single select questions need exactly one correct option");
+      return;
+    }
+
+    if (formData.questionType === "integer") {
+      const parsedIntegerAnswer = Number(integerAnswer);
+      if (!integerAnswer.trim() || Number.isNaN(parsedIntegerAnswer)) {
+        toast.error("Provide a valid integer answer");
+        return;
+      }
     }
 
     if (!educator?._id) {
-      toast.error("Educator information missing. Please log in again.")
-      return
+      toast.error("Educator information missing. Please log in again.");
+      return;
     }
 
-    const positiveMarksValue = Number(formData.positiveMarks)
-    const negativeMarksValue = Number(formData.negativeMarks)
+    const positiveMarksValue = Number(formData.positiveMarks);
+    const negativeMarksValue = Number(formData.negativeMarks);
 
     if (Number.isNaN(positiveMarksValue) || Number.isNaN(negativeMarksValue)) {
-      toast.error("Please enter valid numeric values for marks")
-      return
+      toast.error("Please enter valid numeric values for marks");
+      return;
     }
 
-    const normalizedOptions = Object.entries(options).reduce(
-      (acc, [key, option]) => {
-        acc[key] = {
-          text: option.text.trim(),
-          ...(typeof option.image === "string" && option.image ? { image: option.image } : {}),
-        }
-        return acc
-      },
-      {} as Record<string, { text: string; image?: string }>
-    )
+    const normalizedOptions =
+      formData.questionType === "integer"
+        ? undefined
+        : Object.entries(options).reduce((acc, [key, option]) => {
+            acc[key] = option.text.trim();
+            return acc;
+          }, {} as Record<string, string>);
+
+    const topics = formData.topic
+      .split(",")
+      .map((topic) => topic.trim())
+      .filter(Boolean);
+
+    const subjectValue = formData.subject.toLowerCase();
+
+    let questionImageUrl: string | null = null;
+
+    try {
+      if (questionImage instanceof File) {
+        const uploadResponse = await uploadImage(questionImage, "question");
+        questionImageUrl = uploadResponse?.imageUrl || null;
+      }
+    } catch (error) {
+      console.error("Error uploading question image", error);
+      toast.error("Failed to upload question image");
+      return;
+    }
+
+    let formattedCorrectOptions: string | string[] | number = correctOptions;
+
+    if (formData.questionType === "single-select") {
+      formattedCorrectOptions = correctOptions[0];
+    } else if (formData.questionType === "integer") {
+      formattedCorrectOptions = Number(integerAnswer);
+    }
 
     const questionData = {
       title: formData.title.trim(),
+      questionType: formData.questionType,
       educatorId: educator._id,
-      subject: formData.subject,
-      topic: formData.topic,
+      ...(questionImageUrl ? { questionImage: questionImageUrl } : {}),
+      subject: subjectValue ? [subjectValue] : [],
+      topics,
+      explanation: formData.explanation.trim(),
       marks: {
         positive: positiveMarksValue,
-        negative: negativeMarksValue > 0 ? -negativeMarksValue : negativeMarksValue,
+        negative: Math.max(0, negativeMarksValue),
       },
-      options: normalizedOptions,
-      correctOptions,
-    }
+      ...(normalizedOptions ? { options: normalizedOptions } : {}),
+      correctOptions: formattedCorrectOptions,
+    };
 
-    setIsSubmitting(true)
-    const loadingToast = toast.loading("Creating question...")
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Creating question...");
 
     try {
       // Call API to create question
-      await createQuestion(questionData)
+      await createQuestion(questionData);
 
       // Refresh educator data to show new question
-      await refreshEducator()
+      await refreshEducator();
 
       toast.success("Question created successfully!", {
         id: loadingToast,
-      })
+      });
 
       // Reset form and close dialog
       setFormData({
@@ -128,26 +210,32 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
         topic: "",
         positiveMarks: "4",
         negativeMarks: "1",
-      })
+        questionType: "single-select",
+        explanation: "",
+      });
       setOptions({
         A: { text: "", image: null },
         B: { text: "", image: null },
         C: { text: "", image: null },
         D: { text: "", image: null },
-      })
-      
-      setCorrectOptions([])
-      setQuestionImage(null)
-      onOpenChange(false)
+      });
+
+      setCorrectOptions([]);
+      setQuestionImage(null);
+      setIntegerAnswer("");
+      onOpenChange(false);
     } catch (error: any) {
-      console.error("Error creating question:", error)
-      toast.error(error.response?.data?.message || "Failed to create question", {
-        id: loadingToast,
-      })
+      console.error("Error creating question:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to create question",
+        {
+          id: loadingToast,
+        }
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,7 +243,8 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
         <DialogHeader>
           <DialogTitle>Create New Question</DialogTitle>
           <DialogDescription>
-            Add a new question to your question bank. You can drag these questions into tests later.
+            Add a new question to your question bank. You can drag these
+            questions into tests later.
           </DialogDescription>
         </DialogHeader>
 
@@ -171,27 +260,31 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                 <Textarea
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   placeholder="Enter your question here..."
                   rows={3}
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject</Label>
                   <Select
                     value={formData.subject}
-                    onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, subject: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Physics">Physics</SelectItem>
-                      <SelectItem value="Chemistry">Chemistry</SelectItem>
-                      <SelectItem value="Mathematics">Mathematics</SelectItem>
-                      <SelectItem value="Biology">Biology</SelectItem>
+                      <SelectItem value="physics">Physics</SelectItem>
+                      <SelectItem value="chemistry">Chemistry</SelectItem>
+                      <SelectItem value="mathematics">Mathematics</SelectItem>
+                      <SelectItem value="biology">Biology</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -200,7 +293,9 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                   <Input
                     id="topic"
                     value={formData.topic}
-                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, topic: e.target.value })
+                    }
                     placeholder="e.g., Kinematics, Organic Chemistry"
                   />
                 </div>
@@ -210,14 +305,38 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                     <Input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setQuestionImage(e.target.files?.[0] || null)}
+                      onChange={(e) =>
+                        setQuestionImage(e.target.files?.[0] || null)
+                      }
                       className="flex-1"
                     />
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
                   </div>
                   {questionImage instanceof File && (
-                    <p className="text-xs text-muted-foreground">Selected: {questionImage.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {questionImage.name}
+                    </p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="questionType">Question Type</Label>
+                  <Select
+                    value={formData.questionType}
+                    onValueChange={(value: QuestionType) =>
+                      handleQuestionTypeChange(value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select question type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single-select">
+                        Single Select
+                      </SelectItem>
+                      <SelectItem value="multi-select">Multi Select</SelectItem>
+                      <SelectItem value="integer">Integer</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -228,7 +347,12 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                     id="positiveMarks"
                     type="number"
                     value={formData.positiveMarks}
-                    onChange={(e) => setFormData({ ...formData, positiveMarks: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        positiveMarks: e.target.value,
+                      })
+                    }
                     placeholder="4"
                   />
                 </div>
@@ -238,69 +362,126 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
                     id="negativeMarks"
                     type="number"
                     value={formData.negativeMarks}
-                    onChange={(e) => setFormData({ ...formData, negativeMarks: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        negativeMarks: e.target.value,
+                      })
+                    }
                     placeholder="1"
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="explanation">Explanation (Optional)</Label>
+                <Textarea
+                  id="explanation"
+                  rows={4}
+                  placeholder="Provide a solution walkthrough or explanation for this question"
+                  value={formData.explanation}
+                  onChange={(e) =>
+                    setFormData({ ...formData, explanation: e.target.value })
+                  }
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Options */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg">Answer Options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(options).map(([key, option]) => (
-                <div key={key} className="space-y-3 p-4 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`correct-${key}`}
-                        checked={correctOptions.includes(key)}
-                        onCheckedChange={() => toggleCorrectOption(key)}
-                      />
-                      <Label htmlFor={`correct-${key}`} className="text-sm font-medium">
-                        Option {key} (Correct Answer)
-                      </Label>
+          {formData.questionType === "integer" ? (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg">Integer Answer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="integer-answer">Correct Answer</Label>
+                  <Input
+                    id="integer-answer"
+                    type="number"
+                    value={integerAnswer}
+                    onChange={(e) => setIntegerAnswer(e.target.value)}
+                    placeholder="Enter integer value"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg">Answer Options</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(options).map(([key, option]) => (
+                  <div
+                    key={key}
+                    className="space-y-3 p-4 border border-border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`correct-${key}`}
+                          checked={correctOptions.includes(key)}
+                          onCheckedChange={() => toggleCorrectOption(key)}
+                        />
+                        <Label
+                          htmlFor={`correct-${key}`}
+                          className="text-sm font-medium"
+                        >
+                          Option {key} (Correct Answer)
+                        </Label>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor={`option-${key}`}>Option {key} Text</Label>
-                    <Input
-                      id={`option-${key}`}
-                      value={option.text}
-                      onChange={(e) => updateOption(key, "text", e.target.value)}
-                      placeholder={`Enter option ${key} text`}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`image-${key}`}>Option {key} Image (Optional)</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`option-${key}`}>Option {key} Text</Label>
                       <Input
-                        id={`image-${key}`}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => updateOption(key, "image", e.target.files?.[0] || null)}
-                        className="flex-1"
+                        id={`option-${key}`}
+                        value={option.text}
+                        onChange={(e) =>
+                          updateOption(key, "text", e.target.value)
+                        }
+                        placeholder={`Enter option ${key} text`}
                       />
-                      <Upload className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    {option.image && option.image instanceof File && <p className="text-xs text-muted-foreground">Selected: {option.image.name}</p>}
-                  </div>
-                </div>
-              ))}
 
-              {correctOptions.length === 0 && (
-                <div className="text-center py-4 text-destructive text-sm">
-                  Please select at least one correct answer
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div className="space-y-2">
+                      <Label htmlFor={`image-${key}`}>
+                        Option {key} Image (Optional)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`image-${key}`}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            updateOption(
+                              key,
+                              "image",
+                              e.target.files?.[0] || null
+                            )
+                          }
+                          className="flex-1"
+                        />
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      {option.image && option.image instanceof File && (
+                        <p className="text-xs text-muted-foreground">
+                          Selected: {option.image.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {correctOptions.length === 0 && (
+                  <div className="text-center py-4 text-destructive text-sm">
+                    Please select at least one correct answer
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <DialogFooter>
@@ -309,12 +490,19 @@ export function CreateQuestionDialog({ open, onOpenChange }: CreateQuestionDialo
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !formData.title || !formData.subject || !formData.topic || correctOptions.length === 0}
+            disabled={
+              isSubmitting ||
+              !formData.title.trim() ||
+              !formData.subject ||
+              (formData.questionType !== "integer" &&
+                correctOptions.length === 0) ||
+              (formData.questionType === "integer" && !integerAnswer.trim())
+            }
           >
             {isSubmitting ? "Creating..." : "Create Question"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

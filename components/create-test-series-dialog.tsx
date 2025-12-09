@@ -1,7 +1,8 @@
-"use client"
+/* eslint-disable @next/next/no-img-element */
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,309 +10,382 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useAuth } from "@/contexts/auth-context"
-import { createTestSeries, getEducatorTests, getCoursesByIds } from "@/util/server"
-import { Loader2, Plus, RefreshCcw, Trash2, Upload, X, ImageIcon } from "lucide-react"
-import toast from "react-hot-toast"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  createTestSeries,
+  getEducatorTests,
+  getCoursesByIds,
+  uploadImage,
+} from "@/util/server";
+import {
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Trash2,
+  Upload,
+  X,
+  ImageIcon,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { getSubjectDisplayOptions, subjectToDB } from "@/lib/subject-utils";
 
 // Constants
 const INITIAL_FORM_DATA = {
   title: "",
-  shortDesc: "",
-  longDesc: "",
+  description: "",
   price: "",
   validity: "180",
   noOfTests: "0",
-  startDate: "",
-  endDate: "",
   subject: "",
   specialization: "",
   isCourseSpecific: false,
   courseId: "",
-}
+};
 
-const SUBJECTS = ["Physics", "Chemistry", "Mathematics", "Biology"]
-const SPECIALIZATIONS = ["IIT-JEE", "NEET", "CBSE"]
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+const SUBJECTS = getSubjectDisplayOptions();
+const SPECIALIZATIONS = ["IIT-JEE", "NEET", "CBSE"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // Interfaces
 interface CreateTestSeriesDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSeriesCreated?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSeriesCreated?: () => void;
 }
 
 interface LiveTestSummary {
-  _id: string
-  title: string
-  subject: string
-  specialization?: string
-  startDate?: string
-  duration?: number
+  _id: string;
+  title: string;
+  subject: string;
+  specialization?: string;
+  startDate?: string;
+  duration?: number;
   description?: {
-    short?: string
-    long?: string
-  }
+    short?: string;
+    long?: string;
+  };
 }
 
 interface Course {
-  _id: string
-  title: string
+  _id: string;
+  title: string;
 }
 
-export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: CreateTestSeriesDialogProps) {
-  const { educator, refreshEducator } = useAuth()
-  
+interface RawEducatorTest {
+  _id: string;
+  title: string;
+  subjects?: string[];
+  subject?: string;
+  specialization?: string[] | string;
+  startDate?: string;
+  schedule?: {
+    startDate?: string;
+  };
+  createdAt?: string;
+  duration?: number;
+  description?:
+    | string
+    | {
+        short?: string;
+        long?: string;
+      };
+}
+
+export function CreateTestSeriesDialog({
+  open,
+  onOpenChange,
+  onSeriesCreated,
+}: CreateTestSeriesDialogProps) {
+  const { educator, refreshEducator } = useAuth();
+
   // Form state
-  const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [selectedTests, setSelectedTests] = useState<LiveTestSummary[]>([])
-  
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedTests, setSelectedTests] = useState<LiveTestSummary[]>([]);
+
   // Loading states
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [loadingTests, setLoadingTests] = useState(false)
-  const [loadingCourses, setLoadingCourses] = useState(false)
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingTests, setLoadingTests] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+
   // Data states
-  const [availableTests, setAvailableTests] = useState<LiveTestSummary[]>([])
-  const [availableCourses, setAvailableCourses] = useState<Course[]>([])
-  const [fetchTestsError, setFetchTestsError] = useState<string | null>(null)
+  const [availableTests, setAvailableTests] = useState<LiveTestSummary[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [fetchTestsError, setFetchTestsError] = useState<string | null>(null);
 
   // Update noOfTests when selectedTests changes
   useEffect(() => {
-    setFormData((prev) => ({ ...prev, noOfTests: String(selectedTests.length) }))
-  }, [selectedTests.length])
+    setFormData((prev) => ({
+      ...prev,
+      noOfTests: String(selectedTests.length),
+    }));
+  }, [selectedTests.length]);
 
   // Fetch available tests for step 2
   const fetchAvailableTests = useCallback(async () => {
-    if (!educator?._id) return
+    if (!educator?._id) return;
 
     try {
-      setLoadingTests(true)
-      setFetchTestsError(null)
-      const response = await getEducatorTests(educator._id)
-      const tests: LiveTestSummary[] = (response?.tests ?? []).map((test: any) => ({
-        _id: test._id,
-        title: test.title,
-        subject: test.subject,
-        specialization: test.specialization,
-        startDate: test.startDate,
-        duration: test.duration,
-        description: test.description,
-      }))
-      setAvailableTests(tests)
-    } catch (error: any) {
-      console.error("Error fetching live tests:", error)
-      setFetchTestsError(error.response?.data?.message || "Failed to load live tests")
+      setLoadingTests(true);
+      setFetchTestsError(null);
+      const response = await getEducatorTests(educator._id);
+      const testsPayload = (response?.tests ??
+        response?.data?.tests ??
+        []) as RawEducatorTest[];
+      const tests: LiveTestSummary[] = testsPayload.map((test) => {
+        const normalizedSubject = Array.isArray(test.subjects)
+          ? test.subjects[0]
+          : test.subject || "";
+        const normalizedSpecialization = Array.isArray(test.specialization)
+          ? test.specialization[0]
+          : test.specialization || "";
+
+        return {
+          _id: test._id,
+          title: test.title,
+          subject: normalizedSubject,
+          specialization: normalizedSpecialization,
+          startDate:
+            test.startDate || test.schedule?.startDate || test.createdAt,
+          duration: test.duration,
+          description:
+            typeof test.description === "string"
+              ? { short: test.description }
+              : test.description,
+        };
+      });
+      setAvailableTests(tests);
+    } catch (error) {
+      console.error("Error fetching live tests:", error);
+      const apiError = error as { response?: { data?: { message?: string } } };
+      setFetchTestsError(
+        apiError.response?.data?.message || "Failed to load live tests"
+      );
     } finally {
-      setLoadingTests(false)
+      setLoadingTests(false);
     }
-  }, [educator?._id])
+  }, [educator?._id]);
 
   // Fetch tests when step 2 is opened
   useEffect(() => {
     if (open && currentStep === 2) {
-      fetchAvailableTests()
+      fetchAvailableTests();
     }
-  }, [open, currentStep, fetchAvailableTests])
+  }, [open, currentStep, fetchAvailableTests]);
 
   // Fetch educator's courses
   useEffect(() => {
     const fetchCourses = async () => {
       if (!open || !educator?.courses?.length) {
-        setAvailableCourses([])
-        return
+        setAvailableCourses([]);
+        return;
       }
 
       try {
-        setLoadingCourses(true)
-        const courses = await getCoursesByIds(educator.courses)
-        setAvailableCourses(courses)
+        setLoadingCourses(true);
+        const courses = await getCoursesByIds(educator.courses);
+        setAvailableCourses(courses);
       } catch (error) {
-        console.error("Error fetching courses:", error)
-        toast.error("Failed to load courses")
+        console.error("Error fetching courses:", error);
+        toast.error("Failed to load courses");
       } finally {
-        setLoadingCourses(false)
+        setLoadingCourses(false);
       }
-    }
+    };
 
-    fetchCourses()
-  }, [open, educator?.courses])
+    fetchCourses();
+  }, [open, educator?.courses]);
 
   // Handlers
   const handleAddTest = (test: LiveTestSummary) => {
     if (!selectedTests.some((t) => t._id === test._id)) {
-      setSelectedTests((prev) => [...prev, test])
+      setSelectedTests((prev) => [...prev, test]);
     }
-  }
+  };
 
   const handleRemoveTest = (testId: string) => {
-    setSelectedTests((prev) => prev.filter((test) => test._id !== testId))
-  }
+    setSelectedTests((prev) => prev.filter((test) => test._id !== testId));
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please select a valid image file")
-      return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
     }
-    
+
     // Validate file size
     if (file.size > MAX_IMAGE_SIZE) {
-      toast.error("Image size should be less than 5MB")
-      return
+      toast.error("Image size should be less than 5MB");
+      return;
     }
 
-    setSelectedImage(file)
-    
+    setSelectedImage(file);
+
     // Create preview
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (e) => {
-      setImagePreview(e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleRemoveImage = () => {
-    setSelectedImage(null)
-    setImagePreview(null)
-  }
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
 
   const formatDateTime = (date?: string) => {
-    if (!date) return "--"
+    if (!date) return "--";
     return new Date(date).toLocaleString(undefined, {
       year: "numeric",
       month: "short",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   const resetForm = () => {
-    setFormData(INITIAL_FORM_DATA)
-    setSelectedTests([])
-    setSelectedImage(null)
-    setImagePreview(null)
-    setCurrentStep(1)
-  }
+    setFormData(INITIAL_FORM_DATA);
+    setSelectedTests([]);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setCurrentStep(1);
+  };
 
   const validateForm = (): boolean => {
     if (!educator?._id) {
-      toast.error("Educator information missing. Please log in again")
-      return false
+      toast.error("Educator information missing. Please log in again");
+      return false;
     }
 
-    if (!formData.title || !formData.shortDesc || !formData.longDesc || !formData.subject || !formData.specialization) {
-      toast.error("Please fill in all required fields")
-      return false
+    if (
+      !formData.title ||
+      !formData.description ||
+      !formData.subject ||
+      !formData.specialization
+    ) {
+      toast.error("Please fill in all required fields");
+      return false;
     }
 
-    if (!formData.startDate || !formData.endDate) {
-      toast.error("Please select both start and end dates")
-      return false
-    }
-
-    if (new Date(formData.endDate) <= new Date(formData.startDate)) {
-      toast.error("End date must be after start date")
-      return false
+    if (formData.description.trim().length < 20) {
+      toast.error("Description must be at least 20 characters");
+      return false;
     }
 
     if (selectedTests.length === 0) {
-      toast.error("Add at least one live test to create a series")
-      return false
+      toast.error("Add at least one live test to create a series");
+      return false;
     }
 
-    const priceValue = Number(formData.price)
-    const validityValue = Number(formData.validity)
+    const priceValue = Number(formData.price);
+    const validityValue = Number(formData.validity);
 
     if (Number.isNaN(priceValue) || Number.isNaN(validityValue)) {
-      toast.error("Please enter valid numeric values for price and validity")
-      return false
+      toast.error("Please enter valid numeric values for price and validity");
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
-  const prepareSubmissionData = () => {
-    const priceValue = Number(formData.price)
-    const validityValue = Number(formData.validity)
+  const prepareSubmissionData = (imageUrl?: string) => {
+    const priceValue = Number(formData.price);
+    const validityDays = Number(formData.validity);
+    const selectedTestIds = selectedTests.map((test) => test._id);
 
-    const baseData = {
+    const validityDate = new Date();
+    if (!Number.isNaN(validityDays) && validityDays > 0) {
+      validityDate.setDate(validityDate.getDate() + validityDays);
+    } else {
+      validityDate.setDate(validityDate.getDate() + 180);
+    }
+
+    const validityISO = validityDate.toISOString();
+
+    const payload: Record<string, unknown> = {
       title: formData.title.trim(),
       educatorId: educator!._id,
-      description: {
-        short: formData.shortDesc.trim(),
-        long: formData.longDesc.trim(),
-      },
-      specialization: formData.specialization,
-      subject: formData.subject.toLowerCase(),
+      description: formData.description.trim(),
+      specialization: [formData.specialization],
+      subject: [subjectToDB(formData.subject)],
       price: priceValue,
-      validity: validityValue,
-      noOfTests: selectedTests.length,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      liveTests: selectedTests.map((test) => test._id),
+      validity: validityISO,
+      numberOfTests: selectedTestIds.length,
+      tests: selectedTestIds,
       isCourseSpecific: formData.isCourseSpecific,
-      ...(formData.isCourseSpecific && formData.courseId && { courseId: formData.courseId }),
+    };
+
+    if (formData.isCourseSpecific && formData.courseId) {
+      payload.courseId = formData.courseId;
     }
 
-    if (selectedImage) {
-      const formDataToSubmit = new FormData()
-      Object.entries(baseData).forEach(([key, value]) => {
-        if (key === 'description') {
-          formDataToSubmit.append('description[short]', baseData.description.short)
-          formDataToSubmit.append('description[long]', baseData.description.long)
-        } else if (key === 'liveTests') {
-          baseData.liveTests.forEach((testId, index) => {
-            formDataToSubmit.append(`liveTests[${index}]`, testId)
-          })
-        } else {
-          formDataToSubmit.append(key, String(value))
-        }
-      })
-      formDataToSubmit.append('image', selectedImage)
-      return formDataToSubmit
+    if (imageUrl) {
+      payload.image = imageUrl;
     }
 
-    return baseData
-  }
+    return payload;
+  };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
-    setIsSubmitting(true)
-    const loadingToast = toast.loading("Creating test series...")
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Creating test series...");
 
     try {
-      const submissionData = prepareSubmissionData()
-      await createTestSeries(submissionData)
-      await refreshEducator()
+      let imageUrl: string | undefined;
+      if (selectedImage) {
+        const uploadResponse = await uploadImage(selectedImage, "test-series");
+        const uploadedUrl = uploadResponse?.imageUrl || uploadResponse?.url;
+        if (!uploadedUrl) {
+          throw new Error(
+            uploadResponse?.message || "Failed to upload banner image"
+          );
+        }
+        imageUrl = uploadedUrl;
+      }
 
-      toast.success("Test series created successfully!", { id: loadingToast })
-      resetForm()
-      onOpenChange(false)
-      onSeriesCreated?.()
-    } catch (error: any) {
-      console.error("Error creating test series:", error)
-      toast.error(error.response?.data?.message || "Failed to create test series", { id: loadingToast })
+      const submissionData = prepareSubmissionData(imageUrl);
+      await createTestSeries(submissionData);
+      await refreshEducator();
+
+      toast.success("Test series created successfully!", { id: loadingToast });
+      resetForm();
+      onOpenChange(false);
+      onSeriesCreated?.();
+    } catch (error) {
+      console.error("Error creating test series:", error);
+      const apiError = error as { response?: { data?: { message?: string } } };
+      toast.error(
+        apiError.response?.data?.message || "Failed to create test series",
+        { id: loadingToast }
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const renderStep1 = () => (
     <div className="space-y-4">
@@ -326,22 +400,14 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="shortDesc">Short Description</Label>
-        <Input
-          id="shortDesc"
-          value={formData.shortDesc}
-          onChange={(e) => setFormData({ ...formData, shortDesc: e.target.value })}
-          placeholder="Brief description of the test series"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="longDesc">Detailed Description</Label>
+        <Label htmlFor="description">Description</Label>
         <Textarea
-          id="longDesc"
-          value={formData.longDesc}
-          onChange={(e) => setFormData({ ...formData, longDesc: e.target.value })}
-          placeholder="Detailed description, learning outcomes, etc."
+          id="description"
+          value={formData.description}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
+          placeholder="Describe what this series covers, structure, and outcomes."
           rows={4}
         />
       </div>
@@ -398,7 +464,12 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="subject">Subject *</Label>
-          <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
+          <Select
+            value={formData.subject}
+            onValueChange={(value) =>
+              setFormData({ ...formData, subject: value })
+            }
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select subject" />
             </SelectTrigger>
@@ -411,10 +482,15 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="specialization">Specialization *</Label>
-          <Select value={formData.specialization} onValueChange={(value) => setFormData({ ...formData, specialization: value })}>
+          <Select
+            value={formData.specialization}
+            onValueChange={(value) =>
+              setFormData({ ...formData, specialization: value })
+            }
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select specialization" />
             </SelectTrigger>
@@ -427,14 +503,16 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="price">Price (₹) *</Label>
           <Input
             id="price"
             type="number"
             value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, price: e.target.value })
+            }
             placeholder="2500"
             min="0"
           />
@@ -448,26 +526,30 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
             id="validity"
             type="number"
             value={formData.validity}
-            onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, validity: e.target.value })
+            }
             placeholder="180"
             min="1"
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="courseSpecific">Course Specific</Label>
           <div className="flex items-center space-x-2 pt-2">
             <Switch
               id="courseSpecific"
               checked={formData.isCourseSpecific}
-              onCheckedChange={(checked) => setFormData({ ...formData, isCourseSpecific: checked })}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, isCourseSpecific: checked })
+              }
             />
             <Label htmlFor="courseSpecific" className="text-sm cursor-pointer">
               Link to course
             </Label>
           </div>
         </div>
-        
+
         {formData.isCourseSpecific && (
           <div className="space-y-2">
             <Label htmlFor="courseId">Select Course *</Label>
@@ -477,7 +559,12 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
                 Loading courses...
               </div>
             ) : availableCourses.length > 0 ? (
-              <Select value={formData.courseId} onValueChange={(value) => setFormData({ ...formData, courseId: value })}>
+              <Select
+                value={formData.courseId}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, courseId: value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
@@ -497,43 +584,23 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
           </div>
         )}
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2 w-full">
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input
-            className="w-full"
-            id="startDate"
-            type="date"
-            value={formData.startDate}
-            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="endDate">End Date</Label>
-          <Input
-            id="endDate"
-            type="date"
-            value={formData.endDate}
-            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-          />
-        </div>
-      </div>
     </div>
-  )
+  );
 
   const renderStep2 = () => {
     // Filter out already selected tests
     const selectableTests = availableTests.filter(
       (test) => !selectedTests.some((selected) => selected._id === test._id)
-    )
+    );
 
     return (
       <div className="space-y-6">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Selected Live Tests</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Selected Live Tests
+              </h3>
               <p className="text-sm text-muted-foreground">
                 These live tests will be bundled into this series.
               </p>
@@ -546,8 +613,9 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
           {selectedTests.length === 0 ? (
             <Card className="border-dashed bg-muted/30">
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No live tests added yet. Use the <span className="font-semibold">Add</span> button below to include tests
-                from your live test library.
+                No live tests added yet. Use the{" "}
+                <span className="font-semibold">Add</span> button below to
+                include tests from your live test library.
               </CardContent>
             </Card>
           ) : (
@@ -563,9 +631,13 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
                         <Badge variant="outline" className="uppercase">
                           {test.subject}
                         </Badge>
-                        {test.specialization && <Badge variant="outline">{test.specialization}</Badge>}
+                        {test.specialization && (
+                          <Badge variant="outline">{test.specialization}</Badge>
+                        )}
                         <span>{formatDateTime(test.startDate)}</span>
-                        {typeof test.duration === "number" && <span>{test.duration} min</span>}
+                        {typeof test.duration === "number" && (
+                          <span>{test.duration} min</span>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -592,9 +664,12 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Available Live Tests</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Available Live Tests
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Pick from the live tests you have already created on the Live Tests page.
+                Pick from the live tests you have already created on the Live
+                Tests page.
               </p>
             </div>
             <Button
@@ -623,7 +698,8 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
 
           {loadingTests ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading live tests...
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading live
+              tests...
             </div>
           ) : selectableTests.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2">
@@ -637,9 +713,13 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
                       <Badge variant="outline" className="uppercase">
                         {test.subject}
                       </Badge>
-                      {test.specialization && <Badge variant="outline">{test.specialization}</Badge>}
+                      {test.specialization && (
+                        <Badge variant="outline">{test.specialization}</Badge>
+                      )}
                       <span>{formatDateTime(test.startDate)}</span>
-                      {typeof test.duration === "number" && <span>{test.duration} min</span>}
+                      {typeof test.duration === "number" && (
+                        <span>{test.duration} min</span>
+                      )}
                     </div>
                   </CardHeader>
                   {test.description?.short && (
@@ -664,14 +744,15 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
           ) : (
             <Card className="border-dashed bg-muted/30">
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No available live tests found. Create live tests on the Live Tests page, then return here to add them.
+                No available live tests found. Create live tests on the Live
+                Tests page, then return here to add them.
               </CardContent>
             </Card>
           )}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -679,7 +760,8 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
         <DialogHeader>
           <DialogTitle>Create New Test Series</DialogTitle>
           <DialogDescription>
-            Step {currentStep} of 2: {currentStep === 1 ? "Basic Information" : "Build Tests"}
+            Step {currentStep} of 2:{" "}
+            {currentStep === 1 ? "Basic Information" : "Build Tests"}
           </DialogDescription>
         </DialogHeader>
 
@@ -691,14 +773,19 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
         <DialogFooter className="flex justify-between">
           <div className="flex gap-2">
             {currentStep > 1 && (
-              <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep(currentStep - 1)}
+              >
                 Previous
               </Button>
             )}
           </div>
           <div className="flex gap-2">
             {currentStep < 2 ? (
-              <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
+              <Button onClick={() => setCurrentStep(currentStep + 1)}>
+                Next
+              </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Test Series"}
@@ -708,5 +795,5 @@ export function CreateTestSeriesDialog({ open, onOpenChange, onSeriesCreated }: 
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

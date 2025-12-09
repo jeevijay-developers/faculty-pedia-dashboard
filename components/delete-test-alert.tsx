@@ -1,26 +1,32 @@
-"use client"
+"use client";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Loader2 } from "lucide-react"
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface DeleteTestAlertProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-  loading: boolean
-  testTitle: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  loading: boolean;
+  testTitle: string;
 }
 
-export function DeleteTestAlert({ open, onOpenChange, onConfirm, loading, testTitle }: DeleteTestAlertProps) {
+export function DeleteTestAlert({
+  open,
+  onOpenChange,
+  onConfirm,
+  loading,
+  testTitle,
+}: DeleteTestAlertProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -28,19 +34,22 @@ export function DeleteTestAlert({ open, onOpenChange, onConfirm, loading, testTi
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete the test{" "}
-            <span className="font-semibold text-foreground">"{testTitle}"</span> and remove it from your test library.
-            All test data and associated results will be lost.
+            <span className="font-semibold text-foreground">
+              &quot;{testTitle}&quot;
+            </span>{" "}
+            and remove it from your test library. All test data and associated
+            results will be lost.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+          <Button
             onClick={(e) => {
-              e.preventDefault()
-              onConfirm()
+              e.preventDefault();
+              onConfirm();
             }}
             disabled={loading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-red-700 text-white hover:bg-red-700/90"
           >
             {loading ? (
               <>
@@ -50,9 +59,9 @@ export function DeleteTestAlert({ open, onOpenChange, onConfirm, loading, testTi
             ) : (
               "Delete Test"
             )}
-          </AlertDialogAction>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }
