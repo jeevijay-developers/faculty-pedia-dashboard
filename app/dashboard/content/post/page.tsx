@@ -39,7 +39,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, MoreHorizontal, Plus, Trash2, Eye, X, Edit } from "lucide-react";
+import {
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+  Eye,
+  X,
+  Edit,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -60,17 +68,14 @@ const SUBJECT_OPTIONS = [
 
 const SPECIALIZATION_OPTIONS = ["IIT-JEE", "NEET", "CBSE"] as const;
 
-type SubjectOption = (typeof SUBJECT_OPTIONS)[number];
-type SpecializationOption = (typeof SPECIALIZATION_OPTIONS)[number];
-
 interface Post {
   _id: string;
   title: string;
   description: string;
   subjects?: string[];
   specializations?: string[];
-  subject?: string;
-  specialization?: string;
+  subject?: string | string[];
+  specialization?: string | string[];
   createdAt: string;
 }
 
@@ -88,8 +93,9 @@ const initialFormState: FormState = {
   specializations: [],
 };
 
-const formatLabel = (value: string) =>
-  value
+const formatLabel = (value: string) => {
+  if (!value || typeof value !== "string") return value || "";
+  return value
     .split(/[-_]/)
     .map((segment) =>
       segment.length > 0
@@ -97,6 +103,7 @@ const formatLabel = (value: string) =>
         : segment
     )
     .join(" ");
+};
 
 const formatDate = (value?: string) => {
   if (!value) return "-";
@@ -116,21 +123,36 @@ const truncate = (value: string, length = 80) =>
 
 const resolveSubjects = (post?: Post) => {
   if (!post) return [] as string[];
-  if (Array.isArray(post.subjects) && post.subjects.length > 0) {
-    return post.subjects;
+
+  // Handle if subject/subjects is an array
+  const subjectData = post.subjects || post.subject;
+  if (Array.isArray(subjectData) && subjectData.length > 0) {
+    return subjectData;
   }
-  return post.subject ? [post.subject] : [];
+
+  // Handle if it's a single string value
+  if (typeof subjectData === "string") {
+    return [subjectData];
+  }
+
+  return [];
 };
 
 const resolveSpecializations = (post?: Post) => {
   if (!post) return [] as string[];
-  if (
-    Array.isArray(post.specializations) &&
-    post.specializations.length > 0
-  ) {
-    return post.specializations;
+
+  // Handle if specialization/specializations is an array
+  const specializationData = post.specializations || post.specialization;
+  if (Array.isArray(specializationData) && specializationData.length > 0) {
+    return specializationData;
   }
-  return post.specialization ? [post.specialization] : [];
+
+  // Handle if it's a single string value
+  if (typeof specializationData === "string") {
+    return [specializationData];
+  }
+
+  return [];
 };
 
 export default function PostPage() {
@@ -145,7 +167,8 @@ export default function PostPage() {
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [postBeingEdited, setPostBeingEdited] = useState<Post | null>(null);
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
-  const [showSpecializationDropdown, setShowSpecializationDropdown] = useState(false);
+  const [showSpecializationDropdown, setShowSpecializationDropdown] =
+    useState(false);
   const [viewPost, setViewPost] = useState<Post | null>(null);
   const [postPendingDelete, setPostPendingDelete] = useState<Post | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -214,15 +237,23 @@ export default function PostPage() {
 
     setIsFetching(true);
     try {
-      const response = await getEducatorPosts(educatorId, { page: 1, limit: 50 });
+      const response = await getEducatorPosts(educatorId, {
+        page: 1,
+        limit: 50,
+      });
       const list =
         response?.posts ||
         response?.data?.posts ||
         (Array.isArray(response) ? response : []);
       setPosts(Array.isArray(list) ? list : []);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching posts:", error);
-      toast.error(error?.response?.data?.message || "Failed to load posts");
+      const errorMessage =
+        error instanceof Error && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
+      toast.error(errorMessage || "Failed to load posts");
     } finally {
       setIsFetching(false);
     }
@@ -283,9 +314,14 @@ export default function PostPage() {
       toast.success("Post deleted successfully");
       setIsDeleteDialogOpen(false);
       setPostPendingDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting post:", error);
-      toast.error(error?.response?.data?.message || "Failed to delete post");
+      const errorMessage =
+        error instanceof Error && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
+      toast.error(errorMessage || "Failed to delete post");
     } finally {
       setIsDeleting(false);
     }
@@ -336,20 +372,30 @@ export default function PostPage() {
       setIsDialogOpen(false);
       closeDropdowns();
       fetchPosts();
-    } catch (error: any) {
+    } catch (error) {
       const defaultMessage =
-        dialogMode === "edit" ? "Failed to update post" : "Failed to create post";
+        dialogMode === "edit"
+          ? "Failed to update post"
+          : "Failed to create post";
       console.error(
         dialogMode === "edit" ? "Error updating post:" : "Error creating post:",
         error
       );
-      const validationErrors = error?.response?.data?.errors;
+      const apiError = error as {
+        response?: {
+          data?: {
+            errors?: Array<{ msg?: string; message?: string }>;
+            message?: string;
+          };
+        };
+      };
+      const validationErrors = apiError.response?.data?.errors;
       if (Array.isArray(validationErrors) && validationErrors.length > 0) {
         validationErrors.forEach((err) =>
           toast.error(err?.msg || err?.message || defaultMessage)
         );
       } else {
-        toast.error(error?.response?.data?.message || defaultMessage);
+        toast.error(apiError.response?.data?.message || defaultMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -423,7 +469,9 @@ export default function PostPage() {
                   {posts.map((post) => (
                     <TableRow key={post._id}>
                       <TableCell>
-                        <p className="font-medium text-foreground">{post.title}</p>
+                        <p className="font-medium text-foreground">
+                          {post.title}
+                        </p>
                       </TableCell>
                       <TableCell>
                         {resolveSubjects(post).length ? (
@@ -435,20 +483,26 @@ export default function PostPage() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
                         {resolveSpecializations(post).length ? (
                           <div className="flex flex-wrap gap-1">
-                            {resolveSpecializations(post).map((specialization) => (
-                              <Badge key={specialization}>
-                                {formatLabel(specialization)}
-                              </Badge>
-                            ))}
+                            {resolveSpecializations(post).map(
+                              (specialization) => (
+                                <Badge key={specialization}>
+                                  {formatLabel(specialization)}
+                                </Badge>
+                              )
+                            )}
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -466,17 +520,22 @@ export default function PostPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewPost(post)}>
-                              <Eye className="mr-2 h-4 w-4" /> View 
+                            <DropdownMenuItem
+                              onClick={() => handleViewPost(post)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => startEditingPost(post)}>
+                            <DropdownMenuItem
+                              onClick={() => startEditingPost(post)}
+                            >
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => handleDeletePrompt(post)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4 text-red-900 font-semibold" /> Delete 
+                              <Trash2 className="mr-2 h-4 w-4 text-red-900 font-semibold" />{" "}
+                              Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -493,7 +552,9 @@ export default function PostPage() {
       <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Post" : "Create Post"}</DialogTitle>
+            <DialogTitle>
+              {isEditMode ? "Edit Post" : "Create Post"}
+            </DialogTitle>
           </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleSubmitPost}>
@@ -503,7 +564,10 @@ export default function PostPage() {
                 id="title"
                 value={formData.title}
                 onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, title: event.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    title: event.target.value,
+                  }))
                 }
                 placeholder="e.g., Important announcement for Class 12"
                 disabled={isSubmitting}
@@ -557,7 +621,9 @@ export default function PostPage() {
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">Select subjects</span>
+                    <span className="text-muted-foreground">
+                      Select subjects
+                    </span>
                   )}
                 </div>
                 {showSubjectDropdown && (
@@ -610,9 +676,7 @@ export default function PostPage() {
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">
-                      Select Exam
-                    </span>
+                    <span className="text-muted-foreground">Select Exam</span>
                   )}
                 </div>
                 {showSpecializationDropdown && (
@@ -628,7 +692,9 @@ export default function PostPage() {
                         <input
                           type="checkbox"
                           className="pointer-events-none"
-                          checked={formData.specializations.includes(specialization)}
+                          checked={formData.specializations.includes(
+                            specialization
+                          )}
                           readOnly
                         />
                         <span>{specialization}</span>
@@ -649,9 +715,7 @@ export default function PostPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting} className="gap-2">
-                {isSubmitting && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isEditMode ? "Save Changes" : "Publish Post"}
               </Button>
             </DialogFooter>
@@ -667,7 +731,9 @@ export default function PostPage() {
           {viewPost && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Title</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Title
+                </p>
                 <p className="text-base font-semibold text-foreground">
                   {viewPost.title}
                 </p>
@@ -683,7 +749,9 @@ export default function PostPage() {
               </div>
 
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Subjects</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Subjects
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {resolveSubjects(viewPost).map((subject) => (
                     <Badge key={subject} variant="outline">
@@ -699,7 +767,9 @@ export default function PostPage() {
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {resolveSpecializations(viewPost).map((specialization) => (
-                    <Badge key={specialization}>{formatLabel(specialization)}</Badge>
+                    <Badge key={specialization}>
+                      {formatLabel(specialization)}
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -725,10 +795,11 @@ export default function PostPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete post?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. It will permanently remove
-              {" "}
+              This action cannot be undone. It will permanently remove{" "}
               <span className="font-semibold">
-                {postPendingDelete?.title ? `"${postPendingDelete.title}"` : "this post"}
+                {postPendingDelete?.title
+                  ? `"${postPendingDelete.title}"`
+                  : "this post"}
               </span>
               .
             </AlertDialogDescription>

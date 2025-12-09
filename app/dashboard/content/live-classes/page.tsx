@@ -1,18 +1,25 @@
-"use client"
+"use client";
 
-import { Dispatch, FormEvent, useState, useEffect, useCallback, useMemo } from "react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import {
+  Dispatch,
+  FormEvent,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -20,15 +27,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Eye, Edit, Trash2, MoreHorizontal, Loader2, X } from "lucide-react"
+} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  MoreHorizontal,
+  Loader2,
+  X,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,24 +53,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   createLiveClass,
   deleteLiveClass,
   getCoursesByEducator,
   getLiveClassesByEducator,
   updateLiveClass,
-} from "@/util/server"
-import { useAuth } from "@/contexts/auth-context"
+} from "@/util/server";
+import { useAuth } from "@/contexts/auth-context";
+import toast from "react-hot-toast";
 
 const SUBJECT_OPTIONS = [
   { label: "Biology", value: "biology" },
@@ -64,23 +80,23 @@ const SUBJECT_OPTIONS = [
   { label: "Chemistry", value: "chemistry" },
   { label: "English", value: "english" },
   { label: "Hindi", value: "hindi" },
-]
+];
 
 const getSubjectLabel = (value: string) => {
-  const option = SUBJECT_OPTIONS.find((entry) => entry.value === value)
-  return option ? option.label : value
-}
+  const option = SUBJECT_OPTIONS.find((entry) => entry.value === value);
+  return option ? option.label : value;
+};
 
 const SPECIALIZATION_OPTIONS = [
   { label: "IIT-JEE", value: "IIT-JEE" },
   { label: "NEET", value: "NEET" },
   { label: "CBSE", value: "CBSE" },
-]
+];
 
 const getSpecializationLabel = (value: string) => {
-  const option = SPECIALIZATION_OPTIONS.find((entry) => entry.value === value)
-  return option ? option.label : value
-}
+  const option = SPECIALIZATION_OPTIONS.find((entry) => entry.value === value);
+  return option ? option.label : value;
+};
 
 const CLASS_OPTIONS = [
   { label: "Class 6", value: "class-6th" },
@@ -91,48 +107,48 @@ const CLASS_OPTIONS = [
   { label: "Class 11", value: "class-11th" },
   { label: "Class 12", value: "class-12th" },
   { label: "Dropper", value: "dropper" },
-]
+];
 
 const getClassLabel = (value: string) => {
-  const option = CLASS_OPTIONS.find((entry) => entry.value === value)
-  return option ? option.label : value
-}
+  const option = CLASS_OPTIONS.find((entry) => entry.value === value);
+  return option ? option.label : value;
+};
 
 interface CourseOption {
-  _id: string
-  title?: string
-  name?: string
+  _id: string;
+  title?: string;
+  name?: string;
 }
 
 interface LiveClass {
-  _id: string
-  liveClassTitle: string
-  subject: string | string[]
-  liveClassSpecification: string | string[]
-  classTiming: string
-  classDuration: number
-  liveClassesFee: number
-  class: string[]
-  description?: string
-  maxStudents?: number
-  introVideo?: string
-  isCourseSpecific?: boolean
-  assignInCourse?: CourseOption | string | null
+  _id: string;
+  liveClassTitle: string;
+  subject: string | string[];
+  liveClassSpecification: string | string[];
+  classTiming: string;
+  classDuration: number;
+  liveClassesFee: number;
+  class: string[];
+  description?: string;
+  maxStudents?: number;
+  introVideo?: string;
+  isCourseSpecific?: boolean;
+  assignInCourse?: CourseOption | string | null;
 }
 
 interface LiveClassFormValues {
-  liveClassTitle: string
-  subjects: string[]
-  specializations: string[]
-  classTiming: string
-  classDuration: string
-  liveClassesFee: string
-  class: string[]
-  description: string
-  maxStudents: string
-  isCourseSpecific: boolean
-  assignInCourse: string
-  introVideo: string
+  liveClassTitle: string;
+  subjects: string[];
+  specializations: string[];
+  classTiming: string;
+  classDuration: string;
+  liveClassesFee: string;
+  class: string[];
+  description: string;
+  maxStudents: string;
+  isCourseSpecific: boolean;
+  assignInCourse: string;
+  introVideo: string;
 }
 
 const INITIAL_FORM_VALUES: LiveClassFormValues = {
@@ -148,255 +164,290 @@ const INITIAL_FORM_VALUES: LiveClassFormValues = {
   isCourseSpecific: false,
   assignInCourse: "",
   introVideo: "",
-}
+};
 
 const normalizeMultiValue = (value?: string | string[] | null) => {
-  if (!value) return []
+  if (!value) return [];
   if (Array.isArray(value)) {
-    return value.filter((entry) => typeof entry === "string" && entry.trim().length > 0)
+    return value.filter(
+      (entry) => typeof entry === "string" && entry.trim().length > 0
+    );
   }
   if (typeof value === "string" && value.trim().length > 0) {
-    return [value.trim()]
+    return [value.trim()];
   }
-  return []
-}
+  return [];
+};
 
 const formatSubjects = (subject?: string | string[]) => {
-  const list = normalizeMultiValue(subject)
-  if (list.length === 0) return "-"
-  return list.map((entry) => entry.charAt(0).toUpperCase() + entry.slice(1)).join(", ")
-}
+  const list = normalizeMultiValue(subject);
+  if (list.length === 0) return "-";
+  return list
+    .map((entry) => entry.charAt(0).toUpperCase() + entry.slice(1))
+    .join(", ");
+};
 
 const formatSpecifications = (specifications?: string | string[]) => {
-  const list = normalizeMultiValue(specifications)
-  if (list.length === 0) return "-"
-  return list.join(", ")
-}
+  const list = normalizeMultiValue(specifications);
+  if (list.length === 0) return "-";
+  return list.join(", ");
+};
 
 const formatClasses = (classes: string[] = []) =>
   classes
     .map((value) => {
-      const option = CLASS_OPTIONS.find((option) => option.value === value)
-      return option ? option.label : value
+      const option = CLASS_OPTIONS.find((option) => option.value === value);
+      return option ? option.label : value;
     })
-    .join(", ")
+    .join(", ");
 
 const formatCurrency = (value?: number) => {
-  if (typeof value !== "number") return "-"
-  return `₹${value.toLocaleString("en-IN")}`
-}
+  if (typeof value !== "number") return "-";
+  return `₹${value.toLocaleString("en-IN")}`;
+};
 
 const formatDateTime = (isoDate?: string) => {
-  if (!isoDate) return "-"
-  const date = new Date(isoDate)
-  if (Number.isNaN(date.getTime())) return "-"
+  if (!isoDate) return "-";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  })
-}
+  });
+};
 
 const toDateTimeLocalValue = (isoDate?: string) => {
-  if (!isoDate) return ""
-  const date = new Date(isoDate)
-  if (Number.isNaN(date.getTime())) return ""
-  const offset = date.getTimezoneOffset()
-  const localDate = new Date(date.getTime() - offset * 60000)
-  return localDate.toISOString().slice(0, 16)
-}
+  if (!isoDate) return "";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
 
 const getCourseLabel = (course?: CourseOption | string | null) => {
-  if (!course) return "All Courses"
-  if (typeof course === "string") return course
-  return course.title || course.name || "Course"
-}
+  if (!course) return "All Courses";
+  if (typeof course === "string") return course;
+  return course.title || course.name || "Course";
+};
 
 const toggleArrayValue = (current: string[], value: string) =>
   current.includes(value)
     ? current.filter((item) => item !== value)
-    : [...current, value]
+    : [...current, value];
 
 const buildLiveClassPayload = (
   values: LiveClassFormValues,
   educatorId: string
 ) => {
-  const normalizedSubjects = values.subjects.map((entry) => entry.toLowerCase())
-  const normalizedSpecializations = values.specializations.map((entry) => entry.toUpperCase())
+  const normalizedSubjects = values.subjects.map((entry) =>
+    entry.toLowerCase()
+  );
+  const normalizedSpecializations = values.specializations.map((entry) =>
+    entry.toUpperCase()
+  );
 
   const payload: Record<string, unknown> = {
     liveClassTitle: values.liveClassTitle.trim(),
-    subject: normalizedSubjects,
-    liveClassSpecification: normalizedSpecializations,
+    subjects: normalizedSubjects,
+    specializations: normalizedSpecializations,
     classTiming: new Date(values.classTiming).toISOString(),
     classDuration: Number(values.classDuration),
     liveClassesFee: Number(values.liveClassesFee),
     class: values.class,
     educatorID: educatorId,
     isCourseSpecific: values.isCourseSpecific,
-  }
+  };
 
   if (values.description.trim()) {
-    payload.description = values.description.trim()
+    payload.description = values.description.trim();
   }
 
   if (values.maxStudents) {
-    payload.maxStudents = Number(values.maxStudents)
+    payload.maxStudents = Number(values.maxStudents);
   }
 
   if (values.introVideo.trim()) {
-    payload.introVideo = values.introVideo.trim()
+    payload.introVideo = values.introVideo.trim();
   }
 
   if (values.isCourseSpecific && values.assignInCourse) {
-    payload.assignInCourse = values.assignInCourse
+    payload.assignInCourse = values.assignInCourse;
   }
 
-  return payload
-}
+  return payload;
+};
 
 export default function LiveClassesPage() {
-  const { educator } = useAuth()
-  const educatorId = educator?._id
+  const { educator } = useAuth();
+  const educatorId = educator?._id;
 
-  const [open, setOpen] = useState(false)
-  const [viewOpen, setViewOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([])
-  const [courses, setCourses] = useState<CourseOption[]>([])
-  const [formData, setFormData] = useState<LiveClassFormValues>(INITIAL_FORM_VALUES)
-  const [editFormData, setEditFormData] = useState<LiveClassFormValues>(INITIAL_FORM_VALUES)
-  const [selectedLiveClass, setSelectedLiveClass] = useState<LiveClass | null>(null)
-  const [liveClassToDelete, setLiveClassToDelete] = useState<LiveClass | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [coursesLoading, setCoursesLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [open, setOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [formData, setFormData] =
+    useState<LiveClassFormValues>(INITIAL_FORM_VALUES);
+  const [editFormData, setEditFormData] =
+    useState<LiveClassFormValues>(INITIAL_FORM_VALUES);
+  const [selectedLiveClass, setSelectedLiveClass] = useState<LiveClass | null>(
+    null
+  );
+  const [liveClassToDelete, setLiveClassToDelete] = useState<LiveClass | null>(
+    null
+  );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 400)
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
 
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchLiveClasses = useCallback(async () => {
-    if (!educatorId) return
-    setIsLoading(true)
-    setError(null)
+    if (!educatorId) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      const response = await getLiveClassesByEducator(educatorId, { limit: 100 })
+      const response = await getLiveClassesByEducator(educatorId, {
+        limit: 100,
+      });
       const liveClassList =
-        response?.data?.liveClasses ?? response?.data ?? response?.liveClasses ?? []
-      setLiveClasses(liveClassList)
+        response?.data?.liveClasses ??
+        response?.data ??
+        response?.liveClasses ??
+        [];
+      setLiveClasses(liveClassList);
     } catch (err) {
-      console.error("Error fetching live classes:", err)
-      const message =
-        (err as any)?.response?.data?.message ??
-        (err as Error)?.message ??
-        "Unable to load live classes."
-      setError(message)
+      console.error("Error fetching live classes:", err);
+      let message = "Unable to load live classes.";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseErr = err as {
+          response?: { data?: { message?: string } };
+        };
+        message = responseErr.response?.data?.message ?? message;
+      }
+      setError(message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [educatorId])
+  }, [educatorId]);
 
   useEffect(() => {
-    fetchLiveClasses()
-  }, [fetchLiveClasses])
+    fetchLiveClasses();
+  }, [fetchLiveClasses]);
 
   const fetchCourses = useCallback(async () => {
-    if (!educatorId) return
-    setCoursesLoading(true)
+    if (!educatorId) return;
+    setCoursesLoading(true);
     try {
-      const response = await getCoursesByEducator(educatorId, { limit: 100 })
-      const courseList = response?.courses ?? response?.data?.courses ?? []
-      setCourses(courseList)
+      const response = await getCoursesByEducator(educatorId, { limit: 100 });
+      const courseList = response?.courses ?? response?.data?.courses ?? [];
+      setCourses(courseList);
     } catch (err) {
-      console.error("Error fetching educator courses:", err)
+      console.error("Error fetching educator courses:", err);
     } finally {
-      setCoursesLoading(false)
+      setCoursesLoading(false);
     }
-  }, [educatorId])
+  }, [educatorId]);
 
   useEffect(() => {
-    fetchCourses()
-  }, [fetchCourses])
+    fetchCourses();
+  }, [fetchCourses]);
 
   const filteredLiveClasses = useMemo(() => {
-    if (!debouncedSearchQuery) return liveClasses
+    if (!debouncedSearchQuery) return liveClasses;
     return liveClasses.filter((liveClass) =>
       liveClass.liveClassTitle
         ?.toLowerCase()
         .includes(debouncedSearchQuery.toLowerCase())
-    )
-  }, [liveClasses, debouncedSearchQuery])
+    );
+  }, [liveClasses, debouncedSearchQuery]);
 
   const resetCreateForm = () => {
-    setFormData(INITIAL_FORM_VALUES)
-  }
+    setFormData(INITIAL_FORM_VALUES);
+  };
 
   const resetEditForm = () => {
-    setEditingId(null)
-    setEditFormData(INITIAL_FORM_VALUES)
-  }
+    setEditingId(null);
+    setEditFormData(INITIAL_FORM_VALUES);
+  };
 
   const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!educatorId) return
-    if (formData.subjects.length === 0 || formData.specializations.length === 0) {
-      setError("Please select subject and specialization.")
-      return
+    event.preventDefault();
+    if (!educatorId) return;
+    if (
+      formData.subjects.length === 0 ||
+      formData.specializations.length === 0
+    ) {
+      setError("Please select subject and specialization.");
+      return;
     }
     if (!formData.classTiming) {
-      setError("Please select a class schedule.")
-      return
+      setError("Please select a class schedule.");
+      return;
     }
     if (formData.class.length === 0) {
-      setError("Select at least one class level.")
-      return
+      setError("Select at least one class level.");
+      return;
     }
     if (formData.isCourseSpecific && !formData.assignInCourse) {
-      setError("Please select a course to assign this live class.")
-      return
+      setError("Please select a course to assign this live class.");
+      return;
     }
 
-    setIsSubmitting(true)
-    setError(null)
+    setIsSubmitting(true);
+    setError(null);
     try {
-      const payload = buildLiveClassPayload(formData, educatorId)
-      const response = await createLiveClass(payload)
-      const created = response?.data ?? response
+      const payload = buildLiveClassPayload(formData, educatorId);
+      const response = await createLiveClass(payload);
+      const created = response?.data ?? response;
       if (created) {
-        setLiveClasses((prev) => [created, ...prev])
+        setLiveClasses((prev) => [created, ...prev]);
       }
-      resetCreateForm()
-      setOpen(false)
+      resetCreateForm();
+      setOpen(false);
+      toast.success("Live class created successfully");
     } catch (err) {
-      console.error("Error creating live class:", err)
-      const message =
-        (err as any)?.response?.data?.message ??
-        (err as Error)?.message ??
-        "Unable to create live class."
-      setError(message)
+      console.error("Error creating live class:", err);
+      let message = "Unable to create live class.";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseErr = err as {
+          response?: { data?: { message?: string } };
+        };
+        message = responseErr.response?.data?.message ?? message;
+      }
+      setError(message);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleEdit = (liveClass: LiveClass) => {
-    setEditingId(liveClass._id)
-    const normalizedSubjects = normalizeMultiValue(liveClass.subject)
-    const normalizedSpecializations = normalizeMultiValue(liveClass.liveClassSpecification)
+    setEditingId(liveClass._id);
+    const normalizedSubjects = normalizeMultiValue(liveClass.subject);
+    const normalizedSpecializations = normalizeMultiValue(
+      liveClass.liveClassSpecification
+    );
     setEditFormData({
       liveClassTitle: liveClass.liveClassTitle || "",
       subjects: normalizedSubjects,
@@ -413,101 +464,118 @@ export default function LiveClassesPage() {
           ? liveClass.assignInCourse
           : liveClass.assignInCourse?._id || "",
       introVideo: liveClass.introVideo || "",
-    })
-    setEditOpen(true)
-  }
+    });
+    setEditOpen(true);
+  };
 
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!educatorId || !editingId) return
-    if (editFormData.subjects.length === 0 || editFormData.specializations.length === 0) {
-      setError("Please select subject and specialization.")
-      return
+    event.preventDefault();
+    if (!educatorId || !editingId) return;
+    if (
+      editFormData.subjects.length === 0 ||
+      editFormData.specializations.length === 0
+    ) {
+      setError("Please select subject and specialization.");
+      return;
     }
     if (!editFormData.classTiming) {
-      setError("Please select a class schedule.")
-      return
+      setError("Please select a class schedule.");
+      return;
     }
     if (editFormData.class.length === 0) {
-      setError("Select at least one class level.")
-      return
+      setError("Select at least one class level.");
+      return;
     }
     if (editFormData.isCourseSpecific && !editFormData.assignInCourse) {
-      setError("Please select a course to assign this live class.")
-      return
+      setError("Please select a course to assign this live class.");
+      return;
     }
 
-    setIsEditSubmitting(true)
-    setError(null)
+    setIsEditSubmitting(true);
+    setError(null);
     try {
-      const payload = buildLiveClassPayload(editFormData, educatorId)
-      const response = await updateLiveClass(editingId, payload)
-      const updated = response?.data ?? response
+      const payload = buildLiveClassPayload(editFormData, educatorId);
+      const response = await updateLiveClass(editingId, payload);
+      const updated = response?.data ?? response;
       if (updated) {
         setLiveClasses((prev) =>
           prev.map((liveClass) =>
             liveClass._id === updated._id ? updated : liveClass
           )
-        )
+        );
       }
-      resetEditForm()
-      setEditOpen(false)
+      resetEditForm();
+      setEditOpen(false);
+      toast.success("Live class updated successfully");
     } catch (err) {
-      console.error("Error updating live class:", err)
-      const message =
-        (err as any)?.response?.data?.message ??
-        (err as Error)?.message ??
-        "Unable to update live class."
-      setError(message)
+      console.error("Error updating live class:", err);
+      let message = "Unable to update live class.";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseErr = err as {
+          response?: { data?: { message?: string } };
+        };
+        message = responseErr.response?.data?.message ?? message;
+      }
+      setError(message);
     } finally {
-      setIsEditSubmitting(false)
+      setIsEditSubmitting(false);
     }
-  }
+  };
 
   const handleDeleteClick = (liveClass: LiveClass) => {
-    setLiveClassToDelete(liveClass)
-    setDeleteOpen(true)
-  }
+    setLiveClassToDelete(liveClass);
+    setDeleteOpen(true);
+  };
 
   const handleDeleteConfirm = async () => {
-    if (!liveClassToDelete) return
-    setIsDeleting(true)
-    setError(null)
+    if (!liveClassToDelete) return;
+    setIsDeleting(true);
+    setError(null);
     try {
-      await deleteLiveClass(liveClassToDelete._id)
-      setLiveClasses((prev) => prev.filter((lc) => lc._id !== liveClassToDelete._id))
-      setDeleteOpen(false)
-      setLiveClassToDelete(null)
+      await deleteLiveClass(liveClassToDelete._id);
+      setLiveClasses((prev) =>
+        prev.filter((lc) => lc._id !== liveClassToDelete._id)
+      );
+      setDeleteOpen(false);
+      setLiveClassToDelete(null);
+      toast.success("Live class deleted successfully");
     } catch (err) {
-      console.error("Error deleting live class:", err)
-      const message =
-        (err as any)?.response?.data?.message ??
-        (err as Error)?.message ??
-        "Unable to delete live class."
-      setError(message)
+      console.error("Error deleting live class:", err);
+      let message = "Unable to delete live class.";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseErr = err as {
+          response?: { data?: { message?: string } };
+        };
+        message = responseErr.response?.data?.message ?? message;
+      }
+      setError(message);
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
   const handleView = (liveClass: LiveClass) => {
-    setSelectedLiveClass(liveClass)
-    setViewOpen(true)
-  }
+    setSelectedLiveClass(liveClass);
+    setViewOpen(true);
+  };
 
   const handleCreateDialogChange = (nextOpen: boolean) => {
-    setOpen(nextOpen)
+    setOpen(nextOpen);
     if (!nextOpen) {
-      resetCreateForm()
+      resetCreateForm();
     }
-  }
+  };
 
   const handleEditDialogChange = (nextOpen: boolean) => {
-    setEditOpen(nextOpen)
+    setEditOpen(nextOpen);
     if (!nextOpen) {
-      resetEditForm()
+      resetEditForm();
     }
-  }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -569,13 +637,19 @@ export default function LiveClassesPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         Loading live classes...
                       </TableCell>
                     </TableRow>
                   ) : filteredLiveClasses.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         No live classes found.
                       </TableCell>
                     </TableRow>
@@ -584,7 +658,9 @@ export default function LiveClassesPage() {
                       <TableRow key={liveClass._id}>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{liveClass.liveClassTitle}</span>
+                            <span className="font-medium">
+                              {liveClass.liveClassTitle}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -593,7 +669,9 @@ export default function LiveClassesPage() {
                               {formatSubjects(liveClass.subject)}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {formatSpecifications(liveClass.liveClassSpecification)}
+                              {formatSpecifications(
+                                liveClass.liveClassSpecification
+                              )}
                             </span>
                           </div>
                         </TableCell>
@@ -602,16 +680,22 @@ export default function LiveClassesPage() {
                             {formatDateTime(liveClass.classTiming)}
                           </span>
                         </TableCell>
-                        <TableCell>{liveClass.classDuration || 0} mins</TableCell>
-                        <TableCell>{formatCurrency(liveClass.liveClassesFee)}</TableCell>
+                        <TableCell>
+                          {liveClass.classDuration || 0} mins
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(liveClass.liveClassesFee)}
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {(liveClass.class || []).map((classValue) => (
-                              <Badge key={`${liveClass._id}-${classValue}`} variant="secondary">
-                                {
-                                  CLASS_OPTIONS.find((option) => option.value === classValue)?.label ||
-                                  classValue
-                                }
+                              <Badge
+                                key={`${liveClass._id}-${classValue}`}
+                                variant="secondary"
+                              >
+                                {CLASS_OPTIONS.find(
+                                  (option) => option.value === classValue
+                                )?.label || classValue}
                               </Badge>
                             ))}
                           </div>
@@ -620,7 +704,7 @@ export default function LiveClassesPage() {
                           <span className="text-sm">
                             {liveClass.isCourseSpecific
                               ? getCourseLabel(liveClass.assignInCourse)
-                              : "All Courses"}
+                              : "No Course Assigned"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -631,11 +715,15 @@ export default function LiveClassesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleView(liveClass)}>
+                              <DropdownMenuItem
+                                onClick={() => handleView(liveClass)}
+                              >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEdit(liveClass)}>
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(liveClass)}
+                              >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
@@ -668,16 +756,26 @@ export default function LiveClassesPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Title</p>
-                <p className="font-medium">{selectedLiveClass.liveClassTitle}</p>
+                <p className="font-medium">
+                  {selectedLiveClass.liveClassTitle}
+                </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground">Subject</p>
-                  <p className="font-medium">{formatSubjects(selectedLiveClass.subject)}</p>
+                  <p className="font-medium">
+                    {formatSubjects(selectedLiveClass.subject)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Specialization</p>
-                  <p className="font-medium">{formatSpecifications(selectedLiveClass.liveClassSpecification)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Specialization
+                  </p>
+                  <p className="font-medium">
+                    {formatSpecifications(
+                      selectedLiveClass.liveClassSpecification
+                    )}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Access</p>
@@ -689,26 +787,36 @@ export default function LiveClassesPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Schedule</p>
-                  <p className="font-medium">{formatDateTime(selectedLiveClass.classTiming)}</p>
+                  <p className="font-medium">
+                    {formatDateTime(selectedLiveClass.classTiming)}
+                  </p>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-medium">{selectedLiveClass.classDuration} mins</p>
+                  <p className="font-medium">
+                    {selectedLiveClass.classDuration} mins
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Fee</p>
-                  <p className="font-medium">{formatCurrency(selectedLiveClass.liveClassesFee)}</p>
+                  <p className="font-medium">
+                    {formatCurrency(selectedLiveClass.liveClassesFee)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Max Students</p>
-                  <p className="font-medium">{selectedLiveClass.maxStudents || "-"}</p>
+                  <p className="font-medium">
+                    {selectedLiveClass.maxStudents || "-"}
+                  </p>
                 </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Target Classes</p>
-                <p className="font-medium">{formatClasses(selectedLiveClass.class)}</p>
+                <p className="font-medium">
+                  {formatClasses(selectedLiveClass.class)}
+                </p>
               </div>
               {selectedLiveClass.description && (
                 <div>
@@ -756,7 +864,9 @@ export default function LiveClassesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete live class?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. "{liveClassToDelete?.liveClassTitle}" will be removed permanently.
+              This action cannot be undone. &ldquo;
+              {liveClassToDelete?.liveClassTitle}&rdquo; will be removed
+              permanently.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -773,18 +883,18 @@ export default function LiveClassesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
 
 type LiveClassFormProps = {
-  values: LiveClassFormValues
-  setValues: Dispatch<React.SetStateAction<LiveClassFormValues>>
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  isSubmitting: boolean
-  submitLabel: string
-  courses: CourseOption[]
-  coursesLoading: boolean
-}
+  values: LiveClassFormValues;
+  setValues: Dispatch<React.SetStateAction<LiveClassFormValues>>;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  isSubmitting: boolean;
+  submitLabel: string;
+  courses: CourseOption[];
+  coursesLoading: boolean;
+};
 
 function LiveClassForm({
   values,
@@ -795,30 +905,31 @@ function LiveClassForm({
   courses,
   coursesLoading,
 }: LiveClassFormProps) {
-  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false)
-  const [showSpecializationDropdown, setShowSpecializationDropdown] = useState(false)
-  const [showClassDropdown, setShowClassDropdown] = useState(false)
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
+  const [showSpecializationDropdown, setShowSpecializationDropdown] =
+    useState(false);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
 
   const handleSubjectToggle = (subjectValue: string) => {
     setValues((prev) => ({
       ...prev,
       subjects: toggleArrayValue(prev.subjects, subjectValue),
-    }))
-  }
+    }));
+  };
 
   const handleSpecializationToggle = (specValue: string) => {
     setValues((prev) => ({
       ...prev,
       specializations: toggleArrayValue(prev.specializations, specValue),
-    }))
-  }
+    }));
+  };
 
   const handleClassToggle = (classValue: string) => {
     setValues((prev) => ({
       ...prev,
       class: toggleArrayValue(prev.class, classValue),
-    }))
-  }
+    }));
+  };
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
@@ -828,7 +939,9 @@ function LiveClassForm({
           <Input
             id="liveClassTitle"
             value={values.liveClassTitle}
-            onChange={(e) => setValues((prev) => ({ ...prev, liveClassTitle: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, liveClassTitle: e.target.value }))
+            }
             placeholder="Live class title"
             required
           />
@@ -838,7 +951,9 @@ function LiveClassForm({
           <Textarea
             id="description"
             value={values.description}
-            onChange={(e) => setValues((prev) => ({ ...prev, description: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, description: e.target.value }))
+            }
             placeholder="Add a short description (optional)"
             rows={3}
             className="min-h-[104px]"
@@ -852,9 +967,9 @@ function LiveClassForm({
           <div
             className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
             onClick={() => {
-              setShowSubjectDropdown((prev) => !prev)
-              setShowSpecializationDropdown(false)
-              setShowClassDropdown(false)
+              setShowSubjectDropdown((prev) => !prev);
+              setShowSpecializationDropdown(false);
+              setShowClassDropdown(false);
             }}
           >
             {values.subjects?.length ? (
@@ -864,8 +979,8 @@ function LiveClassForm({
                   variant="secondary"
                   className="gap-1 capitalize"
                   onClick={(event) => {
-                    event.stopPropagation()
-                    handleSubjectToggle(subject)
+                    event.stopPropagation();
+                    handleSubjectToggle(subject);
                   }}
                 >
                   {getSubjectLabel(subject)}
@@ -900,9 +1015,9 @@ function LiveClassForm({
           <div
             className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
             onClick={() => {
-              setShowSpecializationDropdown((prev) => !prev)
-              setShowSubjectDropdown(false)
-              setShowClassDropdown(false)
+              setShowSpecializationDropdown((prev) => !prev);
+              setShowSubjectDropdown(false);
+              setShowClassDropdown(false);
             }}
           >
             {values.specializations.length ? (
@@ -912,8 +1027,8 @@ function LiveClassForm({
                   variant="secondary"
                   className="gap-1"
                   onClick={(event) => {
-                    event.stopPropagation()
-                    handleSpecializationToggle(spec)
+                    event.stopPropagation();
+                    handleSpecializationToggle(spec);
                   }}
                 >
                   {getSpecializationLabel(spec)}
@@ -921,7 +1036,9 @@ function LiveClassForm({
                 </Badge>
               ))
             ) : (
-              <span className="text-muted-foreground">Select specialization</span>
+              <span className="text-muted-foreground">
+                Select specialization
+              </span>
             )}
           </div>
           {showSpecializationDropdown && (
@@ -952,7 +1069,9 @@ function LiveClassForm({
             id="classTiming"
             type="datetime-local"
             value={values.classTiming}
-            onChange={(e) => setValues((prev) => ({ ...prev, classTiming: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, classTiming: e.target.value }))
+            }
             required
           />
         </div>
@@ -964,7 +1083,9 @@ function LiveClassForm({
             min={1}
             max={480}
             value={values.classDuration}
-            onChange={(e) => setValues((prev) => ({ ...prev, classDuration: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, classDuration: e.target.value }))
+            }
             required
           />
         </div>
@@ -978,7 +1099,9 @@ function LiveClassForm({
             type="number"
             min={0}
             value={values.liveClassesFee}
-            onChange={(e) => setValues((prev) => ({ ...prev, liveClassesFee: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, liveClassesFee: e.target.value }))
+            }
             placeholder="Enter fee"
             required
           />
@@ -990,7 +1113,9 @@ function LiveClassForm({
             type="number"
             min={1}
             value={values.maxStudents}
-            onChange={(e) => setValues((prev) => ({ ...prev, maxStudents: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, maxStudents: e.target.value }))
+            }
             placeholder="Optional"
           />
         </div>
@@ -1001,9 +1126,9 @@ function LiveClassForm({
         <div
           className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
           onClick={() => {
-            setShowClassDropdown((prev) => !prev)
-            setShowSubjectDropdown(false)
-            setShowSpecializationDropdown(false)
+            setShowClassDropdown((prev) => !prev);
+            setShowSubjectDropdown(false);
+            setShowSpecializationDropdown(false);
           }}
         >
           {values.class.length ? (
@@ -1013,8 +1138,8 @@ function LiveClassForm({
                 variant="secondary"
                 className="gap-1"
                 onClick={(event) => {
-                  event.stopPropagation()
-                  handleClassToggle(classValue)
+                  event.stopPropagation();
+                  handleClassToggle(classValue);
                 }}
               >
                 {getClassLabel(classValue)}
@@ -1052,7 +1177,9 @@ function LiveClassForm({
             id="introVideo"
             type="url"
             value={values.introVideo}
-            onChange={(e) => setValues((prev) => ({ ...prev, introVideo: e.target.value }))}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, introVideo: e.target.value }))
+            }
             placeholder="https://..."
           />
         </div>
@@ -1079,7 +1206,9 @@ function LiveClassForm({
           </div>
           <Select
             value={values.assignInCourse}
-            onValueChange={(value) => setValues((prev) => ({ ...prev, assignInCourse: value }))}
+            onValueChange={(value) =>
+              setValues((prev) => ({ ...prev, assignInCourse: value }))
+            }
             disabled={!values.isCourseSpecific || coursesLoading}
           >
             <SelectTrigger className="mt-2">
@@ -1116,5 +1245,5 @@ function LiveClassForm({
         </Button>
       </div>
     </form>
-  )
+  );
 }
