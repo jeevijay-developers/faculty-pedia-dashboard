@@ -23,12 +23,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ViewStudentDetailsDialog } from "@/components/view-student-details-dialog";
+import { BroadcastMessageDialog } from "@/components/broadcast-message-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import {
   getEducatorEnrolledStudents,
   getCoursesByEducator,
 } from "@/util/server";
-import { Users, Loader2, Eye, UserX } from "lucide-react";
+import { Users, Loader2, Eye, UserX, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface EnrolledStudent {
@@ -78,6 +79,7 @@ export default function StudentsPage() {
   const [selectedStudent, setSelectedStudent] =
     useState<EnrolledStudent | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isBroadcastDialogOpen, setIsBroadcastDialogOpen] = useState(false);
 
   // Fetch enrolled students and courses
   const fetchData = useCallback(async () => {
@@ -246,50 +248,68 @@ export default function StudentsPage() {
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold mb-4">Enrolled Students</h3>
 
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by name, email, mobile, or course..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
-                />
+            {/* Filters and Message Button */}
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Message Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setIsBroadcastDialogOpen(true)}
+                  className="gap-2"
+                  variant="default"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Message All Followers
+                </Button>
               </div>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                <SelectTrigger className="w-full md:w-[250px]">
-                  <SelectValue placeholder="Filter by course" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Courses</SelectItem>
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={`${sortBy}-${sortOrder}`}
-                onValueChange={(value) => {
-                  const [newSortBy, newSortOrder] = value.split("-") as [
-                    "name" | "joinedAt",
-                    "asc" | "desc"
-                  ];
-                  setSortBy(newSortBy);
-                  setSortOrder(newSortOrder);
-                }}
-              >
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                  <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                  <SelectItem value="joinedAt-desc">Newest First</SelectItem>
-                  <SelectItem value="joinedAt-asc">Oldest First</SelectItem>
-                </SelectContent>
-              </Select>
+
+              {/* Filters Row */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by name, email, mobile, or course..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <Select
+                  value={selectedCourse}
+                  onValueChange={setSelectedCourse}
+                >
+                  <SelectTrigger className="w-full md:w-[250px]">
+                    <SelectValue placeholder="Filter by course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Courses</SelectItem>
+                    {courses.map((course) => (
+                      <SelectItem key={course._id} value={course._id}>
+                        {course.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={`${sortBy}-${sortOrder}`}
+                  onValueChange={(value) => {
+                    const [newSortBy, newSortOrder] = value.split("-") as [
+                      "name" | "joinedAt",
+                      "asc" | "desc"
+                    ];
+                    setSortBy(newSortBy);
+                    setSortOrder(newSortOrder);
+                  }}
+                >
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="joinedAt-desc">Newest First</SelectItem>
+                    <SelectItem value="joinedAt-asc">Oldest First</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Table */}
@@ -406,6 +426,14 @@ export default function StudentsPage() {
             ? students.filter((s) => s._id === selectedStudent._id)
             : []
         }
+      />
+
+      {/* Broadcast Message Dialog */}
+      <BroadcastMessageDialog
+        open={isBroadcastDialogOpen}
+        onOpenChange={setIsBroadcastDialogOpen}
+        educatorId={educator._id}
+        followerCount={educator?.followers?.length || 0}
       />
     </div>
   );
