@@ -100,7 +100,6 @@ export const updateEducatorImage = async (educatorId, imageFile) => {
       {
         headers: {
           ...getAuthHeaders(),
-          "Content-Type": "multipart/form-data",
         },
       }
     );
@@ -216,8 +215,10 @@ export const getCoursesByEducator = async (educatorId, params = {}) => {
 
 export const getCourseById = async (courseId) => {
   try {
-    const response = await API_CLIENT.get(`/api/course/by-id/${courseId}`);
-    return response.data;
+    const response = await API_CLIENT.get(`/api/courses/${courseId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data?.course ?? response.data;
   } catch (error) {
     console.error("Error fetching course by ID:", error);
     throw error;
@@ -343,7 +344,7 @@ export const updateCourse = async (courseId, courseData) => {
     };
 
     const response = await API_CLIENT.put(
-      `/api/course/update/${courseId}`,
+      `/api/courses/${courseId}`,
       courseData,
       config
     );
@@ -356,7 +357,7 @@ export const updateCourse = async (courseId, courseData) => {
 
 export const deleteCourse = async (courseId) => {
   try {
-    const response = await API_CLIENT.delete(`/api/course/delete/${courseId}`, {
+    const response = await API_CLIENT.delete(`/api/courses/${courseId}`, {
       headers: getAuthHeaders(),
     });
     return response.data;

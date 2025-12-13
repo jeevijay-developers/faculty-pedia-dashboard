@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreateWebinarDialog } from "@/components/create-webinar-dialog"
-import { ViewWebinarDialog } from "@/components/view-webinar-dialog"
+//import { ViewWebinarDialog } from "@/components/ViewWebinarDialog"
 import { deleteWebinar, getEducatorWebinars } from "@/util/server"
 import { useAuth } from "@/contexts/auth-context"
 import toast from "react-hot-toast"
@@ -605,16 +605,9 @@ export default function WebinarPage() {
         open={isDialogOpen}
         onOpenChange={handleDialogChange}
         onWebinarCreated={handleWebinarCreated}
-        onWebinarUpdated={handleWebinarUpdated}
-        mode={dialogMode}
-        webinar={webinarToEdit}
       />
 
-      <ViewWebinarDialog
-        open={isViewDialogOpen}
-        onOpenChange={handleViewDialogChange}
-        webinar={selectedWebinar}
-      />
+      
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>
