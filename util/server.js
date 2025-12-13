@@ -524,9 +524,12 @@ export const deleteStudyMaterialEntry = async (studyMaterialId) => {
   }
 
   try {
-    const response = await API_CLIENT.delete(`/api/study-materials/${studyMaterialId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await API_CLIENT.delete(
+      `/api/study-materials/${studyMaterialId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting study material:", error);
@@ -884,13 +887,9 @@ export const getLiveClassesByEducator = async (educatorId, params = {}) => {
 
 export const createLiveClass = async (liveClassData) => {
   try {
-    const response = await API_CLIENT.post(
-      "/api/live-classes",
-      liveClassData,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await API_CLIENT.post("/api/live-classes", liveClassData, {
+      headers: getAuthHeaders(),
+    });
     return response.data;
   } catch (error) {
     console.error("Error creating live class:", error);
@@ -1067,7 +1066,10 @@ const normalizeWebinarPayload = (
     : [];
 
   const classOptions =
-    classLevels || classes || classList || (className ? [className] : undefined);
+    classLevels ||
+    classes ||
+    classList ||
+    (className ? [className] : undefined);
   const classArray = Array.isArray(classOptions)
     ? classOptions.filter(Boolean)
     : classOptions
@@ -1125,9 +1127,10 @@ const normalizeWebinarPayload = (
     ...(typeof duration !== "undefined" && { duration: String(duration) }),
     ...(typeof fees !== "undefined" && { fees: Number(fees) }),
     ...(normalizedClass && { class: normalizedClass }),
-    ...(normalizedAssets && normalizedAssets.length > 0 && {
-      assetsLink: normalizedAssets,
-    }),
+    ...(normalizedAssets &&
+      normalizedAssets.length > 0 && {
+        assetsLink: normalizedAssets,
+      }),
     ...(normalizedWebinarType && { webinarType: normalizedWebinarType }),
   };
 
@@ -1225,13 +1228,10 @@ export const getEducatorPosts = async (educatorId, params = {}) => {
   }
 
   try {
-    const response = await API_CLIENT.get(
-      `/api/posts/educator/${educatorId}`,
-      {
-        headers: getAuthHeaders(),
-        params,
-      }
-    );
+    const response = await API_CLIENT.get(`/api/posts/educator/${educatorId}`, {
+      headers: getAuthHeaders(),
+      params,
+    });
     return response.data?.data || response.data;
   } catch (error) {
     console.error("Error fetching educator posts:", error);
@@ -1271,6 +1271,50 @@ export const deleteEducatorPost = async (postId) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting post:", error);
+    throw error;
+  }
+};
+
+// Broadcast Message to Followers API
+export const sendBroadcastMessage = async (educatorId, { title, message }) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to send broadcast message");
+  }
+  if (!title || !message) {
+    throw new Error("Title and message are required");
+  }
+
+  try {
+    const response = await API_CLIENT.post(
+      `/api/educators/${educatorId}/broadcast`,
+      { title, message },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error sending broadcast message:", error);
+    throw error;
+  }
+};
+
+export const getBroadcastHistory = async (educatorId, params = {}) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required to fetch broadcast history");
+  }
+
+  try {
+    const response = await API_CLIENT.get(
+      `/api/educators/${educatorId}/broadcast-history`,
+      {
+        headers: getAuthHeaders(),
+        params,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching broadcast history:", error);
     throw error;
   }
 };
@@ -1434,6 +1478,158 @@ export const deleteLiveTest = async (testId) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting test:", error);
+    throw error;
+  }
+};
+
+// Query APIs
+export const getEducatorQueries = async (educatorId, params = {}) => {
+  const response = await API_CLIENT.get(`/api/queries/educator/${educatorId}`, {
+    headers: getAuthHeaders(),
+    params,
+  });
+  return response.data;
+};
+
+export const replyToQuery = async (queryId, message) => {
+  const response = await API_CLIENT.post(
+    `/api/queries/${queryId}/reply`,
+    { message },
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
+};
+
+export const updateQueryReply = async (messageId, content) => {
+  const response = await API_CLIENT.put(
+    `/api/queries/messages/${messageId}`,
+    { content },
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
+};
+
+export const resolveQuery = async (queryId) => {
+  const response = await API_CLIENT.put(
+    `/api/queries/${queryId}/resolve`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
+};
+
+// ============================================================
+// Admin-Educator Chat APIs
+// ============================================================
+
+// Get all conversations for current educator
+export const getConversations = async () => {
+  try {
+    const response = await API_CLIENT.get("/api/chat/conversations", {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    throw error;
+  }
+};
+
+// Create or get existing conversation with admin
+export const createConversation = async () => {
+  try {
+    const response = await API_CLIENT.post(
+      "/api/chat/conversations",
+      {}, // Empty body - educator's conversation is auto-created with super admin
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating conversation:", error);
+    throw error;
+  }
+};
+
+// Get messages for a conversation
+export const getConversationMessages = async (
+  conversationId,
+  page = 1,
+  limit = 50
+) => {
+  try {
+    const response = await API_CLIENT.get(
+      `/api/chat/conversations/${conversationId}/messages`,
+      {
+        headers: getAuthHeaders(),
+        params: { page, limit },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    throw error;
+  }
+};
+
+// Send a message (REST fallback - prefer WebSocket for real-time)
+export const sendChatMessage = async ({
+  conversationId,
+  receiverId,
+  receiverType,
+  content,
+  messageType = "text",
+  attachments = [],
+}) => {
+  try {
+    const response = await API_CLIENT.post(
+      "/api/chat/messages",
+      {
+        conversationId,
+        receiverId,
+        receiverType,
+        content,
+        messageType,
+        attachments,
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+// Mark message as read
+export const markMessageAsRead = async (messageId) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/chat/messages/${messageId}/read`,
+      {},
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error marking message as read:", error);
+    throw error;
+  }
+};
+
+// Get unread message count
+export const getUnreadMessageCount = async () => {
+  try {
+    const response = await API_CLIENT.get("/api/chat/unread-count", {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching unread count:", error);
     throw error;
   }
 };
