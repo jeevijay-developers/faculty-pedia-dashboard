@@ -22,6 +22,7 @@ interface BroadcastMessageDialogProps {
   onOpenChange: (open: boolean) => void;
   educatorId: string;
   followerCount?: number;
+  onSent?: () => void;
 }
 
 export function BroadcastMessageDialog({
@@ -29,6 +30,7 @@ export function BroadcastMessageDialog({
   onOpenChange,
   educatorId,
   followerCount = 0,
+  onSent,
 }: BroadcastMessageDialogProps) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -74,6 +76,7 @@ export function BroadcastMessageDialog({
       setTitle("");
       setMessage("");
       onOpenChange(false);
+      onSent?.();
     } catch (error: unknown) {
       console.error("Error sending broadcast message:", error);
       const errorMessage =

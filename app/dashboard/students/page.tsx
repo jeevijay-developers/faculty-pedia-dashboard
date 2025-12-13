@@ -251,7 +251,7 @@ export default function StudentsPage() {
             {/* Filters and Message Button */}
             <div className="flex flex-col gap-4 mb-6">
               {/* Message Button */}
-              <div className="flex justify-end">
+              {/* <div className="flex justify-end">
                 <Button
                   onClick={() => setIsBroadcastDialogOpen(true)}
                   className="gap-2"
@@ -260,7 +260,7 @@ export default function StudentsPage() {
                   <MessageSquare className="h-4 w-4" />
                   Message All Followers
                 </Button>
-              </div>
+              </div> */}
 
               {/* Filters Row */}
               <div className="flex flex-col md:flex-row gap-4">

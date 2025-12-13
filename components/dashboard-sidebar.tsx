@@ -31,6 +31,7 @@ import {
   DollarSign,
   MessageSquare,
   Loader2,
+  Megaphone,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -107,6 +108,11 @@ const navigation = [
     name: "Students",
     href: "/dashboard/students",
     icon: Users,
+  },
+  {
+    name: "Messages",
+    href: "/dashboard/messages",
+    icon: Megaphone,
   },
   {
     name: "Manage Queries",
