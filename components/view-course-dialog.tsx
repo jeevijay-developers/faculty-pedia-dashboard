@@ -23,8 +23,68 @@ const getCourseTypeLabel = (type?: string) => {
   return normalized === "one-to-one" ? "One To One" : "One To All"
 }
 
+const getClassList = (course: any) => {
+  if (!course) return []
+  if (Array.isArray(course.class)) return course.class
+  if (Array.isArray(course.classes)) return course.classes
+  if (course.courseClass) return [course.courseClass]
+  return []
+}
+
+const formatClassLabel = (cls: string) => {
+  if (!cls) return ""
+  if (cls === "dropper") return "Dropper"
+  const normalized = cls.replace("class-", "")
+  return `Class ${normalized}`
+}
+
+const getSubjects = (subject: any) => {
+  if (!subject) return "N/A"
+  if (Array.isArray(subject)) {
+    return subject
+      .filter(Boolean)
+      .map((s) => (typeof s === "string" ? s : String(s)))
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(", ")
+  }
+  if (typeof subject === "string") return subject
+  return "N/A"
+}
+
+const getSpecializations = (specialization: any) => {
+  if (!specialization) return "N/A"
+  if (Array.isArray(specialization)) {
+    const joined = specialization
+      .filter(Boolean)
+      .map((s) => (typeof s === "string" ? s : String(s)))
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(", ")
+    return joined || "N/A"
+  }
+  if (typeof specialization === "string") return specialization
+  return "N/A"
+}
+
+const getDescription = (description: any) => {
+  if (!description) return "No description"
+  if (typeof description === "string") return description
+  return description.longDesc || description.shortDesc || "No description"
+}
+
+const getImageUrl = (course: any) => {
+  if (!course) return ""
+  if (course.courseThumbnail) return course.courseThumbnail
+  if (typeof course.image === "string") return course.image
+  if (course.image?.url) return course.image.url
+  return ""
+}
+
 export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialogProps) {
   if (!course) return null
+
+  const descriptionText = getDescription(course.description)
+  const imageUrl = getImageUrl(course)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +93,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <DialogTitle className="text-2xl font-bold capitalize">{course.title}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">{course.description?.shortDesc || "No description"}</p>
+             
             </div>
             {/* <Button
               variant="ghost"
@@ -48,10 +108,10 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
 
         <div className="space-y-6 mt-4">
           {/* Course Image */}
-          {course.image?.url && (
+          {imageUrl && (
             <div className="aspect-video relative overflow-hidden rounded-lg border">
               <img
-                src={course.image.url}
+                src={imageUrl}
                 alt={course.title}
                 className="w-full h-full object-cover"
               />
@@ -78,14 +138,14 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
               <Clock className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Duration</p>
-                <p className="text-lg font-semibold">{course.classDuration || 0} min</p>
+                <p className="text-lg font-semibold">{course.classDuration || course.courseDuration || 0} min</p>
               </div>
             </div>
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
               <BookOpen className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Seats</p>
-                <p className="text-lg font-semibold">{course.seatLimit || "Unlimited"}</p>
+                <p className="text-lg font-semibold">{course.maxStudents || course.seatLimit || "Unlimited"}</p>
               </div>
             </div>
           </div>
@@ -98,11 +158,21 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Subject</p>
-                <p className="font-medium capitalize">{course.subject}</p>
+                <p className="font-medium capitalize">{getSubjects(course.subject)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Class</p>
-                <Badge variant="outline">Class {course.courseClass}</Badge>
+                <div className="flex flex-wrap gap-2">
+                  {getClassList(course).length ? (
+                    getClassList(course).map((cls: string) => (
+                      <Badge key={cls} variant="outline" className="capitalize">
+                        {formatClassLabel(cls)}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="outline">N/A</Badge>
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Course Type</p>
@@ -112,7 +182,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Specialization</p>
-                <p className="font-medium capitalize">{course.specialization || "N/A"}</p>
+                <p className="font-medium capitalize">{getSpecializations(course.specialization)}</p>
               </div>
             </div>
           </div>
@@ -157,13 +227,13 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
           </div>
 
           {/* Description */}
-          {course.description?.longDesc && (
+          {descriptionText && (
             <>
               <Separator />
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Description</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {course.description.longDesc}
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {descriptionText}
                 </p>
               </div>
             </>

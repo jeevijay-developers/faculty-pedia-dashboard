@@ -986,6 +986,25 @@ export const uploadImage = async (imageFile, type = "course") => {
   }
 };
 
+export const uploadPdf = async (pdfFile) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", pdfFile);
+
+    const response = await API_CLIENT.post(`/api/upload/pdf`, formData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Error uploading PDF:", error);
+    throw error;
+  }
+};
+
 const combineDateAndTime = (dateValue, timeValue) => {
   if (!dateValue) {
     return undefined;

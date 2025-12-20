@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,6 +41,10 @@ export function CreateWebinarDialog({
   onOpenChange,
   onWebinarCreated,
 }: CreateWebinarDialogProps) {
+  const subjectOptions = useMemo(
+    () => ["Physics", "Chemistry", "Mathematics", "Biology", "English", "Hindi"],
+    []
+  );
   const [formData, setFormData] = useState({
     title: "",
     shortDescription: "",
@@ -331,13 +335,22 @@ export function CreateWebinarDialog({
 
             <div className="space-y-2">
               <Label htmlFor="subject">Subject *</Label>
-              <Input
-                id="subject"
-                placeholder="e.g., Mathematics, Physics, Chemistry"
+              <Select
                 value={formData.subject}
-                onChange={(e) => handleInputChange("subject", e.target.value)}
+                onValueChange={(value) => handleInputChange("subject", value)}
                 disabled={isLoading}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjectOptions.map((subj) => (
+                    <SelectItem key={subj} value={subj}>
+                      {subj}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

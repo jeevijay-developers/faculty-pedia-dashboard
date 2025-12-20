@@ -1,367 +1,983 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ImageIcon, X, Loader2 } from "lucide-react"
-import { updateCourse } from "@/util/server"
-import toast from "react-hot-toast"
+import { useEffect, useRef, useState, ChangeEvent } from "react";
+import Image from "next/image";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { X, Upload, ImageIcon } from "lucide-react";
+import { MdDelete } from "react-icons/md";
+import toast from "react-hot-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { updateCourse, uploadImage, uploadPdf } from "@/util/server";
 
 interface EditCourseDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  course: any
-  onCourseUpdated: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  course: any;
+  onCourseUpdated: () => void;
 }
+
+const formatClassLabel = (cls: string) => {
+  if (!cls) return "";
+  if (cls === "dropper") return "Dropper";
+  const normalized = cls.replace("class-", "");
+  return `Class ${normalized}`;
+};
 
 const normalizeCourseType = (value?: string) => {
-  if (!value) return "one-to-all"
-  if (value === "OTO") return "one-to-one"
-  if (value === "OTA") return "one-to-all"
-  return value === "one-to-one" ? "one-to-one" : "one-to-all"
-}
+  if (!value) return "one-to-all";
+  if (value === "OTO") return "one-to-one";
+  if (value === "OTA") return "one-to-all";
+  return value === "one-to-one" ? "one-to-one" : "one-to-all";
+};
+
+const extractClasses = (course: any) => {
+  if (!course) return [] as string[];
+  if (Array.isArray(course.class)) return course.class;
+  if (Array.isArray(course.classes)) return course.classes;
+  if (course.courseClass) return [course.courseClass];
+  return [] as string[];
+};
+
+const extractSubject = (subject: any) => {
+  if (!subject) return "";
+  if (Array.isArray(subject)) return subject[0] || "";
+  return subject;
+};
+
+const extractVideos = (course: any) => {
+  const lessons = Array.isArray(course?.videos)
+    ? course.videos
+    : Array.isArray(course?.video?.lessons)
+    ? course.video.lessons
+    : [];
+
+  const mapped = lessons
+    .map((v: any) => ({
+      title: v?.title || v?.name || "",
+      link: v?.link || v?.url || v?.videoLink || "",
+    }))
+    .filter((v: { title: string; link: string }) => v.title || v.link);
+
+  return mapped.length ? mapped : [{ title: "", link: "" }];
+};
+
+const extractDescription = (description: any) => {
+  if (!description) return "";
+  if (typeof description === "string") return description;
+  return description.longDesc || description.shortDesc || "";
+};
+
+const extractImageUrl = (course: any) => {
+  if (!course) return "";
+  if (course.courseThumbnail) return course.courseThumbnail;
+  if (typeof course.image === "string") return course.image;
+  if (course.image?.url) return course.image.url;
+  return "";
+};
+
+const extractVideoTitle = (course: any) => {
+  if (!course) return "";
+  if (course.videoTitle) return course.videoTitle;
+  const lessonTitle = course.videos?.[0]?.title || course.video?.lessons?.[0]?.title;
+  return lessonTitle || "";
+};
 
 export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }: EditCourseDialogProps) {
-  const [loading, setLoading] = useState(false)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [formData, setFormData] = useState({
-    title: "",
-    subject: "",
-    courseClass: "",
-    specialization: "",
-    courseType: "one-to-all",
-    fees: "",
-    startDate: "",
-    endDate: "",
-    seatLimit: "",
-    classDuration: "",
-    validity: "",
-    shortDesc: "",
-    longDesc: "",
-  })
+  const { educator } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form States (mirrors create-course-dialog)
+  const [title, setTitle] = useState("");
+  const [duration, setDuration] = useState("");
+  const [courseType, setCourseType] = useState<"one-to-all" | "one-to-one">("one-to-all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
+  const [aboutCourse, setAboutCourse] = useState("");
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [courseFee, setCourseFee] = useState("");
+  const [validDate, setValidDate] = useState("");
+  const [maxStudents, setMaxStudents] = useState("100");
+  const [introVideo, setIntroVideo] = useState("");
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videos, setVideos] = useState<{ title: string; link: string }[]>([{ title: "", link: "" }]);
+  const [assets, setAssets] = useState<
+    { title: string; file: File | null; link?: string }[]
+  >([{ title: "", file: null }]);
+  const [prerequisites, setPrerequisites] = useState("");
+  const [language, setLanguage] = useState("english");
+  const [classesPerWeek, setClassesPerWeek] = useState("");
+  const [testFrequency, setTestFrequency] = useState("");
+  const [classDuration, setClassDuration] = useState("");
+  const [classTiming, setClassTiming] = useState("");
+
+  // Image State
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+  // Dropdown States
+  const [showExamDropdown, setShowExamDropdown] = useState(false);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
+  const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
+
+  const [step, setStep] = useState(0);
+  const steps = ["Basics", "Audience", "Media", "Features", "Content"];
+
+  const examDropdownRef = useRef<HTMLDivElement>(null);
+  const classDropdownRef = useRef<HTMLDivElement>(null);
+  const featureDropdownRef = useRef<HTMLDivElement>(null);
+
+  const exams = ["IIT-JEE", "NEET", "CBSE"];
+  const classes = [
+    "class-6th",
+    "class-7th",
+    "class-8th",
+    "class-9th",
+    "class-10th",
+    "class-11th",
+    "class-12th",
+    "dropper",
+  ];
+  const features = [
+    "Live Class",
+    "Study material (PDF)",
+    "Online Tests",
+    "Recording of live classes",
+    "Doubt support",
+    "Printed study material",
+  ];
 
   useEffect(() => {
-    if (course) {
-      setFormData({
-        title: course.title || "",
-        subject: course.subject || "",
-        courseClass: course.courseClass || "",
-        specialization: course.specialization || "",
-        courseType: normalizeCourseType(course.courseType),
-        fees: course.fees?.toString() || "",
-        startDate: course.startDate ? new Date(course.startDate).toISOString().slice(0, 16) : "",
-        endDate: course.endDate ? new Date(course.endDate).toISOString().slice(0, 16) : "",
-        seatLimit: course.seatLimit?.toString() || "",
-        classDuration: course.classDuration?.toString() || "",
-        validity: course.validity?.toString() || "",
-        shortDesc: course.description?.shortDesc || "",
-        longDesc: course.description?.longDesc || "",
-      })
-      setImagePreview(course.image?.url || null)
-      setSelectedImage(null)
-    }
-  }, [course])
+    if (!course || !open) return;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file")
-        return
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB")
-        return
-      }
-      setSelectedImage(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    setTitle(course.title || "");
+    setDuration(course.courseDuration || course.classDuration?.toString() || "");
+    setCourseType(normalizeCourseType(course.courseType) as "one-to-all" | "one-to-one");
+    setStartDate(course.startDate ? course.startDate.split("T")[0] : "");
+    setEndDate(course.endDate ? course.endDate.split("T")[0] : "");
+    setValidDate(course.validDate || course.validity || "");
+    setSelectedExams(Array.isArray(course.specialization) ? course.specialization : course.specialization ? [course.specialization] : []);
+    setSelectedClasses(extractClasses(course));
+    setSubject(extractSubject(course.subject));
+    setAboutCourse(extractDescription(course.description));
+    setSelectedFeatures(Array.isArray(course.courseObjectives) ? course.courseObjectives : []);
+    setCourseFee(course.fees?.toString() || course.fee?.toString() || "");
+    setMaxStudents((course.maxStudents || course.seatLimit || "").toString());
+    setIntroVideo(course.introVideo || course.video?.intro || "");
+    setVideoTitle(extractVideoTitle(course));
+    setVideos(extractVideos(course));
+    const initialAssets = Array.isArray(course.studyMaterials)
+      ? course.studyMaterials.map((m: any) => ({
+          title: m.title || "",
+          file: null,
+          link: m.link || m.url || "",
+        }))
+      : [{ title: "", file: null }];
+    setAssets(initialAssets.length ? initialAssets : [{ title: "", file: null }]);
+    setPrerequisites(Array.isArray(course.prerequisites) ? course.prerequisites.join("\n") : course.prerequisites || "");
+    setLanguage(course.language || "english");
+    setClassesPerWeek(
+      course.classesPerWeek?.toString() || course.classPerWeek?.toString() || ""
+    );
+    setTestFrequency(
+      course.testFrequency?.toString() || course.testsPerWeek?.toString() || ""
+    );
+    setClassDuration(
+      course.classDuration?.toString() || course.courseDuration?.toString() || ""
+    );
+    setClassTiming(course.classTiming || course.timing || "");
+
+    const url = extractImageUrl(course);
+    setImageUrl(url);
+    setImagePreview(url || null);
+    setSelectedImage(null);
+    setStep(0);
+  }, [course, open]);
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
     }
-  }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleRemoveImage = () => {
-    setSelectedImage(null)
-    setImagePreview(course?.image?.url || null)
-  }
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageUrl("");
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const handleVideoChange = (index: number, field: "title" | "link", value: string) => {
+    setVideos((prev) =>
+      prev.map((video, idx) => (idx === index ? { ...video, [field]: value } : video))
+    );
+  };
+
+  const addVideoField = () => {
+    setVideos((prev) => [...prev, { title: "", link: "" }]);
+  };
+
+  const handleAssetTitleChange = (index: number, value: string) => {
+    setAssets((prev) => prev.map((asset, idx) => (idx === index ? { ...asset, title: value } : asset)));
+  };
+
+  const handleAssetFileChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    const isPdf = file.type === "application/pdf";
+    if (!isPdf) {
+      toast.error("Only PDF files are allowed for assets");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("PDF size should be under 10MB");
+      return;
+    }
+
+    setAssets((prev) => prev.map((asset, idx) => (idx === index ? { ...asset, file } : asset)));
+  };
+
+  const addAssetField = () => {
+    setAssets((prev) => [...prev, { title: "", file: null }]);
+  };
+
+  const removeAssetField = (index: number) => {
+    setAssets((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const toggleSelection = (
+    item: string,
+    currentSelection: string[],
+    setSelection: (val: string[]) => void
+  ) => {
+    if (currentSelection.includes(item)) {
+      setSelection(currentSelection.filter((i) => i !== item));
+    } else {
+      setSelection([...currentSelection, item]);
+    }
+  };
+
+  const validateStep = (currentStep: number) => {
+    if (currentStep === 0) {
+      if (!title.trim()) {
+        toast.error("Course title is required");
+        return false;
+      }
+      if (!aboutCourse.trim()) {
+        toast.error("Please add a course description");
+        return false;
+      }
+      if (!duration.trim()) {
+        toast.error("Duration is required");
+        return false;
+      }
+      if (!courseType) {
+        toast.error("Select a course type");
+        return false;
+      }
+      if (!startDate || !endDate || !validDate) {
+        toast.error("Select start, end, and validity dates");
+        return false;
+      }
+      if (!courseFee) {
+        toast.error("Course fee is required");
+        return false;
+      }
+    }
+    if (currentStep === 1) {
+      if (!selectedExams.length) {
+        toast.error("Select at least one exam/specialization");
+        return false;
+      }
+      if (!selectedClasses.length) {
+        toast.error("Select at least one class");
+        return false;
+      }
+      if (!subject) {
+        toast.error("Select a subject");
+        return false;
+      }
+    }
+    if (currentStep === 3) {
+      if (!aboutCourse.trim()) {
+        toast.error("Please add a course description");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (validateStep(step)) {
+      setStep((prev) => Math.min(prev + 1, steps.length - 1));
+    }
+  };
+
+  const handleBack = () => {
+    setStep((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleSubmit = async () => {
+    if (!course?._id) {
+      toast.error("Course information missing");
+      return;
+    }
+
+    if (!validateStep(step)) return;
+    if (!selectedExams.length) {
+      toast.error("Select at least one exam/specialization");
+      setStep(1);
+      return;
+    }
+    if (!selectedClasses.length) {
+      toast.error("Select at least one class");
+      setStep(1);
+      return;
+    }
+    if (!subject) {
+      toast.error("Select a subject");
+      setStep(1);
+      return;
+    }
+    if (!courseFee) {
+      toast.error("Course fee is required");
+      setStep(0);
+      return;
+    }
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Updating course...");
 
     try {
-      const updateData: any = {
-        title: formData.title,
-        subject: formData.subject,
-        courseClass: formData.courseClass,
-        specialization: formData.specialization,
-        courseType: formData.courseType,
-        fees: Number(formData.fees),
-        startDate: new Date(formData.startDate).toISOString(),
-        endDate: new Date(formData.endDate).toISOString(),
-        seatLimit: Number(formData.seatLimit),
-        classDuration: Number(formData.classDuration),
-        validity: Number(formData.validity),
-        description: {
-          shortDesc: formData.shortDesc,
-          longDesc: formData.longDesc,
-        },
+      let finalImageUrl = imageUrl;
+      if (selectedImage) {
+        const uploadResponse = await uploadImage(selectedImage);
+        if (uploadResponse.success) {
+          finalImageUrl = uploadResponse.imageUrl;
+          setImageUrl(uploadResponse.imageUrl);
+        } else {
+          throw new Error("Image upload failed");
+        }
       }
 
-      // If a new image is selected, create FormData
-      let dataToSend
-      if (selectedImage) {
-        const formDataToSend = new FormData()
-        formDataToSend.append("data", JSON.stringify(updateData))
-        formDataToSend.append("image", selectedImage)
-        dataToSend = formDataToSend
-      } else {
-        dataToSend = updateData
+      const parsedPrerequisites = prerequisites
+        .split("\n")
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const parsedVideos = videos
+        .map((v, idx) => ({
+          title: v.title.trim(),
+          link: v.link.trim(),
+          sequenceNumber: idx + 1,
+        }))
+        .filter((v) => v.title && v.link);
+
+      const uploadedStudyMaterials = [] as Array<{
+        title: string;
+        link: string;
+        fileType: "PDF";
+      }>;
+
+      for (const asset of assets) {
+        const assetTitle = asset.title.trim();
+        if (!assetTitle) continue;
+
+        if (asset.file) {
+          const uploadResponse = await uploadPdf(asset.file);
+          const assetUrl = uploadResponse?.fileUrl || uploadResponse?.url;
+          if (!assetUrl) {
+            throw new Error("PDF upload failed");
+          }
+          uploadedStudyMaterials.push({ title: assetTitle, link: assetUrl, fileType: "PDF" });
+        } else if (asset.link) {
+          uploadedStudyMaterials.push({ title: assetTitle, link: asset.link, fileType: "PDF" });
+        }
       }
-      
-      await updateCourse(course._id, dataToSend)
-      toast.success("Course updated successfully!")
-      onCourseUpdated()
-      onOpenChange(false)
+
+      const normalizedClassTiming = classTiming.trim();
+
+      const coursePayload = {
+        title: title.trim(),
+        description: aboutCourse.trim(),
+        courseType,
+        educatorID: educator?._id || course.educatorID,
+        specialization: selectedExams,
+        class: selectedClasses,
+        subject: subject ? [subject] : [],
+        fees: Number(courseFee),
+        discount: 0,
+        image: finalImageUrl,
+        courseThumbnail: finalImageUrl,
+        startDate,
+        endDate,
+        courseDuration: duration.trim(),
+        validDate,
+        videos: parsedVideos,
+        introVideo,
+        videoTitle: videoTitle.trim(),
+        studyMaterials: uploadedStudyMaterials,
+        courseObjectives: selectedFeatures,
+        prerequisites: parsedPrerequisites,
+        language,
+        certificateAvailable: course?.certificateAvailable || false,
+        maxStudents: Number(maxStudents) || 0,
+        classesPerWeek: Number(classesPerWeek) || 0,
+        testFrequency: Number(testFrequency) || 0,
+        classDuration: Number(classDuration) || 0,
+        ...(normalizedClassTiming && { classTiming: normalizedClassTiming }),
+      };
+
+      await updateCourse(course._id, coursePayload);
+      toast.success("Course updated successfully!", { id: loadingToast });
+      onCourseUpdated();
+      onOpenChange(false);
     } catch (error: any) {
-      console.error("Error updating course:", error)
-      toast.error(error.response?.data?.message || "Failed to update course")
+      console.error("Error updating course:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : error?.response?.data?.message || "Failed to update course";
+      toast.error(message, { id: loadingToast });
     } finally {
-      setLoading(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <DialogContent className="max-w-6xl w-[96vw] max-h-[98vh] min-h-[82vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Course</DialogTitle>
+          <DialogDescription>Update your course details.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Image Upload */}
-          <div className="space-y-2">
-            <Label>Course Banner Image</Label>
-            <div className="flex items-center gap-4">
-              {imagePreview ? (
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden border">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full hover:bg-destructive/90"
+        <div className="space-y-6 py-4">
+          <div className="flex items-center gap-2 flex-nowrap rounded-lg border bg-gradient-to-r from-muted/60 via-background to-muted/60 px-3 py-2 shadow-sm">
+            {steps.map((label, idx) => {
+              const isActive = idx === step;
+              const isDone = idx < step;
+              return (
+                <div key={label} className="flex items-center gap-2">
+                  <div
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : isDone
+                        ? "bg-green-100 text-green-700 border-green-200"
+                        : "bg-muted text-muted-foreground"
+                    }`}
                   >
-                    <X className="h-4 w-4" />
-                  </button>
+                    {isDone ? "✓" : idx + 1}
+                  </div>
+                  <span className={`text-xs ${isActive ? "font-semibold" : "text-muted-foreground"}`}>
+                    {label}
+                  </span>
+                  {idx < steps.length - 1 && <div className="w-6 border-t border-dashed border-muted" />}
                 </div>
-              ) : (
-                <div className="w-32 h-32 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
-                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+              );
+            })}
+          </div>
+
+          {step === 0 && (
+            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Course Title"
+                  />
                 </div>
-              )}
-              <div className="flex-1">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="cursor-pointer"
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duration *</Label>
+                  <Input
+                    id="duration"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="e.g. 3 months"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="courseType">Course Type *</Label>
+                  <Select
+                    value={courseType}
+                    onValueChange={(value) => setCourseType(value as "one-to-all" | "one-to-one")}
+                  >
+                    <SelectTrigger id="courseType">
+                      <SelectValue placeholder="Select course type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one-to-all">One To All</SelectItem>
+                      <SelectItem value="one-to-one">One To One</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="courseFee">Course Fee *</Label>
+                  <Input
+                    id="courseFee"
+                    type="number"
+                    value={courseFee}
+                    onChange={(e) => setCourseFee(e.target.value)}
+                    placeholder="Amount"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="language">Language *</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger id="language">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="hindi">Hindi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxStudents">Seat</Label>
+                  <Input
+                    id="maxStudents"
+                    type="number"
+                    value={maxStudents}
+                    onChange={(e) => setMaxStudents(e.target.value)}
+                    placeholder="Max seats"
+                    min={1}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="validDate">Validity Date *</Label>
+                  <Input
+                    id="validDate"
+                    type="date"
+                    value={validDate}
+                    onChange={(e) => setValidDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date *</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date *</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aboutCourse">About Course *</Label>
+                <Textarea
+                  id="aboutCourse"
+                  value={aboutCourse}
+                  onChange={(e) => setAboutCourse(e.target.value)}
+                  placeholder="Course description..."
+                  className="min-h-[120px]"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Max size: 5MB</p>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-title">Course Title *</Label>
-              <Input
-                id="edit-title"
-                required
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g., Advanced Physics for JEE"
-              />
+          {step === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-lg border bg-muted/20 p-5 shadow-sm min-h-[360px]">
+              <div className="space-y-2 relative" ref={examDropdownRef}>
+                <Label>For Exam</Label>
+                <div
+                  className="min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
+                  onClick={() => setShowExamDropdown(!showExamDropdown)}
+                >
+                  {selectedExams.length > 0 ? (
+                    selectedExams.map((exam) => (
+                      <Badge
+                        key={exam}
+                        variant="secondary"
+                        className="gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection(exam, selectedExams, setSelectedExams);
+                        }}
+                      >
+                        {exam} <X className="h-3 w-3" />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">Select exams</span>
+                  )}
+                </div>
+                {showExamDropdown && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md p-2">
+                    {exams.map((exam) => (
+                      <div
+                        key={exam}
+                        className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                        onClick={() => toggleSelection(exam, selectedExams, setSelectedExams)}
+                      >
+                        <input type="checkbox" checked={selectedExams.includes(exam)} readOnly />
+                        <span>{exam}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 relative" ref={classDropdownRef}>
+                <Label>For Class</Label>
+                <div
+                  className="min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
+                  onClick={() => setShowClassDropdown(!showClassDropdown)}
+                >
+                  {selectedClasses.length > 0 ? (
+                    selectedClasses.map((cls) => (
+                      <Badge
+                        key={cls}
+                        variant="secondary"
+                        className="gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection(cls, selectedClasses, setSelectedClasses);
+                        }}
+                      >
+                        {formatClassLabel(cls)} <X className="h-3 w-3" />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">Select classes</span>
+                  )}
+                </div>
+                {showClassDropdown && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md p-2 max-h-60 overflow-y-auto">
+                    {classes.map((cls) => (
+                      <div
+                        key={cls}
+                        className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                        onClick={() => toggleSelection(cls, selectedClasses, setSelectedClasses)}
+                      >
+                        <input type="checkbox" checked={selectedClasses.includes(cls)} readOnly />
+                        <span>{formatClassLabel(cls)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject *</Label>
+                <Select value={subject} onValueChange={setSubject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="physics">Physics</SelectItem>
+                    <SelectItem value="chemistry">Chemistry</SelectItem>
+                    <SelectItem value="mathematics">Mathematics</SelectItem>
+                    <SelectItem value="biology">Biology</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-subject">Subject *</Label>
-              <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
-                <SelectTrigger id="edit-subject">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="physics">Physics</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="mathematics">Mathematics</SelectItem>
-                  <SelectItem value="biology">Biology</SelectItem>
-                </SelectContent>
-              </Select>
+          {step === 2 && (
+            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
+              <div className="space-y-2">
+                <Label>Course Banner</Label>
+                <div className="space-y-3">
+                  <div className="relative w-full h-60 rounded-md border-2 border-dashed bg-muted/40 overflow-hidden">
+                    {imagePreview ? (
+                      <>
+                        <Image src={imagePreview} alt="Preview" fill sizes="100vw" className="object-cover" unoptimized />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex h-60 w-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                        <ImageIcon className="h-10 w-10" />
+                        <p className="text-sm">Upload a banner image</p>
+                        <p className="text-xs text-muted-foreground">Recommended size 1200x400px</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Label
+                      htmlFor="image-upload-edit"
+                      className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                    >
+                      <Upload className="mr-2 h-4 w-4" /> Upload Image
+                    </Label>
+                    {imagePreview && (
+                      <Button type="button" variant="outline" onClick={handleRemoveImage}>
+                        <MdDelete className="text-red-700 size-5" />
+                      </Button>
+                    )}
+                    <Input
+                      id="image-upload-edit"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageChange}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Max 5MB. JPG, PNG, WebP.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="introVideo">Intro Video URL</Label>
+                  <Input
+                    id="introVideo"
+                    value={introVideo}
+                    onChange={(e) => setIntroVideo(e.target.value)}
+                    placeholder="YouTube Link"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="videoTitle">Video Title (optional)</Label>
+                  <Input
+                    id="videoTitle"
+                    value={videoTitle}
+                    onChange={(e) => setVideoTitle(e.target.value)}
+                    placeholder="Video Title"
+                  />
+                </div>
+              </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-class">Class *</Label>
-              <Select
-                value={formData.courseClass}
-                onValueChange={(value) => setFormData({ ...formData, courseClass: value })}
-              >
-                <SelectTrigger id="edit-class">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
-                    <SelectItem key={num} value={num.toString()}>
-                      Class {num}
-                    </SelectItem>
+          {step === 3 && (
+            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
+              <div className="space-y-2 relative" ref={featureDropdownRef}>
+                <Label>Course Features</Label>
+                <div
+                  className="min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
+                  onClick={() => setShowFeatureDropdown(!showFeatureDropdown)}
+                >
+                  {selectedFeatures.length > 0 ? (
+                    selectedFeatures.map((feat) => (
+                      <Badge
+                        key={feat}
+                        variant="secondary"
+                        className="gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection(feat, selectedFeatures, setSelectedFeatures);
+                        }}
+                      >
+                        {feat} <X className="h-3 w-3" />
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">Select features</span>
+                  )}
+                </div>
+                {showFeatureDropdown && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md p-2 max-h-60 overflow-y-auto">
+                    {features.map((feat) => (
+                      <div
+                        key={feat}
+                        className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
+                        onClick={() => toggleSelection(feat, selectedFeatures, setSelectedFeatures)}
+                      >
+                        <input type="checkbox" checked={selectedFeatures.includes(feat)} readOnly />
+                        <span>{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="prerequisites">Prerequisites</Label>
+                  <Textarea
+                    id="prerequisites"
+                    value={prerequisites}
+                    onChange={(e) => setPrerequisites(e.target.value)}
+                    placeholder="One per line"
+                    className="min-h-[140px]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-lg">Videos</DialogTitle>
+                  <DialogDescription className="mt-1">Add video title and link for this course.</DialogDescription>
+                </div>
+                <Button type="button" variant="outline" onClick={addVideoField}>
+                  Add Videos
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {videos.map((video, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor={`video-title-${index}`}>Video Title</Label>
+                      <Input
+                        id={`video-title-${index}`}
+                        value={video.title}
+                        onChange={(e) => handleVideoChange(index, "title", e.target.value)}
+                        placeholder="Enter video title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`video-link-${index}`}>Video Link</Label>
+                      <Input
+                        id={`video-link-${index}`}
+                        value={video.link}
+                        onChange={(e) => handleVideoChange(index, "link", e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-lg">Assets (PDF)</DialogTitle>
+                    <DialogDescription className="mt-1">
+                      Upload supporting PDFs students will see in the course panel.
+                    </DialogDescription>
+                  </div>
+                  <Button type="button" variant="outline" onClick={addAssetField}>
+                    Add Asset
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {assets.map((asset, index) => (
+                    <div
+                      key={`asset-${index}`}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor={`asset-title-${index}`}>Asset Title</Label>
+                        <Input
+                          id={`asset-title-${index}`}
+                          value={asset.title}
+                          onChange={(e) => handleAssetTitleChange(index, e.target.value)}
+                          placeholder="e.g. Mechanics Formula Sheet"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`asset-file-${index}`}>PDF File</Label>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            id={`asset-file-${index}`}
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => handleAssetFileChange(index, e)}
+                          />
+                          {asset.file && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+                              {asset.file.name}
+                            </span>
+                          )}
+                          {!asset.file && asset.link && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                              Existing: {asset.link}
+                            </span>
+                          )}
+                          {assets.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => removeAssetField(index)}
+                            >
+                              <MdDelete className="text-red-700 size-5" />
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">PDF only. Max size 10MB.</p>
+                      </div>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
             </div>
+          )}
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-specialization">Specialization *</Label>
-              <Input
-                id="edit-specialization"
-                required
-                value={formData.specialization}
-                onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                placeholder="e.g., JEE, NEET"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-type">Course Type *</Label>
-              <Select
-                value={formData.courseType}
-                onValueChange={(value) => setFormData({ ...formData, courseType: value })}
-              >
-                <SelectTrigger id="edit-type">
-                  <SelectValue placeholder="Select course type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="one-to-all">One To All</SelectItem>
-                  <SelectItem value="one-to-one">One To One</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-fees">Fees (₹) *</Label>
-              <Input
-                id="edit-fees"
-                type="number"
-                required
-                value={formData.fees}
-                onChange={(e) => setFormData({ ...formData, fees: e.target.value })}
-                placeholder="e.g., 5000"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-startDate">Start Date *</Label>
-              <Input
-                id="edit-startDate"
-                type="datetime-local"
-                required
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-endDate">End Date *</Label>
-              <Input
-                id="edit-endDate"
-                type="datetime-local"
-                required
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-seatLimit">Seat Limit</Label>
-              <Input
-                id="edit-seatLimit"
-                type="number"
-                value={formData.seatLimit}
-                onChange={(e) => setFormData({ ...formData, seatLimit: e.target.value })}
-                placeholder="Leave empty for unlimited"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-duration">Class Duration (minutes)</Label>
-              <Input
-                id="edit-duration"
-                type="number"
-                value={formData.classDuration}
-                onChange={(e) => setFormData({ ...formData, classDuration: e.target.value })}
-                placeholder="e.g., 60"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-validity">Validity (days)</Label>
-              <Input
-                id="edit-validity"
-                type="number"
-                value={formData.validity}
-                onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
-                placeholder="e.g., 365"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-shortDesc">Short Description *</Label>
-              <Input
-                id="edit-shortDesc"
-                required
-                value={formData.shortDesc}
-                onChange={(e) => setFormData({ ...formData, shortDesc: e.target.value })}
-                placeholder="Brief description (shown in cards)"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-longDesc">Long Description</Label>
-              <Textarea
-                id="edit-longDesc"
-                value={formData.longDesc}
-                onChange={(e) => setFormData({ ...formData, longDesc: e.target.value })}
-                placeholder="Detailed course description"
-                rows={4}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+        <DialogFooter className="flex items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Course"
-              )}
+            {step > 0 && (
+              <Button variant="outline" onClick={handleBack}>
+                Back
+              </Button>
+            )}
+          </div>
+          {step < steps.length - 1 ? (
+            <Button onClick={handleNext}>Next</Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Updating..." : "Update Course"}
             </Button>
-          </DialogFooter>
-        </form>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

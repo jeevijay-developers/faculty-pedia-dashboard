@@ -40,10 +40,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreateWebinarDialog } from "@/components/create-webinar-dialog"
+import { EditWebinarDialog } from "@/components/edit-webinar-dialog"
 //import { ViewWebinarDialog } from "@/components/ViewWebinarDialog"
 import { deleteWebinar, getEducatorWebinars } from "@/util/server"
 import { useAuth } from "@/contexts/auth-context"
 import toast from "react-hot-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Webinar {
   _id: string
@@ -602,10 +610,89 @@ export default function WebinarPage() {
       </div>
 
       <CreateWebinarDialog
-        open={isDialogOpen}
+        open={isDialogOpen && dialogMode === "create"}
         onOpenChange={handleDialogChange}
         onWebinarCreated={handleWebinarCreated}
       />
+
+      <EditWebinarDialog
+        open={isDialogOpen && dialogMode === "edit"}
+        onOpenChange={handleDialogChange}
+        webinar={webinarToEdit}
+        onWebinarUpdated={handleWebinarUpdated}
+      />
+
+      <Dialog open={isViewDialogOpen} onOpenChange={handleViewDialogChange}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedWebinar?.title || "Webinar details"}</DialogTitle>
+            <DialogDescription>
+              Review the key information for this webinar.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedWebinar ? (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <span className="text-sm text-muted-foreground">Description</span>
+                <p className="text-sm text-foreground whitespace-pre-line">
+                  {getDescription(selectedWebinar.description)}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Date</span>
+                  <div className="font-medium">{formatDateValue(selectedWebinar)}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Time</span>
+                  <div className="font-medium">{formatTimeValue(selectedWebinar)}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Duration</span>
+                  <div className="font-medium">{formatDuration(selectedWebinar.duration)}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Fees</span>
+                  <div className="font-medium">{formatCurrency(selectedWebinar.fees)}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <span className="text-muted-foreground">Subjects</span>
+                  {renderBadgeGroup(toArray(selectedWebinar.subject))}
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground">Specialization</span>
+                  {renderBadgeGroup(toArray(selectedWebinar.specialization))}
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground">Classes</span>
+                  {renderBadgeGroup(
+                    Array.isArray(selectedWebinar.class)
+                      ? selectedWebinar.class
+                      : [],
+                    formatClassLabel
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground">Seat limit</span>
+                  <div className="font-medium">{selectedWebinar.seatLimit ?? "-"}</div>
+                </div>
+              </div>
+
+              <div className="grid gap-2 text-sm">
+                <span className="text-muted-foreground">Webinar link</span>
+                <div className="font-medium break-all">{selectedWebinar.webinarLink || "Not provided"}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No webinar selected.</div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       
 

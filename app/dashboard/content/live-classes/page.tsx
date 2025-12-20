@@ -252,8 +252,8 @@ const buildLiveClassPayload = (
 
   const payload: Record<string, unknown> = {
     liveClassTitle: values.liveClassTitle.trim(),
-    subjects: normalizedSubjects,
-    specializations: normalizedSpecializations,
+    subject: normalizedSubjects,
+    liveClassSpecification: normalizedSpecializations,
     classTiming: new Date(values.classTiming).toISOString(),
     classDuration: Number(values.classDuration),
     liveClassesFee: Number(values.liveClassesFee),
@@ -630,7 +630,7 @@ export default function LiveClassesPage() {
                     <TableHead>Duration</TableHead>
                     <TableHead>Fee</TableHead>
                     <TableHead>Classes</TableHead>
-                    <TableHead>Course</TableHead>
+                   
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -700,13 +700,7 @@ export default function LiveClassesPage() {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {liveClass.isCourseSpecific
-                              ? getCourseLabel(liveClass.assignInCourse)
-                              : "No Course Assigned"}
-                          </span>
-                        </TableCell>
+                        
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -777,14 +771,7 @@ export default function LiveClassesPage() {
                     )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Access</p>
-                  <p className="font-medium">
-                    {selectedLiveClass.isCourseSpecific
-                      ? getCourseLabel(selectedLiveClass.assignInCourse)
-                      : "All Courses"}
-                  </p>
-                </div>
+                
                 <div>
                   <p className="text-sm text-muted-foreground">Schedule</p>
                   <p className="font-medium">
@@ -946,7 +933,7 @@ function LiveClassForm({
             required
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="description">Description</Label>
           <Textarea
             id="description"

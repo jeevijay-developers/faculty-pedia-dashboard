@@ -23,6 +23,12 @@ export type CourseSubject =
   | "english"
   | "hindi";
 
+export interface CourseStudyMaterial {
+  title: string;
+  link: string;
+  fileType?: "PDF" | "DOC" | "PPT" | "EXCEL" | "OTHER";
+}
+
 export interface EducatorSummary {
   _id: string;
   fullName?: string;
@@ -50,6 +56,7 @@ export interface Course {
   endDate?: string;
   courseDuration?: string;
   validDate?: string;
+  studyMaterials?: CourseStudyMaterial[];
   enrolledStudents?: Array<string | { _id: string }>;
   fee?: number; // legacy fallback
   isActive?: boolean;
