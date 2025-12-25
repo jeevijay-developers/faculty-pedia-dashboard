@@ -26,6 +26,11 @@ import { Upload, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { createQuestion, uploadImage } from "@/util/server";
 import toast from "react-hot-toast";
+import {
+  CLASS_OPTIONS,
+  SPECIALIZATION_OPTIONS,
+  SUBJECT_OPTIONS,
+} from "@/lib/test-form";
 
 interface CreateQuestionDialogProps {
   open: boolean;
@@ -48,11 +53,15 @@ export function CreateQuestionDialog({
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
+    specialization: "",
+    classLevel: "",
     topic: "",
+    tags: "",
     positiveMarks: "4",
     negativeMarks: "1",
     questionType: "single-select" as QuestionType,
     explanation: "",
+    difficulty: "Medium",
   });
 
   const [options, setOptions] = useState<Record<string, QuestionOption>>({
@@ -98,8 +107,18 @@ export function CreateQuestionDialog({
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!formData.title.trim() || !formData.subject || !formData.questionType) {
-      toast.error("Please fill in the required fields");
+    if (formData.title.trim().length < 10) {
+      toast.error("Title must be at least 10 characters");
+      return;
+    }
+
+    if (!formData.subject || !formData.specialization || !formData.classLevel) {
+      toast.error("Subject, specialization, and class are required");
+      return;
+    }
+
+    if (!formData.questionType) {
+      toast.error("Please select a question type");
       return;
     }
 
@@ -116,10 +135,25 @@ export function CreateQuestionDialog({
       return;
     }
 
+    if (formData.questionType !== "integer") {
+      const missingOption = Object.values(options).some(
+        (opt) => !opt.text.trim()
+      );
+      if (missingOption) {
+        toast.error("Please fill all option texts");
+        return;
+      }
+    }
+
     if (formData.questionType === "integer") {
       const parsedIntegerAnswer = Number(integerAnswer);
       if (!integerAnswer.trim() || Number.isNaN(parsedIntegerAnswer)) {
         toast.error("Provide a valid integer answer");
+        return;
+      }
+
+      if (!Number.isInteger(parsedIntegerAnswer)) {
+        toast.error("Integer answer must be a whole number");
         return;
       }
     }
@@ -150,7 +184,19 @@ export function CreateQuestionDialog({
       .map((topic) => topic.trim())
       .filter(Boolean);
 
+    if (!topics.length) {
+      toast.error("Add at least one topic");
+      return;
+    }
+
     const subjectValue = formData.subject.toLowerCase();
+    const specializationValue = formData.specialization;
+    const classValue = formData.classLevel;
+
+    const tags = formData.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
 
     let questionImageUrl: string | null = null;
 
@@ -179,14 +225,18 @@ export function CreateQuestionDialog({
       educatorId: educator._id,
       ...(questionImageUrl ? { questionImage: questionImageUrl } : {}),
       subject: subjectValue ? [subjectValue] : [],
+      specialization: specializationValue ? [specializationValue] : [],
+      class: classValue ? [classValue] : [],
       topics,
       explanation: formData.explanation.trim(),
+      difficulty: formData.difficulty,
       marks: {
         positive: positiveMarksValue,
         negative: Math.max(0, negativeMarksValue),
       },
       ...(normalizedOptions ? { options: normalizedOptions } : {}),
       correctOptions: formattedCorrectOptions,
+      ...(tags.length ? { tags } : {}),
     };
 
     setIsSubmitting(true);
@@ -207,11 +257,15 @@ export function CreateQuestionDialog({
       setFormData({
         title: "",
         subject: "",
+        specialization: "",
+        classLevel: "",
         topic: "",
+        tags: "",
         positiveMarks: "4",
         negativeMarks: "1",
         questionType: "single-select",
         explanation: "",
+        difficulty: "Medium",
       });
       setOptions({
         A: { text: "", image: null },
@@ -268,7 +322,7 @@ export function CreateQuestionDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject</Label>
                   <Select
@@ -281,43 +335,85 @@ export function CreateQuestionDialog({
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="physics">Physics</SelectItem>
-                      <SelectItem value="chemistry">Chemistry</SelectItem>
-                      <SelectItem value="mathematics">Mathematics</SelectItem>
-                      <SelectItem value="biology">Biology</SelectItem>
+                      {SUBJECT_OPTIONS.map((subjectOption) => (
+                        <SelectItem
+                          key={subjectOption.value}
+                          value={subjectOption.value}
+                        >
+                          {subjectOption.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="topic">Topic</Label>
-                  <Input
-                    id="topic"
-                    value={formData.topic}
-                    onChange={(e) =>
-                      setFormData({ ...formData, topic: e.target.value })
+                  <Label htmlFor="specialization">Specialization</Label>
+                  <Select
+                    value={formData.specialization}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, specialization: value })
                     }
-                    placeholder="e.g., Kinematics, Organic Chemistry"
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select specialization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALIZATION_OPTIONS.map((specializationOption) => (
+                        <SelectItem
+                          key={specializationOption.value}
+                          value={specializationOption.value}
+                        >
+                          {specializationOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Question Image (Optional)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        setQuestionImage(e.target.files?.[0] || null)
-                      }
-                      className="flex-1"
-                    />
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  {questionImage instanceof File && (
-                    <p className="text-xs text-muted-foreground">
-                      Selected: {questionImage.name}
-                    </p>
-                  )}
+                  <Label htmlFor="class-level">Class</Label>
+                  <Select
+                    value={formData.classLevel}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, classLevel: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLASS_OPTIONS.map((classOption) => (
+                        <SelectItem
+                          key={classOption.value}
+                          value={classOption.value}
+                        >
+                          {classOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="difficulty">Difficulty</Label>
+                  <Select
+                    value={formData.difficulty}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, difficulty: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Easy">Easy</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="questionType">Question Type</Label>
                   <Select
@@ -337,6 +433,51 @@ export function CreateQuestionDialog({
                       <SelectItem value="integer">Integer</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Question Image (Optional)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setQuestionImage(e.target.files?.[0] || null)
+                      }
+                      className="flex-1"
+                    />
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {questionImage instanceof File && (
+                    <p className="text-xs text-muted-foreground">
+                      Selected: {questionImage.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="topic">Topics</Label>
+                  <Input
+                    id="topic"
+                    value={formData.topic}
+                    onChange={(e) =>
+                      setFormData({ ...formData, topic: e.target.value })
+                    }
+                    placeholder="Comma separated e.g., Kinematics, Organic Chemistry"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tags">Tags (Optional)</Label>
+                  <Input
+                    id="tags"
+                    value={formData.tags}
+                    onChange={(e) =>
+                      setFormData({ ...formData, tags: e.target.value })
+                    }
+                    placeholder="Comma separated tags"
+                  />
                 </div>
               </div>
 
@@ -492,8 +633,11 @@ export function CreateQuestionDialog({
             onClick={handleSubmit}
             disabled={
               isSubmitting ||
-              !formData.title.trim() ||
+              formData.title.trim().length < 10 ||
               !formData.subject ||
+              !formData.specialization ||
+              !formData.classLevel ||
+              !formData.topic.trim() ||
               (formData.questionType !== "integer" &&
                 correctOptions.length === 0) ||
               (formData.questionType === "integer" && !integerAnswer.trim())

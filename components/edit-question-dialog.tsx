@@ -54,18 +54,67 @@ export function EditQuestionDialog({
 
   useEffect(() => {
     if (question) {
+      // Normalize incoming data so form controls always receive strings/arrays
+      const normalizeSubject = (value: unknown) => {
+        if (Array.isArray(value)) {
+          const subjectValue = value.find((s) => typeof s === "string" && s.trim().length > 0);
+          return (subjectValue as string | undefined)?.toLowerCase() || "";
+        }
+        if (typeof value === "string") return value.toLowerCase();
+        return "";
+      };
+
+      const normalizeTopic = (value: unknown) => {
+        if (Array.isArray(value)) {
+          const topicValue = value.find((t) => typeof t === "string" && t.trim().length > 0);
+          return (topicValue as string | undefined) || "";
+        }
+        if (typeof value === "string") return value;
+        return "";
+      };
+
+      const normalizeType = (raw: unknown) => {
+        if (typeof raw !== "string") return "MCQ";
+        const value = raw.toLowerCase();
+        if (value === "single-select" || value === "single") return "MCQ";
+        if (value === "multi-select" || value === "multiple") return "MSQ";
+        if (value === "integer" || value === "numerical") return "numerical";
+        return raw;
+      };
+
+      const normalizeOption = (value: unknown) => {
+        if (typeof value === "string") return value;
+        if (
+          value &&
+          typeof value === "object" &&
+          "text" in (value as Record<string, unknown>) &&
+          typeof (value as Record<string, unknown>).text === "string"
+        ) {
+          return (value as { text: string }).text;
+        }
+        return "";
+      };
+
+      const normalizeCorrectOptions = (value: unknown) => {
+        if (Array.isArray(value)) return value.map((opt) => String(opt).toUpperCase());
+        if (typeof value === "string" || typeof value === "number") return [String(value).toUpperCase()];
+        return [] as string[];
+      };
+
       setFormData({
         title: question.title || "",
-        subject: question.subject?.toLowerCase() || "",
-        topic: question.topic || "",
-        type: question.type || "MCQ",
-        positiveMarks: question.marks?.positive?.toString() || "",
-        negativeMarks: question.marks?.negative?.toString() || "",
-        optionA: question.options?.A?.text || "",
-        optionB: question.options?.B?.text || "",
-        optionC: question.options?.C?.text || "",
-        optionD: question.options?.D?.text || "",
-        correctOptions: question.correctOptions || [],
+        subject: normalizeSubject(question.subject),
+        topic: normalizeTopic(question.topic ?? question.topics),
+        type: normalizeType(question.type || question.questionType),
+        positiveMarks:
+          question.marks?.positive?.toString() || question.positiveMarks?.toString?.() || "",
+        negativeMarks:
+          question.marks?.negative?.toString() || question.negativeMarks?.toString?.() || "",
+        optionA: normalizeOption(question.options?.A),
+        optionB: normalizeOption(question.options?.B),
+        optionC: normalizeOption(question.options?.C),
+        optionD: normalizeOption(question.options?.D),
+        correctOptions: normalizeCorrectOptions(question.correctOptions),
       });
     }
   }, [question]);

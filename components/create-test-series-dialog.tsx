@@ -28,7 +28,7 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   createTestSeries,
   getEducatorTests,
-  getCoursesByIds,
+  getCoursesByEducator,
   uploadImage,
 } from "@/util/server";
 import {
@@ -192,15 +192,16 @@ export function CreateTestSeriesDialog({
   // Fetch educator's courses
   useEffect(() => {
     const fetchCourses = async () => {
-      if (!open || !educator?.courses?.length) {
+      if (!open || !educator?._id) {
         setAvailableCourses([]);
         return;
       }
 
       try {
         setLoadingCourses(true);
-        const courses = await getCoursesByIds(educator.courses);
-        setAvailableCourses(courses);
+        const data = await getCoursesByEducator(educator._id, { limit: 200 });
+        const courses = data?.courses || data?.data || data || [];
+        setAvailableCourses(Array.isArray(courses) ? courses : []);
       } catch (error) {
         console.error("Error fetching courses:", error);
         toast.error("Failed to load courses");
@@ -210,7 +211,7 @@ export function CreateTestSeriesDialog({
     };
 
     fetchCourses();
-  }, [open, educator?.courses]);
+  }, [open, educator?._id]);
 
   // Handlers
   const handleAddTest = (test: LiveTestSummary) => {
