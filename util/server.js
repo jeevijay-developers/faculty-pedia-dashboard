@@ -1005,6 +1005,95 @@ export const uploadPdf = async (pdfFile) => {
   }
 };
 
+// Upload video to Vimeo
+export const uploadVideoToVimeo = async ({
+  title,
+  videoFile,
+  isCourseSpecific = false,
+  courseId = undefined,
+}) => {
+  try {
+    if (!videoFile) {
+      throw new Error("Video file is required");
+    }
+
+    if (!title || !title.trim()) {
+      throw new Error("Video title is required");
+    }
+
+    const formData = new FormData();
+    formData.append("video", videoFile);
+    formData.append("title", title.trim());
+    formData.append("isCourseSpecific", String(isCourseSpecific));
+
+    if (isCourseSpecific && courseId) {
+      formData.append("courseId", courseId);
+    }
+
+    const response = await API_CLIENT.post(
+      "/api/videos/upload-to-vimeo",
+      formData,
+      {
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
+        // Add timeout for large video uploads
+        timeout: 600000, // 10 minutes
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error uploading video to Vimeo:", error);
+    throw error;
+  }
+};
+
+// Upload educator intro video to Vimeo
+export const uploadEducatorIntroVideo = async (educatorId, videoFile) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required");
+  }
+
+  if (!videoFile) {
+    throw new Error("Video file is required");
+  }
+
+  const formData = new FormData();
+  formData.append("video", videoFile);
+
+  const response = await API_CLIENT.post(
+    `/api/educators/${educatorId}/intro-video/upload`,
+    formData,
+    {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 600000, // 10 minutes for large uploads
+    }
+  );
+
+  return response.data;
+};
+
+// Poll educator intro video Vimeo transcode status
+export const getEducatorIntroVideoStatus = async (educatorId) => {
+  if (!educatorId) {
+    throw new Error("Educator ID is required");
+  }
+
+  const response = await API_CLIENT.get(
+    `/api/educators/${educatorId}/intro-video/status`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  return response.data;
+};
+
 const combineDateAndTime = (dateValue, timeValue) => {
   if (!dateValue) {
     return undefined;

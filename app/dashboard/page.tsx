@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+
 import { DashboardHeader } from "@/components/dashboard-header";
 import {
   Card,
@@ -55,6 +56,8 @@ import {
   updateEducatorQualifications,
   updateEducatorSocialLinks,
   updateEducatorSpecializationAndExperience,
+  uploadEducatorIntroVideo,
+  getEducatorIntroVideoStatus,
 } from "@/util/server";
 
 const ensureArray = (value: unknown) => {
@@ -70,6 +73,34 @@ const toTitleCase = (value: string) =>
 
 const getArrayCount = (value: unknown): number =>
   Array.isArray(value) ? value.length : 0;
+
+const normalizeVimeoEmbedUrl = (value: string | undefined | null) => {
+  if (!value) return "";
+  const trimmed = value.trim();
+
+  const playerMatch = trimmed.match(
+    /player\.vimeo\.com\/video\/(\d+)(?:.*?[?&]h=([\w-]+))?/i
+  );
+  if (playerMatch) {
+    const [, id, hash] = playerMatch;
+    return `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ""}`;
+  }
+
+  const linkMatch = trimmed.match(
+    /vimeo\.com\/(?:video\/|videos\/)?(\d+)(?:.*?[?&]h=([\w-]+))?/i
+  );
+  if (linkMatch) {
+    const [, id, hash] = linkMatch;
+    return `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ""}`;
+  }
+
+  const idOnly = trimmed.match(/^(\d+)$/);
+  if (idOnly) {
+    return `https://player.vimeo.com/video/${idOnly[1]}`;
+  }
+
+  return trimmed;
+};
 
 const SPECIALIZATION_OPTIONS = ["IIT-JEE", "NEET", "CBSE"] as const;
 
@@ -221,6 +252,21 @@ export default function DashboardPage() {
     instagram: "",
     youtube: "",
   });
+
+  // Video upload state
+  const [videoData, setVideoData] = useState({
+    videoFile: null as File | null,
+  });
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [introVideoStatus, setIntroVideoStatus] = useState<
+    "idle" | "processing" | "ready" | "error"
+  >("idle");
+
+  const introEmbedUrl = useMemo(
+    () => normalizeVimeoEmbedUrl(profileData.introVideoLink),
+    [profileData.introVideoLink]
+  );
+
   const hydrateFromEducator = useCallback(
     (educatorData: Partial<EducatorType> | null | undefined) => {
       if (!educatorData) return;
@@ -244,6 +290,8 @@ export default function DashboardPage() {
         ensureArray(extendedEducator?.subject)
       );
 
+      const introUrl = normalizeVimeoEmbedUrl(educatorData.introVideo);
+
       setProfileData({
         firstName,
         lastName,
@@ -251,13 +299,18 @@ export default function DashboardPage() {
         mobileNumber: educatorData.mobileNumber || "",
         bio: educatorData.description || "",
         description: educatorData.description || "",
-        introVideoLink: educatorData.introVideo || "",
+        introVideoLink: introUrl,
         specialization: ensureArray(educatorData.specialization),
         class: normalizedClasses,
         subject: normalizedSubjects,
         yearsExperience: educatorData.yoe || 0,
         payPerHourFee: educatorData.payPerHourFee ?? 0,
       });
+
+      // Mark intro video as ready if link already exists
+      if (introUrl) {
+        setIntroVideoStatus("ready");
+      }
 
       setWorkExperience(
         Array.isArray(extendedEducator.workExperience)
@@ -402,7 +455,7 @@ export default function DashboardPage() {
         mobileNumber: profileData.mobileNumber,
         bio: profileData.bio,
         description: profileData.description,
-        introVideoLink: profileData.introVideoLink,
+        introVideoLink: introEmbedUrl,
       });
 
       toast.success("Profile updated successfully");
@@ -603,6 +656,124 @@ export default function DashboardPage() {
         };
       }
     });
+  };
+
+  // Handle video file selection
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 500MB)
+      if (file.size > 500 * 1024 * 1024) {
+        toast.error("Video file size must be less than 500MB");
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith("video/")) {
+        toast.error("Please select a valid video file");
+        return;
+      }
+
+      setVideoData((prev) => ({ ...prev, videoFile: file }));
+      toast.success(`Selected: ${file.name}`);
+    }
+  };
+
+  // Handle video upload to Vimeo
+  const handleUploadVideo = async () => {
+    if (!educatorId) {
+      toast.error("Educator ID not found");
+      return;
+    }
+
+    if (!videoData.videoFile) {
+      toast.error("Please select a video file");
+      return;
+    }
+
+    setUploadingVideo(true);
+    setIntroVideoStatus("processing");
+    const toastId = toast.loading("Uploading intro video to Vimeo...");
+
+    try {
+      const uploadResponse = await uploadEducatorIntroVideo(
+        educatorId,
+        videoData.videoFile
+      );
+
+      const newIntroUrl = normalizeVimeoEmbedUrl(
+        uploadResponse?.data?.introVideo || uploadResponse?.data?.embedUrl
+      );
+
+      if (newIntroUrl) {
+        setProfileData((prev) => ({
+          ...prev,
+          introVideoLink: newIntroUrl,
+        }));
+      }
+
+      // Start polling for Vimeo transcode completion
+      const pollIntroStatus = async () => {
+        const maxAttempts = 12; // ~36s at 3s interval
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const statusResp = await getEducatorIntroVideoStatus(educatorId);
+            const status = statusResp?.data?.status || "unknown";
+            const latestUrl = normalizeVimeoEmbedUrl(
+              statusResp?.data?.introVideo || statusResp?.data?.embedUrl
+            );
+
+            if (latestUrl) {
+              setProfileData((prev) => ({
+                ...prev,
+                introVideoLink: latestUrl,
+              }));
+            }
+
+            if (status === "complete") {
+              setIntroVideoStatus("ready");
+              return;
+            }
+
+            if (status === "error") {
+              setIntroVideoStatus("error");
+              return;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          } catch (err) {
+            console.error("Intro video status poll failed:", err);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        }
+        setIntroVideoStatus("processing");
+      };
+
+      pollIntroStatus();
+
+      toast.success("Video uploaded. Processing on Vimeo...", { id: toastId });
+
+      // Reset form
+      setVideoData({ videoFile: null });
+
+      const fileInput = document.getElementById(
+        "videoFile"
+      ) as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      setIntroVideoStatus("error");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to upload video. Please try again.",
+        { id: toastId }
+      );
+    } finally {
+      setUploadingVideo(false);
+    }
   };
 
   if (fetchingData) {
@@ -954,8 +1125,16 @@ export default function DashboardPage() {
                         introVideoLink: e.target.value,
                       }))
                     }
+                    onBlur={() =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        introVideoLink: normalizeVimeoEmbedUrl(
+                          prev.introVideoLink
+                        ),
+                      }))
+                    }
                     disabled={loading}
-                    placeholder="https://youtube.com/..."
+                    placeholder="https://player.vimeo.com/video/{id}"
                   />
                 </div>
 
@@ -1306,38 +1485,95 @@ export default function DashboardPage() {
                   <Video className="h-5 w-5" />
                   Add Demo Video
                 </CardTitle>
-                <CardDescription>Add your educational videos</CardDescription>
+                <CardDescription>
+                  Upload your educational videos to Vimeo
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="videoTitle">Video Title</Label>
-                    <Input
-                      id="videoTitle"
-                      type="text"
-                      placeholder="Enter video title..."
-                      disabled={loading}
-                    />
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="videoFile">Video File</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          id="videoFile"
+                          type="file"
+                          accept="video/*"
+                          onChange={handleVideoFileChange}
+                          disabled={loading || uploadingVideo}
+                          className="cursor-pointer"
+                        />
+                        {videoData.videoFile && (
+                          <Badge variant="outline" className="text-xs">
+                            {(videoData.videoFile.size / (1024 * 1024)).toFixed(
+                              2
+                            )}{" "}
+                            MB
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Max file size: 500MB. Supported formats: MP4, MOV, AVI,
+                        etc.
+                      </p>
+                    </div>
+
+                    <Button
+                      className="gap-2"
+                      onClick={handleUploadVideo}
+                      disabled={
+                        loading || uploadingVideo || !videoData.videoFile
+                      }
+                    >
+                      {uploadingVideo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Upload Video
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="videoLink">Video Link</Label>
-                    <Input
-                      id="videoLink"
-                      type="url"
-                      placeholder="https://youtube.com/..."
-                      disabled={loading}
-                    />
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-card-foreground flex items-center justify-between">
+                      <span>Preview</span>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {introVideoStatus === "processing"
+                          ? "Processing"
+                          : introVideoStatus === "ready"
+                          ? "Ready"
+                          : introVideoStatus === "error"
+                          ? "Error"
+                          : introEmbedUrl
+                          ? "Ready"
+                          : "Not available"}
+                      </span>
+                    </p>
+                    <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                      {introEmbedUrl ? (
+                        <iframe
+                          key={introEmbedUrl}
+                          src={`${introEmbedUrl}${
+                            introEmbedUrl.includes("?") ? "&" : "?"
+                          }title=0&byline=0&portrait=0`}
+                          width="100%"
+                          height="100%"
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          No intro video available yet
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <Button className="gap-2" disabled={loading}>
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Add Video
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
