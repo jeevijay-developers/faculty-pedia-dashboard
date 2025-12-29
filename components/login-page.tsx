@@ -102,28 +102,21 @@ export default function LoginPage() {
   // Show loading screen if checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200/30 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-200/30 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-200/20 rounded-full blur-3xl"></div>
-      </div>
-
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm relative z-10 gap-0">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      <Card className="w-full max-w-md shadow-lg border relative z-10 gap-0">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="flex justify-center">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl shadow-md">
+            <div className="bg-muted p-4 rounded-2xl">
               <Image
                 src="/logo-blue.png"
                 alt="Faculty Pedia Logo"
@@ -134,7 +127,7 @@ export default function LoginPage() {
               />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl font-bold text-foreground">
             Welcome Back
           </CardTitle>
           <CardDescription className="text-gray-600 text-base">
@@ -166,7 +159,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 h-11 text-black bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-10 h-11 bg-background border-input focus:border-primary focus:ring-primary transition-colors"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -188,7 +181,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-10 h-11 text-black bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-10 pr-10 h-11 bg-background border-input focus:border-primary focus:ring-primary transition-colors"
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
@@ -213,7 +206,7 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 text-primary border-input rounded focus:ring-primary cursor-pointer"
                 />
                 <span className="text-gray-600 group-hover:text-gray-800 transition-colors">
                   Remember me
@@ -221,7 +214,7 @@ export default function LoginPage() {
               </label>
               <a
                 href="#"
-                className="text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
+                className="text-primary hover:text-primary/80 font-medium hover:underline transition-colors"
               >
                 Forgot password?
               </a>
@@ -229,7 +222,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold h-11 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 mt-3"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 mt-3"
               disabled={isLoading}
             >
               {isLoading ? (

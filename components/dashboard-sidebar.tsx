@@ -28,7 +28,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
-  DollarSign,
+  IndianRupee,
   MessageSquare,
   Loader2,
   Megaphone,
@@ -102,7 +102,7 @@ const navigation = [
   {
     name: "Revenue",
     href: "/dashboard/revenue",
-    icon: DollarSign,
+    icon: IndianRupee,
   },
   {
     name: "Students",
@@ -200,9 +200,12 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
         {/* Header */}
         <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <GraduationCap className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <Image
+              src="/logo-blue.png"
+              alt="Faculty Pedia Logo"
+              width={32}
+              height={32}
+            />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">
                 Faculty Pedia
