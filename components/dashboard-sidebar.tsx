@@ -115,7 +115,7 @@ const navigation = [
     icon: Megaphone,
   },
   {
-    name: "Manage Queries",
+    name: "Queries",
     href: "/dashboard/manage-queries",
     icon: MessageSquare,
   },
