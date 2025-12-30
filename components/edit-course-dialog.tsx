@@ -2,23 +2,97 @@
 
 import { useEffect, useRef, useState, ChangeEvent } from "react";
 import Image from "next/image";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X, Upload, ImageIcon } from "lucide-react";
 import { MdDelete } from "react-icons/md";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/auth-context";
-import { updateCourse, uploadImage, uploadPdf } from "@/util/server";
+import {
+  updateCourse,
+  uploadCourseIntroVideo,
+  uploadImage,
+  uploadPdf,
+} from "@/util/server";
+
+type CourseLesson = {
+  title?: string;
+  name?: string;
+  link?: string;
+  url?: string;
+  videoLink?: string;
+};
+
+type CourseStudyMaterial = {
+  title?: string;
+  link?: string;
+  url?: string;
+};
+
+type CourseDescription = string | { longDesc?: string; shortDesc?: string };
+
+type CourseShape = {
+  _id?: string;
+  title?: string;
+  courseDuration?: string | number;
+  classDuration?: string | number;
+  courseType?: string;
+  startDate?: string;
+  endDate?: string;
+  validDate?: string;
+  validity?: string;
+  specialization?: string | string[];
+  class?: string[];
+  classes?: string[];
+  courseClass?: string;
+  subject?: string | string[];
+  description?: CourseDescription;
+  courseObjectives?: string[];
+  fees?: number | string;
+  fee?: number | string;
+  maxStudents?: number | string;
+  seatLimit?: number | string;
+  introVideo?: string;
+  video?: { intro?: string; lessons?: CourseLesson[] };
+  videoTitle?: string;
+  videos?: CourseLesson[];
+  studyMaterials?: CourseStudyMaterial[];
+  prerequisites?: string[] | string;
+  language?: string;
+  classesPerWeek?: number | string;
+  classPerWeek?: number | string;
+  testFrequency?: number | string;
+  testsPerWeek?: number | string;
+  classTiming?: string;
+  timing?: string;
+  image?: string | { url?: string };
+  courseThumbnail?: string;
+  educatorID?: string;
+  certificateAvailable?: boolean;
+};
 
 interface EditCourseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  course: any;
+  course: CourseShape | null;
   onCourseUpdated: () => void;
 }
 
@@ -36,7 +110,7 @@ const normalizeCourseType = (value?: string) => {
   return value === "one-to-one" ? "one-to-one" : "one-to-all";
 };
 
-const extractClasses = (course: any) => {
+const extractClasses = (course: CourseShape | null) => {
   if (!course) return [] as string[];
   if (Array.isArray(course.class)) return course.class;
   if (Array.isArray(course.classes)) return course.classes;
@@ -44,21 +118,21 @@ const extractClasses = (course: any) => {
   return [] as string[];
 };
 
-const extractSubject = (subject: any) => {
+const extractSubject = (subject: CourseShape["subject"]) => {
   if (!subject) return "";
   if (Array.isArray(subject)) return subject[0] || "";
   return subject;
 };
 
-const extractVideos = (course: any) => {
+const extractVideos = (course: CourseShape | null) => {
   const lessons = Array.isArray(course?.videos)
-    ? course.videos
+    ? course?.videos
     : Array.isArray(course?.video?.lessons)
-    ? course.video.lessons
+    ? course.video?.lessons
     : [];
 
   const mapped = lessons
-    .map((v: any) => ({
+    .map((v: CourseLesson | undefined) => ({
       title: v?.title || v?.name || "",
       link: v?.link || v?.url || v?.videoLink || "",
     }))
@@ -67,13 +141,13 @@ const extractVideos = (course: any) => {
   return mapped.length ? mapped : [{ title: "", link: "" }];
 };
 
-const extractDescription = (description: any) => {
+const extractDescription = (description: CourseShape["description"]) => {
   if (!description) return "";
   if (typeof description === "string") return description;
   return description.longDesc || description.shortDesc || "";
 };
 
-const extractImageUrl = (course: any) => {
+const extractImageUrl = (course: CourseShape | null) => {
   if (!course) return "";
   if (course.courseThumbnail) return course.courseThumbnail;
   if (typeof course.image === "string") return course.image;
@@ -81,21 +155,29 @@ const extractImageUrl = (course: any) => {
   return "";
 };
 
-const extractVideoTitle = (course: any) => {
+const extractVideoTitle = (course: CourseShape | null) => {
   if (!course) return "";
   if (course.videoTitle) return course.videoTitle;
-  const lessonTitle = course.videos?.[0]?.title || course.video?.lessons?.[0]?.title;
+  const lessonTitle =
+    course.videos?.[0]?.title || course.video?.lessons?.[0]?.title;
   return lessonTitle || "";
 };
 
-export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }: EditCourseDialogProps) {
+export function EditCourseDialog({
+  open,
+  onOpenChange,
+  course,
+  onCourseUpdated,
+}: EditCourseDialogProps) {
   const { educator } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form States (mirrors create-course-dialog)
   const [title, setTitle] = useState("");
   const [duration, setDuration] = useState("");
-  const [courseType, setCourseType] = useState<"one-to-all" | "one-to-one">("one-to-all");
+  const [courseType, setCourseType] = useState<"one-to-all" | "one-to-one">(
+    "one-to-all"
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
@@ -107,8 +189,12 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
   const [validDate, setValidDate] = useState("");
   const [maxStudents, setMaxStudents] = useState("100");
   const [introVideo, setIntroVideo] = useState("");
+  const [introVideoFile, setIntroVideoFile] = useState<File | null>(null);
+  const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
-  const [videos, setVideos] = useState<{ title: string; link: string }[]>([{ title: "", link: "" }]);
+  const [videos, setVideos] = useState<{ title: string; link: string }[]>([
+    { title: "", link: "" },
+  ]);
   const [assets, setAssets] = useState<
     { title: string; file: File | null; link?: string }[]
   >([{ title: "", file: null }]);
@@ -156,34 +242,70 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
     "Printed study material",
   ];
 
+  const toVimeoEmbedUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("player.vimeo.com/video/")) return url;
+    const idMatch = url.match(
+      /vimeo\.com\/(?:video\/|manage\/videos\/)?([0-9]+)/
+    );
+    const videoId = idMatch?.[1];
+    return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+  };
+
+  const introVideoEmbedUrl = toVimeoEmbedUrl(introVideo);
+
   useEffect(() => {
     if (!course || !open) return;
 
     setTitle(course.title || "");
-    setDuration(course.courseDuration || course.classDuration?.toString() || "");
-    setCourseType(normalizeCourseType(course.courseType) as "one-to-all" | "one-to-one");
+    setDuration(
+      course.courseDuration?.toString() ||
+        course.classDuration?.toString() ||
+        ""
+    );
+    setCourseType(
+      normalizeCourseType(course.courseType) as "one-to-all" | "one-to-one"
+    );
     setStartDate(course.startDate ? course.startDate.split("T")[0] : "");
     setEndDate(course.endDate ? course.endDate.split("T")[0] : "");
     setValidDate(course.validDate || course.validity || "");
-    setSelectedExams(Array.isArray(course.specialization) ? course.specialization : course.specialization ? [course.specialization] : []);
+    setSelectedExams(
+      Array.isArray(course.specialization)
+        ? course.specialization
+        : course.specialization
+        ? [course.specialization]
+        : []
+    );
     setSelectedClasses(extractClasses(course));
     setSubject(extractSubject(course.subject));
     setAboutCourse(extractDescription(course.description));
-    setSelectedFeatures(Array.isArray(course.courseObjectives) ? course.courseObjectives : []);
+    setSelectedFeatures(
+      Array.isArray(course.courseObjectives) ? course.courseObjectives : []
+    );
     setCourseFee(course.fees?.toString() || course.fee?.toString() || "");
     setMaxStudents((course.maxStudents || course.seatLimit || "").toString());
-    setIntroVideo(course.introVideo || course.video?.intro || "");
+    setIntroVideo(
+      toVimeoEmbedUrl(course.introVideo || course.video?.intro || "")
+    );
+    setIntroVideoFile(null);
+    setUploadingIntroVideo(false);
     setVideoTitle(extractVideoTitle(course));
     setVideos(extractVideos(course));
     const initialAssets = Array.isArray(course.studyMaterials)
-      ? course.studyMaterials.map((m: any) => ({
-          title: m.title || "",
+      ? course.studyMaterials.map((m: CourseStudyMaterial) => ({
+          title: m?.title || "",
           file: null,
-          link: m.link || m.url || "",
+          link: m?.link || m?.url || "",
         }))
       : [{ title: "", file: null }];
-    setAssets(initialAssets.length ? initialAssets : [{ title: "", file: null }]);
-    setPrerequisites(Array.isArray(course.prerequisites) ? course.prerequisites.join("\n") : course.prerequisites || "");
+    setAssets(
+      initialAssets.length ? initialAssets : [{ title: "", file: null }]
+    );
+    setPrerequisites(
+      Array.isArray(course.prerequisites)
+        ? course.prerequisites.join("\n")
+        : course.prerequisites || ""
+    );
     setLanguage(course.language || "english");
     setClassesPerWeek(
       course.classesPerWeek?.toString() || course.classPerWeek?.toString() || ""
@@ -192,7 +314,9 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
       course.testFrequency?.toString() || course.testsPerWeek?.toString() || ""
     );
     setClassDuration(
-      course.classDuration?.toString() || course.courseDuration?.toString() || ""
+      course.classDuration?.toString() ||
+        course.courseDuration?.toString() ||
+        ""
     );
     setClassTiming(course.classTiming || course.timing || "");
 
@@ -223,15 +347,78 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
     reader.readAsDataURL(file);
   };
 
+  const handleIntroVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file");
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Video size must be under 500MB");
+      return;
+    }
+
+    setIntroVideoFile(file);
+    toast.success(`Selected: ${file.name}`);
+  };
+
+  const handleUploadIntroVideo = async () => {
+    if (!course?._id) {
+      toast.error("Course ID missing");
+      return;
+    }
+
+    if (!introVideoFile) {
+      toast.error("Select a video file first");
+      return;
+    }
+
+    setUploadingIntroVideo(true);
+    const toastId = toast.loading("Uploading intro video to Vimeo...");
+
+    try {
+      const uploadResp = await uploadCourseIntroVideo(
+        course._id,
+        introVideoFile
+      );
+      const uploadedUrl =
+        uploadResp?.data?.introVideo ||
+        uploadResp?.data?.embedUrl ||
+        uploadResp?.introVideo;
+      if (uploadedUrl) {
+        setIntroVideo(toVimeoEmbedUrl(uploadedUrl));
+      }
+      toast.success("Intro video uploaded", { id: toastId });
+      setIntroVideoFile(null);
+    } catch (err) {
+      console.error("Intro video upload failed:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to upload intro video",
+        { id: toastId }
+      );
+    } finally {
+      setUploadingIntroVideo(false);
+    }
+  };
+
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
     setImageUrl("");
   };
 
-  const handleVideoChange = (index: number, field: "title" | "link", value: string) => {
+  const handleVideoChange = (
+    index: number,
+    field: "title" | "link",
+    value: string
+  ) => {
     setVideos((prev) =>
-      prev.map((video, idx) => (idx === index ? { ...video, [field]: value } : video))
+      prev.map((video, idx) =>
+        idx === index ? { ...video, [field]: value } : video
+      )
     );
   };
 
@@ -240,10 +427,17 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
   };
 
   const handleAssetTitleChange = (index: number, value: string) => {
-    setAssets((prev) => prev.map((asset, idx) => (idx === index ? { ...asset, title: value } : asset)));
+    setAssets((prev) =>
+      prev.map((asset, idx) =>
+        idx === index ? { ...asset, title: value } : asset
+      )
+    );
   };
 
-  const handleAssetFileChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+  const handleAssetFileChange = (
+    index: number,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0] || null;
     if (!file) return;
 
@@ -258,7 +452,9 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
       return;
     }
 
-    setAssets((prev) => prev.map((asset, idx) => (idx === index ? { ...asset, file } : asset)));
+    setAssets((prev) =>
+      prev.map((asset, idx) => (idx === index ? { ...asset, file } : asset))
+    );
   };
 
   const addAssetField = () => {
@@ -413,13 +609,22 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
           if (!assetUrl) {
             throw new Error("PDF upload failed");
           }
-          uploadedStudyMaterials.push({ title: assetTitle, link: assetUrl, fileType: "PDF" });
+          uploadedStudyMaterials.push({
+            title: assetTitle,
+            link: assetUrl,
+            fileType: "PDF",
+          });
         } else if (asset.link) {
-          uploadedStudyMaterials.push({ title: assetTitle, link: asset.link, fileType: "PDF" });
+          uploadedStudyMaterials.push({
+            title: assetTitle,
+            link: asset.link,
+            fileType: "PDF",
+          });
         }
       }
 
       const normalizedClassTiming = classTiming.trim();
+      const normalizedIntroVideo = toVimeoEmbedUrl(introVideo);
 
       const coursePayload = {
         title: title.trim(),
@@ -438,7 +643,7 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
         courseDuration: duration.trim(),
         validDate,
         videos: parsedVideos,
-        introVideo,
+        introVideo: normalizedIntroVideo,
         videoTitle: videoTitle.trim(),
         studyMaterials: uploadedStudyMaterials,
         courseObjectives: selectedFeatures,
@@ -456,12 +661,13 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
       toast.success("Course updated successfully!", { id: loadingToast });
       onCourseUpdated();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating course:", error);
       const message =
         error instanceof Error
           ? error.message
-          : error?.response?.data?.message || "Failed to update course";
+          : (error as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "Failed to update course";
       toast.error(message, { id: loadingToast });
     } finally {
       setIsSubmitting(false);
@@ -494,10 +700,16 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                   >
                     {isDone ? "✓" : idx + 1}
                   </div>
-                  <span className={`text-xs ${isActive ? "font-semibold" : "text-muted-foreground"}`}>
+                  <span
+                    className={`text-xs ${
+                      isActive ? "font-semibold" : "text-muted-foreground"
+                    }`}
+                  >
                     {label}
                   </span>
-                  {idx < steps.length - 1 && <div className="w-6 border-t border-dashed border-muted" />}
+                  {idx < steps.length - 1 && (
+                    <div className="w-6 border-t border-dashed border-muted" />
+                  )}
                 </div>
               );
             })}
@@ -528,7 +740,9 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                   <Label htmlFor="courseType">Course Type *</Label>
                   <Select
                     value={courseType}
-                    onValueChange={(value) => setCourseType(value as "one-to-all" | "one-to-one")}
+                    onValueChange={(value) =>
+                      setCourseType(value as "one-to-all" | "one-to-one")
+                    }
                   >
                     <SelectTrigger id="courseType">
                       <SelectValue placeholder="Select course type" />
@@ -636,7 +850,11 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                         className="gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleSelection(exam, selectedExams, setSelectedExams);
+                          toggleSelection(
+                            exam,
+                            selectedExams,
+                            setSelectedExams
+                          );
                         }}
                       >
                         {exam} <X className="h-3 w-3" />
@@ -652,9 +870,15 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       <div
                         key={exam}
                         className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                        onClick={() => toggleSelection(exam, selectedExams, setSelectedExams)}
+                        onClick={() =>
+                          toggleSelection(exam, selectedExams, setSelectedExams)
+                        }
                       >
-                        <input type="checkbox" checked={selectedExams.includes(exam)} readOnly />
+                        <input
+                          type="checkbox"
+                          checked={selectedExams.includes(exam)}
+                          readOnly
+                        />
                         <span>{exam}</span>
                       </div>
                     ))}
@@ -676,14 +900,20 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                         className="gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleSelection(cls, selectedClasses, setSelectedClasses);
+                          toggleSelection(
+                            cls,
+                            selectedClasses,
+                            setSelectedClasses
+                          );
                         }}
                       >
                         {formatClassLabel(cls)} <X className="h-3 w-3" />
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">Select classes</span>
+                    <span className="text-muted-foreground">
+                      Select classes
+                    </span>
                   )}
                 </div>
                 {showClassDropdown && (
@@ -692,9 +922,19 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       <div
                         key={cls}
                         className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                        onClick={() => toggleSelection(cls, selectedClasses, setSelectedClasses)}
+                        onClick={() =>
+                          toggleSelection(
+                            cls,
+                            selectedClasses,
+                            setSelectedClasses
+                          )
+                        }
                       >
-                        <input type="checkbox" checked={selectedClasses.includes(cls)} readOnly />
+                        <input
+                          type="checkbox"
+                          checked={selectedClasses.includes(cls)}
+                          readOnly
+                        />
                         <span>{formatClassLabel(cls)}</span>
                       </div>
                     ))}
@@ -729,7 +969,14 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                   <div className="relative w-full h-60 rounded-md border-2 border-dashed bg-muted/40 overflow-hidden">
                     {imagePreview ? (
                       <>
-                        <Image src={imagePreview} alt="Preview" fill sizes="100vw" className="object-cover" unoptimized />
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          sizes="100vw"
+                          className="object-cover"
+                          unoptimized
+                        />
                         <button
                           type="button"
                           onClick={handleRemoveImage}
@@ -742,7 +989,9 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       <div className="flex h-60 w-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
                         <ImageIcon className="h-10 w-10" />
                         <p className="text-sm">Upload a banner image</p>
-                        <p className="text-xs text-muted-foreground">Recommended size 1200x400px</p>
+                        <p className="text-xs text-muted-foreground">
+                          Recommended size 1200x400px
+                        </p>
                       </div>
                     )}
                   </div>
@@ -754,7 +1003,11 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       <Upload className="mr-2 h-4 w-4" /> Upload Image
                     </Label>
                     {imagePreview && (
-                      <Button type="button" variant="outline" onClick={handleRemoveImage}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleRemoveImage}
+                      >
                         <MdDelete className="text-red-700 size-5" />
                       </Button>
                     )}
@@ -766,28 +1019,88 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       onChange={handleImageChange}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">Max 5MB. JPG, PNG, WebP.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Max 5MB. JPG, PNG, WebP.
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="introVideo">Intro Video URL</Label>
-                  <Input
-                    id="introVideo"
-                    value={introVideo}
-                    onChange={(e) => setIntroVideo(e.target.value)}
-                    placeholder="YouTube Link"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="videoTitle">Video Title (optional)</Label>
+                    <Input
+                      id="videoTitle"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      placeholder="Video Title"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="introVideoFile">
+                      Intro Video Upload (Vimeo)
+                    </Label>
+                    <Input
+                      id="introVideoFile"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleIntroVideoFileChange}
+                    />
+                    {introVideoFile && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {introVideoFile.name}
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Max 100MB. Uploading will replace the current intro video.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleUploadIntroVideo}
+                      disabled={uploadingIntroVideo}
+                      className="w-full"
+                    >
+                      {uploadingIntroVideo ? "Uploading..." : "Upload video"}
+                    </Button>
+                    {uploadingIntroVideo && (
+                      <p className="text-xs text-primary font-medium">
+                        Uploading intro video...
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="videoTitle">Video Title (optional)</Label>
-                  <Input
-                    id="videoTitle"
-                    value={videoTitle}
-                    onChange={(e) => setVideoTitle(e.target.value)}
-                    placeholder="Video Title"
-                  />
+                  <Label>Preview</Label>
+                  <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                    {introVideoEmbedUrl ? (
+                      <iframe
+                        key={introVideoEmbedUrl}
+                        src={`${introVideoEmbedUrl}${
+                          introVideoEmbedUrl.includes("?") ? "&" : "?"
+                        }title=0&byline=0&portrait=0`}
+                        width="100%"
+                        height="100%"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        No intro video available yet
+                      </span>
+                    )}
+                  </div>
+                  {introVideoEmbedUrl && (
+                    <p className="text-xs text-muted-foreground">
+                      Note: Newly uploaded videos may take 2-5 minutes to
+                      process on Vimeo before they can be previewed.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -809,14 +1122,20 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                         className="gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleSelection(feat, selectedFeatures, setSelectedFeatures);
+                          toggleSelection(
+                            feat,
+                            selectedFeatures,
+                            setSelectedFeatures
+                          );
                         }}
                       >
                         {feat} <X className="h-3 w-3" />
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">Select features</span>
+                    <span className="text-muted-foreground">
+                      Select features
+                    </span>
                   )}
                 </div>
                 {showFeatureDropdown && (
@@ -825,9 +1144,19 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       <div
                         key={feat}
                         className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer"
-                        onClick={() => toggleSelection(feat, selectedFeatures, setSelectedFeatures)}
+                        onClick={() =>
+                          toggleSelection(
+                            feat,
+                            selectedFeatures,
+                            setSelectedFeatures
+                          )
+                        }
                       >
-                        <input type="checkbox" checked={selectedFeatures.includes(feat)} readOnly />
+                        <input
+                          type="checkbox"
+                          checked={selectedFeatures.includes(feat)}
+                          readOnly
+                        />
                         <span>{feat}</span>
                       </div>
                     ))}
@@ -855,7 +1184,10 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="text-lg">Videos</DialogTitle>
-                  <DialogDescription className="mt-1">Add video title and link for this course.</DialogDescription>
+                  <DialogDescription className="mt-1">
+                    Add video title and paste the YouTube (unlisted) link for
+                    this course.
+                  </DialogDescription>
                 </div>
                 <Button type="button" variant="outline" onClick={addVideoField}>
                   Add Videos
@@ -869,21 +1201,29 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                     className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
                   >
                     <div className="space-y-2">
-                      <Label htmlFor={`video-title-${index}`}>Video Title</Label>
+                      <Label htmlFor={`video-title-${index}`}>
+                        Video Title
+                      </Label>
                       <Input
                         id={`video-title-${index}`}
                         value={video.title}
-                        onChange={(e) => handleVideoChange(index, "title", e.target.value)}
+                        onChange={(e) =>
+                          handleVideoChange(index, "title", e.target.value)
+                        }
                         placeholder="Enter video title"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`video-link-${index}`}>Video Link</Label>
+                      <Label htmlFor={`video-link-${index}`}>
+                        Video Link (YouTube)
+                      </Label>
                       <Input
                         id={`video-link-${index}`}
                         value={video.link}
-                        onChange={(e) => handleVideoChange(index, "link", e.target.value)}
-                        placeholder="https://..."
+                        onChange={(e) =>
+                          handleVideoChange(index, "link", e.target.value)
+                        }
+                        placeholder="YouTube unlisted link (https://youtu.be/{id})"
                       />
                     </div>
                   </div>
@@ -895,10 +1235,15 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                   <div>
                     <DialogTitle className="text-lg">Assets (PDF)</DialogTitle>
                     <DialogDescription className="mt-1">
-                      Upload supporting PDFs students will see in the course panel.
+                      Upload supporting PDFs students will see in the course
+                      panel.
                     </DialogDescription>
                   </div>
-                  <Button type="button" variant="outline" onClick={addAssetField}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addAssetField}
+                  >
                     Add Asset
                   </Button>
                 </div>
@@ -910,11 +1255,15 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                       className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
                     >
                       <div className="space-y-2">
-                        <Label htmlFor={`asset-title-${index}`}>Asset Title</Label>
+                        <Label htmlFor={`asset-title-${index}`}>
+                          Asset Title
+                        </Label>
                         <Input
                           id={`asset-title-${index}`}
                           value={asset.title}
-                          onChange={(e) => handleAssetTitleChange(index, e.target.value)}
+                          onChange={(e) =>
+                            handleAssetTitleChange(index, e.target.value)
+                          }
                           placeholder="e.g. Mechanics Formula Sheet"
                         />
                       </div>
@@ -948,7 +1297,9 @@ export function EditCourseDialog({ open, onOpenChange, course, onCourseUpdated }
                             </Button>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">PDF only. Max size 10MB.</p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF only. Max size 10MB.
+                        </p>
                       </div>
                     </div>
                   ))}

@@ -24,7 +24,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Upload, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { createCourse, uploadImage, uploadPdf } from "@/util/server";
+import {
+  createCourse,
+  uploadCourseIntroVideo,
+  uploadImage,
+  uploadPdf,
+} from "@/util/server";
 import toast from "react-hot-toast";
 import { MdDelete } from "react-icons/md";
 interface CreateCourseDialogProps {
@@ -56,6 +61,8 @@ export function CreateCourseDialog({
   const [validDate, setValidDate] = useState("");
   const [maxStudents, setMaxStudents] = useState("100");
   const [introVideo, setIntroVideo] = useState("");
+  const [introVideoFile, setIntroVideoFile] = useState<File | null>(null);
+  const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
   const [videos, setVideos] = useState<{ title: string; link: string }[]>([
     { title: "", link: "" },
@@ -106,6 +113,22 @@ export function CreateCourseDialog({
     "Printed study material",
   ];
 
+  const toVimeoEmbedUrl = (url: string) => {
+    if (!url) return "";
+    // Already an embed/player URL
+    if (url.includes("player.vimeo.com/video/")) return url;
+
+    // Common watch/manage formats → extract the numeric id
+    const idMatch = url.match(
+      /vimeo\.com\/(?:video\/|manage\/videos\/)?([0-9]+)/
+    );
+    const videoId = idMatch?.[1];
+
+    return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+  };
+
+  const introVideoEmbedUrl = toVimeoEmbedUrl(introVideo);
+
   const formatClassLabel = (cls: string) => {
     if (!cls) return "";
     if (cls === "dropper") return "Dropper";
@@ -133,6 +156,24 @@ export function CreateCourseDialog({
     reader.readAsDataURL(file);
   };
 
+  const handleIntroVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file");
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Video size must be under 500MB");
+      return;
+    }
+
+    setIntroVideoFile(file);
+    toast.success(`Selected: ${file.name}`);
+  };
+
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
@@ -156,11 +197,16 @@ export function CreateCourseDialog({
 
   const handleAssetTitleChange = (index: number, value: string) => {
     setAssets((prev) =>
-      prev.map((asset, idx) => (idx === index ? { ...asset, title: value } : asset))
+      prev.map((asset, idx) =>
+        idx === index ? { ...asset, title: value } : asset
+      )
     );
   };
 
-  const handleAssetFileChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+  const handleAssetFileChange = (
+    index: number,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0] || null;
     if (!file) return;
 
@@ -331,13 +377,22 @@ export function CreateCourseDialog({
           if (!assetUrl) {
             throw new Error("PDF upload failed");
           }
-          uploadedStudyMaterials.push({ title: assetTitle, link: assetUrl, fileType: "PDF" });
+          uploadedStudyMaterials.push({
+            title: assetTitle,
+            link: assetUrl,
+            fileType: "PDF",
+          });
         } else if (asset.link) {
-          uploadedStudyMaterials.push({ title: assetTitle, link: asset.link, fileType: "PDF" });
+          uploadedStudyMaterials.push({
+            title: assetTitle,
+            link: asset.link,
+            fileType: "PDF",
+          });
         }
       }
 
       const normalizedClassTiming = classTiming.trim();
+      const normalizedIntroVideo = toVimeoEmbedUrl(introVideo);
 
       const coursePayload = {
         title: title.trim(),
@@ -356,7 +411,7 @@ export function CreateCourseDialog({
         courseDuration: duration.trim(),
         validDate,
         videos: parsedVideos,
-        introVideo,
+        introVideo: normalizedIntroVideo,
         videoTitle: videoTitle.trim(),
         studyMaterials: uploadedStudyMaterials,
         courseObjectives: selectedFeatures,
@@ -370,7 +425,39 @@ export function CreateCourseDialog({
         ...(normalizedClassTiming && { classTiming: normalizedClassTiming }),
       };
 
-      await createCourse(coursePayload);
+      const created = await createCourse(coursePayload);
+      const createdCourse =
+        created?.course || created?.data?.course || created?.data || created;
+      const createdCourseId = createdCourse?._id || createdCourse?.id;
+
+      if (introVideoFile && createdCourseId) {
+        try {
+          setUploadingIntroVideo(true);
+          const uploadResp = await uploadCourseIntroVideo(
+            createdCourseId,
+            introVideoFile
+          );
+          const uploadedUrl =
+            uploadResp?.data?.introVideo ||
+            uploadResp?.data?.embedUrl ||
+            uploadResp?.introVideo;
+          if (uploadedUrl) {
+            setIntroVideo(toVimeoEmbedUrl(uploadedUrl));
+          }
+          toast.success("Intro video uploaded to Vimeo");
+        } catch (err) {
+          console.error("Intro video upload failed:", err);
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Intro video upload failed. You can retry from edit."
+          );
+        } finally {
+          setUploadingIntroVideo(false);
+        }
+      }
+
+      await refreshEducator();
       await refreshEducator();
 
       toast.success("Course created successfully!", { id: loadingToast });
@@ -390,6 +477,8 @@ export function CreateCourseDialog({
       setCourseFee("");
       setValidDate("");
       setIntroVideo("");
+      setIntroVideoFile(null);
+      setUploadingIntroVideo(false);
       setVideoTitle("");
       setClassesPerWeek("");
       setTestFrequency("");
@@ -401,14 +490,17 @@ export function CreateCourseDialog({
     } catch (error) {
       console.error("Error creating course:", error);
       const err = error as {
-        response?: { data?: { message?: string; errors?: Array<{ msg?: string }> } };
+        response?: {
+          data?: { message?: string; errors?: Array<{ msg?: string }> };
+        };
         message?: string;
       };
 
       const serverMessage =
         err?.response?.data?.message || err?.response?.data?.errors?.[0]?.msg;
 
-      const message = serverMessage || err?.message || "Failed to create course";
+      const message =
+        serverMessage || err?.message || "Failed to create course";
 
       toast.error(message, {
         id: loadingToast,
@@ -446,10 +538,16 @@ export function CreateCourseDialog({
                   >
                     {isDone ? "✓" : idx + 1}
                   </div>
-                  <span className={`text-xs ${isActive ? "font-semibold" : "text-muted-foreground"}`}>
+                  <span
+                    className={`text-xs ${
+                      isActive ? "font-semibold" : "text-muted-foreground"
+                    }`}
+                  >
                     {label}
                   </span>
-                  {idx < steps.length - 1 && <div className="w-6 border-t border-dashed border-muted" />}
+                  {idx < steps.length - 1 && (
+                    <div className="w-6 border-t border-dashed border-muted" />
+                  )}
                 </div>
               );
             })}
@@ -590,7 +688,11 @@ export function CreateCourseDialog({
                         className="gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleSelection(exam, selectedExams, setSelectedExams);
+                          toggleSelection(
+                            exam,
+                            selectedExams,
+                            setSelectedExams
+                          );
                         }}
                       >
                         {exam} <X className="h-3 w-3" />
@@ -647,7 +749,9 @@ export function CreateCourseDialog({
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">Select classes</span>
+                    <span className="text-muted-foreground">
+                      Select classes
+                    </span>
                   )}
                 </div>
                 {showClassDropdown && (
@@ -759,24 +863,72 @@ export function CreateCourseDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="introVideo">Intro Video URL</Label>
-                  <Input
-                    id="introVideo"
-                    value={introVideo}
-                    onChange={(e) => setIntroVideo(e.target.value)}
-                    placeholder="YouTube Link"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="videoTitle">Video Title (optional)</Label>
+                    <Input
+                      id="videoTitle"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      placeholder="Video Title"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="introVideoFile">
+                      Intro Video Upload (Vimeo)
+                    </Label>
+                    <Input
+                      id="introVideoFile"
+                      type="file"
+                      accept="video/*"
+                      onChange={handleIntroVideoFileChange}
+                    />
+                    {introVideoFile && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {introVideoFile.name}
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Optional. We will upload this to Vimeo right after the
+                      course is created. Max 500MB. Uploading will replace the
+                      current intro video.
+                    </p>
+                    {uploadingIntroVideo && (
+                      <p className="text-xs text-primary font-medium">
+                        Uploading intro video...
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="videoTitle">Video Title (optional)</Label>
-                  <Input
-                    id="videoTitle"
-                    value={videoTitle}
-                    onChange={(e) => setVideoTitle(e.target.value)}
-                    placeholder="Video Title"
-                  />
+                  <Label>Preview</Label>
+                  <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                    {introVideoEmbedUrl ? (
+                      <iframe
+                        key={introVideoEmbedUrl}
+                        src={`${introVideoEmbedUrl}${
+                          introVideoEmbedUrl.includes("?") ? "&" : "?"
+                        }title=0&byline=0&portrait=0`}
+                        width="100%"
+                        height="100%"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        No intro video available yet
+                      </span>
+                    )}
+                  </div>
+                  {introVideoEmbedUrl && (
+                    <p className="text-xs text-muted-foreground">
+                      Note: Newly uploaded videos may take 2-5 minutes to
+                      process on Vimeo before they can be previewed.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -809,7 +961,9 @@ export function CreateCourseDialog({
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">Select features</span>
+                    <span className="text-muted-foreground">
+                      Select features
+                    </span>
                   )}
                 </div>
                 {showFeatureDropdown && (
@@ -858,7 +1012,10 @@ export function CreateCourseDialog({
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="text-lg">Videos</DialogTitle>
-                  <DialogDescription className="mt-1">Add video title and link for this course.</DialogDescription>
+                  <DialogDescription className="mt-1">
+                    Add video title and paste the YouTube (unlisted) link for
+                    this course.
+                  </DialogDescription>
                 </div>
                 <Button type="button" variant="outline" onClick={addVideoField}>
                   Add Videos
@@ -872,21 +1029,29 @@ export function CreateCourseDialog({
                     className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
                   >
                     <div className="space-y-2">
-                      <Label htmlFor={`video-title-${index}`}>Video Title</Label>
+                      <Label htmlFor={`video-title-${index}`}>
+                        Video Title
+                      </Label>
                       <Input
                         id={`video-title-${index}`}
                         value={video.title}
-                        onChange={(e) => handleVideoChange(index, "title", e.target.value)}
+                        onChange={(e) =>
+                          handleVideoChange(index, "title", e.target.value)
+                        }
                         placeholder="Enter video title"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`video-link-${index}`}>Video Link</Label>
+                      <Label htmlFor={`video-link-${index}`}>
+                        Video Link (YouTube)
+                      </Label>
                       <Input
                         id={`video-link-${index}`}
                         value={video.link}
-                        onChange={(e) => handleVideoChange(index, "link", e.target.value)}
-                        placeholder="https://..."
+                        onChange={(e) =>
+                          handleVideoChange(index, "link", e.target.value)
+                        }
+                        placeholder="YouTube unlisted link (https://youtu.be/{id})"
                       />
                     </div>
                   </div>
@@ -898,10 +1063,15 @@ export function CreateCourseDialog({
                   <div>
                     <DialogTitle className="text-lg">Assets (PDF)</DialogTitle>
                     <DialogDescription className="mt-1">
-                      Upload supporting PDFs students will see in the course panel.
+                      Upload supporting PDFs students will see in the course
+                      panel.
                     </DialogDescription>
                   </div>
-                  <Button type="button" variant="outline" onClick={addAssetField}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addAssetField}
+                  >
                     Add Asset
                   </Button>
                 </div>
@@ -913,11 +1083,15 @@ export function CreateCourseDialog({
                       className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
                     >
                       <div className="space-y-2">
-                        <Label htmlFor={`asset-title-${index}`}>Asset Title</Label>
+                        <Label htmlFor={`asset-title-${index}`}>
+                          Asset Title
+                        </Label>
                         <Input
                           id={`asset-title-${index}`}
                           value={asset.title}
-                          onChange={(e) => handleAssetTitleChange(index, e.target.value)}
+                          onChange={(e) =>
+                            handleAssetTitleChange(index, e.target.value)
+                          }
                           placeholder="e.g. Mechanics Formula Sheet"
                         />
                       </div>
@@ -946,12 +1120,16 @@ export function CreateCourseDialog({
                             </Button>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">PDF only. Max size per course upload: 5MB.</p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF only. Max size per course upload: 5MB.
+                        </p>
                       </div>
                     </div>
                   ))}
                   {assets.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No assets added yet.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No assets added yet.
+                    </p>
                   )}
                 </div>
               </div>

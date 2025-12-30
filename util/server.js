@@ -1094,6 +1094,50 @@ export const getEducatorIntroVideoStatus = async (educatorId) => {
   return response.data;
 };
 
+// Upload course intro video to Vimeo
+export const uploadCourseIntroVideo = async (courseId, videoFile) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  if (!videoFile) {
+    throw new Error("Video file is required");
+  }
+
+  const formData = new FormData();
+  formData.append("video", videoFile);
+
+  const response = await API_CLIENT.post(
+    `/api/courses/${courseId}/intro-video/upload`,
+    formData,
+    {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 600000,
+    }
+  );
+
+  return response.data;
+};
+
+// Poll course intro video Vimeo transcode status
+export const getCourseIntroVideoStatus = async (courseId) => {
+  if (!courseId) {
+    throw new Error("Course ID is required");
+  }
+
+  const response = await API_CLIENT.get(
+    `/api/courses/${courseId}/intro-video/status`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  return response.data;
+};
+
 const combineDateAndTime = (dateValue, timeValue) => {
   if (!dateValue) {
     return undefined;
