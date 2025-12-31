@@ -1773,6 +1773,22 @@ export const markMessageAsRead = async (messageId) => {
   }
 };
 
+export const markConversationAsRead = async (conversationId) => {
+  try {
+    const response = await API_CLIENT.put(
+      `/api/chat/conversations/${conversationId}/read`,
+      {},
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error marking conversation as read:", error);
+    throw error;
+  }
+};
+
 // Get unread message count
 export const getUnreadMessageCount = async () => {
   try {
@@ -1782,6 +1798,28 @@ export const getUnreadMessageCount = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching unread count:", error);
+    throw error;
+  }
+};
+
+// Upload chat image (Option A: images only)
+export const uploadChatImage = async (file) => {
+  if (!file) {
+    throw new Error("Image file is required");
+  }
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  try {
+    const response = await API_CLIENT.post("/api/chat/upload/image", formData, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error uploading chat image:", error);
     throw error;
   }
 };
