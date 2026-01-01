@@ -118,10 +118,8 @@ export default function ManageQueriesPage() {
       try {
         setIsLoading(true);
         const response = await getEducatorQueries(educator._id);
-        console.log("Queries response:", response);
 
         const queriesData = normalizeQueriesResponse(response);
-        console.log("Processed queries:", queriesData);
         setQueries(queriesData);
       } catch (error) {
         console.error("Error fetching queries:", error);

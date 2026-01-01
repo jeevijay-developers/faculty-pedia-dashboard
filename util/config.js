@@ -37,7 +37,7 @@ API_CLIENT.interceptors.request.use(
       if (TOKEN) {
         config.headers.Authorization = `Bearer ${TOKEN}`;
       }
-      
+
       // Note: We no longer redirect to login here since browsing should be allowed without auth
       // Authentication requirements are now handled per-endpoint by the backend
     }
@@ -61,17 +61,18 @@ API_CLIENT.interceptors.response.use(
       // 2. This is NOT an enrollment-specific auth error (those are handled by EnrollButton)
       // 3. This is a critical auth failure (like token expired during an authenticated session)
       const isEnrollmentAuth = error.response?.data?.requiresAuth;
-      const isCriticalAuthFailure = error.response?.status === 401 && 
+      const isCriticalAuthFailure =
+        error.response?.status === 401 &&
         localStorage.getItem("faculty-pedia-auth-token") && // Had a token
         !isEnrollmentAuth; // Not an enrollment action
 
       if (isCriticalAuthFailure && !isOnLoginPage) {
-        console.log("Critical auth failure - token expired or invalid, redirecting to login");
         localStorage.removeItem("faculty-pedia-auth-token");
         localStorage.removeItem("faculty-pedia-student-data");
         localStorage.removeItem("faculty-pedia-educator-data");
         localStorage.removeItem("user-role");
-        window.location.href = "/login?message=Session expired. Please login again.";
+        window.location.href =
+          "/login?message=Session expired. Please login again.";
       }
     }
     return Promise.reject(error);

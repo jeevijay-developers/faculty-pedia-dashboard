@@ -42,7 +42,14 @@ export function CreateWebinarDialog({
   onWebinarCreated,
 }: CreateWebinarDialogProps) {
   const subjectOptions = useMemo(
-    () => ["Physics", "Chemistry", "Mathematics", "Biology", "English", "Hindi"],
+    () => [
+      "Physics",
+      "Chemistry",
+      "Mathematics",
+      "Biology",
+      "English",
+      "Hindi",
+    ],
     []
   );
   const [formData, setFormData] = useState({
@@ -200,8 +207,6 @@ export function CreateWebinarDialog({
         assetsLinks: formData.assetLinks,
         ...(imageData && { image: imageData }),
       };
-
-      // console.log("webinarData", webinarData);
 
       await createWebinar(educator._id, webinarData);
       setSuccess(true);
