@@ -202,13 +202,13 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
           <div className="flex items-center gap-2">
             <Image
               src="/logo-blue.png"
-              alt="Faculty Pedia Logo"
+              alt="Facultypedia Logo"
               width={32}
               height={32}
             />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">
-                Faculty Pedia
+                Facultypedia
               </span>
               <span className="text-xs text-sidebar-foreground/60">
                 An educational platform
