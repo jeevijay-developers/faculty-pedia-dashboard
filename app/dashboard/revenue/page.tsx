@@ -1,110 +1,102 @@
-"use client"
+"use client";
 
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Users, CreditCard } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, CreditCard } from "lucide-react";
+import { BankDetailsDialog } from "@/components/bank-details-dialog";
+import { getEducatorPayments, getEducatorPayouts } from "@/util/server";
+import { useToast } from "@/hooks/use-toast";
+
+const formatINR = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
+
+const statusColor = (status: string) => {
+  const map: Record<string, string> = {
+    succeeded: "bg-green-100 text-green-800",
+    paid: "bg-green-100 text-green-800",
+    processing: "bg-blue-100 text-blue-800",
+    pending: "bg-yellow-100 text-yellow-800",
+    failed: "bg-red-100 text-red-800",
+  };
+  return map[status] || "bg-slate-100 text-slate-800";
+};
 
 export default function RevenuePage() {
-  // Mock revenue data
-  const revenueStats = [
-    {
-      title: "Total Revenue",
-      value: "₹2,45,000",
-      change: "+20.1% from last month",
-      icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-    {
-      title: "Active Subscriptions",
-      value: "245",
-      change: "+15% from last month",
-      icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-    },
-    {
-      title: "Average Revenue",
-      value: "₹1,000",
-      change: "+5% from last month",
-      icon: TrendingUp,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Transactions",
-      value: "156",
-      change: "+12% from last month",
-      icon: CreditCard,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-  ]
+  const [payments, setPayments] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  const recentTransactions = [
-    {
-      id: 1,
-      student: "John Doe",
-      course: "Physics Complete Course",
-      amount: "₹5,000",
-      date: "2025-10-28",
-      status: "Completed",
-    },
-    {
-      id: 2,
-      student: "Jane Smith",
-      course: "Mathematics Advanced",
-      amount: "₹4,500",
-      date: "2025-10-27",
-      status: "Completed",
-    },
-    {
-      id: 3,
-      student: "Mike Johnson",
-      course: "Chemistry Fundamentals",
-      amount: "₹4,000",
-      date: "2025-10-26",
-      status: "Pending",
-    },
-    {
-      id: 4,
-      student: "Sarah Williams",
-      course: "Physics Complete Course",
-      amount: "₹5,000",
-      date: "2025-10-25",
-      status: "Completed",
-    },
-    {
-      id: 5,
-      student: "David Brown",
-      course: "Mathematics Advanced",
-      amount: "₹4,500",
-      date: "2025-10-24",
-      status: "Completed",
-    },
-  ]
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [payRes, payoutRes] = await Promise.all([
+          getEducatorPayments({ limit: 5 }),
+          getEducatorPayouts({ limit: 5 }),
+        ]);
+        setPayments(payRes?.data?.payments || []);
+        setPayouts(payoutRes?.data?.payouts || []);
+      } catch (error: any) {
+        console.error(error);
+        toast({
+          title: "Error",
+          description: "Unable to load revenue data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [toast]);
+
+  const totals = useMemo(() => {
+    const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPayouts = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+    return {
+      totalRevenue,
+      totalPayouts,
+      transactions: payments.length,
+    };
+  }, [payments, payouts]);
 
   return (
     <div className="flex flex-col h-full">
-      <DashboardHeader title="Revenue" />
+      <DashboardHeader title="Revenue">
+        <BankDetailsDialog />
+      </DashboardHeader>
       <div className="flex-1 p-6 space-y-6">
-        {/* Revenue Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {revenueStats.map((stat) => (
+        {/* Summary */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              title: "Total Revenue",
+              value: formatINR(totals.totalRevenue),
+              icon: DollarSign,
+            },
+            {
+              title: "Total Payouts",
+              value: formatINR(totals.totalPayouts),
+              icon: DollarSign,
+            },
+            {
+              title: "Transactions",
+              value: totals.transactions.toString(),
+              icon: CreditCard,
+            },
+          ].map((stat) => (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {stat.title}
                 </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                <div className="p-2 rounded-lg bg-slate-100">
+                  <stat.icon className="h-4 w-4 text-slate-700" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.change}
-                </p>
               </CardContent>
             </Card>
           ))}
@@ -117,38 +109,48 @@ export default function RevenuePage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-sm">Student</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Course</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Status</th>
+                    <th className="text-left py-3 px-4 font-medium">Product</th>
+                    <th className="text-left py-3 px-4 font-medium">Type</th>
+                    <th className="text-left py-3 px-4 font-medium">Amount</th>
+                    <th className="text-left py-3 px-4 font-medium">Date</th>
+                    <th className="text-left py-3 px-4 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4 text-sm">{transaction.student}</td>
-                      <td className="py-3 px-4 text-sm">{transaction.course}</td>
-                      <td className="py-3 px-4 text-sm font-medium">{transaction.amount}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        {new Date(transaction.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                  {payments.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-6 text-center text-muted-foreground"
+                      >
+                        {loading ? "Loading..." : "No transactions yet"}
                       </td>
-                      <td className="py-3 px-4 text-sm">
+                    </tr>
+                  )}
+                  {payments.map((p) => (
+                    <tr key={p._id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-4">
+                        {p.productSnapshot?.title || "N/A"}
+                      </td>
+                      <td className="py-3 px-4 capitalize">{p.productType}</td>
+                      <td className="py-3 px-4 font-medium">
+                        {formatINR(p.amount || 0)}
+                      </td>
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {p.createdAt
+                          ? new Date(p.createdAt).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            transaction.status === "Completed"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(
+                            p.status
+                          )}`}
                         >
-                          {transaction.status}
+                          {p.status}
                         </span>
                       </td>
                     </tr>
@@ -159,58 +161,69 @@ export default function RevenuePage() {
           </CardContent>
         </Card>
 
-        {/* Revenue by Course Type */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue by Course Type</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm">Live Courses</span>
-                </div>
-                <span className="text-sm font-medium">₹1,45,000</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm">Pay Per Hour</span>
-                </div>
-                <span className="text-sm font-medium">₹65,000</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                  <span className="text-sm">Webinar</span>
-                </div>
-                <span className="text-sm font-medium">₹35,000</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Performing Courses</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Physics Complete Course</span>
-                <span className="text-sm font-medium">₹85,000</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Mathematics Advanced</span>
-                <span className="text-sm font-medium">₹72,000</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Chemistry Fundamentals</span>
-                <span className="text-sm font-medium">₹48,000</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Recent Payouts */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Payouts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">Period</th>
+                    <th className="text-left py-3 px-4 font-medium">Gross</th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Commission
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Net Payout
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-6 text-center text-muted-foreground"
+                      >
+                        {loading ? "Loading..." : "No payouts yet"}
+                      </td>
+                    </tr>
+                  )}
+                  {payouts.map((p) => (
+                    <tr key={p._id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-4">
+                        {p.month}/{p.year}
+                      </td>
+                      <td className="py-3 px-4">
+                        {formatINR(p.grossAmount || 0)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {formatINR(p.commissionAmount || 0)}
+                      </td>
+                      <td className="py-3 px-4 font-medium">
+                        {formatINR(p.amount || 0)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(
+                            p.status
+                          )}`}
+                        >
+                          {p.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  )
+  );
 }

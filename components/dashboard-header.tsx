@@ -1,17 +1,23 @@
-"use client"
+"use client";
 
-import { AlertCircle } from "lucide-react"
+import { AlertCircle } from "lucide-react";
 
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/contexts/auth-context";
 
 interface DashboardHeaderProps {
-  title: string
-  description?: string
+  title: string;
+  description?: string;
+  children?: React.ReactNode;
 }
 
-export function DashboardHeader({ title, description }: DashboardHeaderProps) {
-  const { educator } = useAuth()
-  const isInactive = educator?.status && educator.status.toLowerCase() !== "active"
+export function DashboardHeader({
+  title,
+  description,
+  children,
+}: DashboardHeaderProps) {
+  const { educator } = useAuth();
+  const isInactive =
+    educator?.status && educator.status.toLowerCase() !== "active";
 
   return (
     <header className="relative flex flex-col gap-3 border-b border-border bg-card px-6 py-4">
@@ -21,7 +27,8 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
           <div className="space-y-1">
             <p className="text-sm font-semibold">Profile inactive</p>
             <p className="text-sm text-destructive/90">
-              Super Admin has inactivated your profile. You cannot create or publish new content until reactivated.
+              Super Admin has inactivated your profile. You cannot create or
+              publish new content until reactivated.
             </p>
           </div>
         </div>
@@ -29,10 +36,15 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
 
       <div className="flex h-16 items-center justify-between">
         <div className="flex flex-col">
-          <h1 className="text-xl font-semibold text-card-foreground">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          <h1 className="text-xl font-semibold text-card-foreground">
+            {title}
+          </h1>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
         </div>
+        {children}
       </div>
     </header>
-  )
+  );
 }

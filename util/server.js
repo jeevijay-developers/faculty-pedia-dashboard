@@ -67,6 +67,49 @@ export const updateEducatorProfile = async (data) => {
   }
 };
 
+export const updateBankDetails = async (educatorId, bankDetails) => {
+  try {
+    const response = await API_CLIENT.post(
+      `/api/educators/${educatorId}/bank-details`,
+      bankDetails,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating bank details:", error);
+    throw error;
+  }
+};
+
+// Payments & Payouts (Educator self-service)
+export const getEducatorPayments = async (params = {}) => {
+  try {
+    const response = await API_CLIENT.get("/api/educators/me/payments", {
+      params,
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator payments:", error);
+    throw error;
+  }
+};
+
+export const getEducatorPayouts = async (params = {}) => {
+  try {
+    const response = await API_CLIENT.get("/api/educators/me/payouts", {
+      params,
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching educator payouts:", error);
+    throw error;
+  }
+};
+
 // ============================================================
 // Educator Update APIs (from educatorUpdate.routes.js)
 // ============================================================
