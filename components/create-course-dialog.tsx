@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, ChangeEvent, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +62,9 @@ export function CreateCourseDialog({
   const [maxStudents, setMaxStudents] = useState("100");
   const [introVideo, setIntroVideo] = useState("");
   const [introVideoFile, setIntroVideoFile] = useState<File | null>(null);
+  const [introVideoPreview, setIntroVideoPreview] = useState<string | null>(
+    null
+  );
   const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
   const [videos, setVideos] = useState<{ title: string; link: string }[]>([
@@ -76,6 +79,14 @@ export function CreateCourseDialog({
   const [testFrequency, setTestFrequency] = useState("");
   const [classDuration, setClassDuration] = useState("");
   const [classTiming, setClassTiming] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (introVideoPreview) {
+        URL.revokeObjectURL(introVideoPreview);
+      }
+    };
+  }, [introVideoPreview]);
 
   // Image State
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -171,6 +182,10 @@ export function CreateCourseDialog({
     }
 
     setIntroVideoFile(file);
+    setIntroVideoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     toast.success(`Selected: ${file.name}`);
   };
 
@@ -392,7 +407,7 @@ export function CreateCourseDialog({
       }
 
       const normalizedClassTiming = classTiming.trim();
-      const normalizedIntroVideo = toVimeoEmbedUrl(introVideo);
+      const normalizedIntroVideo = toVimeoEmbedUrl(introVideo.trim());
 
       const coursePayload = {
         title: title.trim(),
@@ -411,7 +426,7 @@ export function CreateCourseDialog({
         courseDuration: duration.trim(),
         validDate,
         videos: parsedVideos,
-        introVideo: normalizedIntroVideo,
+        ...(normalizedIntroVideo && { introVideo: normalizedIntroVideo }),
         videoTitle: videoTitle.trim(),
         studyMaterials: uploadedStudyMaterials,
         courseObjectives: selectedFeatures,
@@ -478,6 +493,7 @@ export function CreateCourseDialog({
       setValidDate("");
       setIntroVideo("");
       setIntroVideoFile(null);
+      setIntroVideoPreview(null);
       setUploadingIntroVideo(false);
       setVideoTitle("");
       setClassesPerWeek("");
@@ -906,7 +922,14 @@ export function CreateCourseDialog({
                 <div className="space-y-2">
                   <Label>Preview</Label>
                   <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-                    {introVideoEmbedUrl ? (
+                    {introVideoPreview ? (
+                      <video
+                        key={introVideoPreview}
+                        src={introVideoPreview}
+                        controls
+                        className="h-full w-full object-contain bg-black"
+                      />
+                    ) : introVideoEmbedUrl ? (
                       <iframe
                         key={introVideoEmbedUrl}
                         src={`${introVideoEmbedUrl}${
@@ -923,7 +946,13 @@ export function CreateCourseDialog({
                       </span>
                     )}
                   </div>
-                  {introVideoEmbedUrl && (
+                  {introVideoPreview && (
+                    <p className="text-xs text-muted-foreground">
+                      Previewing selected file. It will upload to Vimeo after
+                      you create the course.
+                    </p>
+                  )}
+                  {!introVideoPreview && introVideoEmbedUrl && (
                     <p className="text-xs text-muted-foreground">
                       Note: Newly uploaded videos may take 2-5 minutes to
                       process on Vimeo before they can be previewed.
