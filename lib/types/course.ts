@@ -27,6 +27,8 @@ export interface CourseStudyMaterial {
   title: string;
   link: string;
   fileType?: "PDF" | "DOC" | "PPT" | "EXCEL" | "OTHER";
+  publicId?: string;
+  resourceType?: string;
 }
 
 export interface EducatorSummary {

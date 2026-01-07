@@ -10,14 +10,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Loader2, X } from "lucide-react";
@@ -109,8 +101,6 @@ interface CreateStudyMaterialPayload {
   description?: string;
   tags: string[];
   docs: File[];
-  isCourseSpecific: boolean;
-  courseId?: string;
 }
 
 const submitStudyMaterialEntry =
@@ -122,7 +112,6 @@ interface AddStudyMaterialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   educatorId?: string;
-  courses: CourseSummary[];
   onSuccess?: () => void;
 }
 
@@ -130,14 +119,11 @@ export function AddStudyMaterialDialog({
   open,
   onOpenChange,
   educatorId,
-  courses,
   onSuccess,
 }: AddStudyMaterialDialogProps) {
   const [formState, setFormState] = useState({ title: "", description: "" });
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
-  const [isCourseSpecific, setIsCourseSpecific] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -145,24 +131,11 @@ export function AddStudyMaterialDialog({
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);
   const subjectDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!isCourseSpecific) {
-      setSelectedCourseId("");
-      return;
-    }
-
-    if (!selectedCourseId && courses.length > 0) {
-      setSelectedCourseId(courses[0]._id);
-    }
-  }, [isCourseSpecific, courses, selectedCourseId]);
-
   const resetForm = () => {
     setFormState({ title: "", description: "" });
     setSelectedSubjects([]);
     setShowSubjectDropdown(false);
     setSelectedFiles([]);
-    setIsCourseSpecific(false);
-    setSelectedCourseId("");
     setFormError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -242,11 +215,6 @@ export function AddStudyMaterialDialog({
       return;
     }
 
-    if (isCourseSpecific && !selectedCourseId) {
-      setFormError("Please select a course for course-specific study material.");
-      return;
-    }
-
     const tags = selectedSubjects.slice(0, 25);
 
     try {
@@ -256,8 +224,6 @@ export function AddStudyMaterialDialog({
         title: formState.title.trim(),
         description: formState.description.trim(),
         tags,
-        isCourseSpecific,
-        courseId: isCourseSpecific ? selectedCourseId : undefined,
         docs: selectedFiles,
       });
 
@@ -367,55 +333,6 @@ export function AddStudyMaterialDialog({
               Select up to 25 subjects that best describe this material.
             </p>
           </div>
-
-          <div className="flex items-center justify-between rounded-md border px-3 py-2">
-            <div>
-              <p className="text-sm font-medium">Course specific material</p>
-              <p className="text-xs text-muted-foreground">
-                Link the material to a particular course if needed.
-              </p>
-            </div>
-            <Switch
-              checked={isCourseSpecific}
-              onCheckedChange={(checked) => {
-                setIsCourseSpecific(checked);
-                if (!checked) {
-                  setSelectedCourseId("");
-                }
-              }}
-            />
-          </div>
-
-          {isCourseSpecific && (
-            <div className="space-y-2">
-              <Label htmlFor="study-material-course">Assign Course *</Label>
-              <Select
-                value={selectedCourseId}
-                onValueChange={setSelectedCourseId}
-                disabled={courses.length === 0}
-              >
-                <SelectTrigger id="study-material-course">
-                  <SelectValue
-                    placeholder={
-                      courses.length === 0 ? "No courses available" : "Select a course"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {courses.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  You have no courses yet. Create a course first to attach study material.
-                </p>
-              )}
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="study-material-docs">Upload Documents *</Label>

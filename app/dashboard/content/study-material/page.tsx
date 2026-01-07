@@ -37,13 +37,22 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plus, Eye, Download, MoreHorizontal, Trash2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Loader2, Plus, Eye, Download, MoreHorizontal, Trash2, ListChecks } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { AddStudyMaterialDialog, type CourseSummary } from "@/components/add-study-material-dialog"
 import {
   deleteStudyMaterialEntry,
   getCoursesByEducator,
   getStudyMaterialsByEducator,
+  updateStudyMaterialEntry,
 } from "@/util/server"
 import toast from "react-hot-toast"
 
@@ -222,6 +231,10 @@ export default function StudyMaterialPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [materialPendingDelete, setMaterialPendingDelete] = useState<StudyMaterialItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("all")
+  const [isAssigning, setIsAssigning] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -269,6 +282,18 @@ export default function StudyMaterialPage() {
   useEffect(() => {
     fetchCourses()
   }, [fetchCourses])
+
+  useEffect(() => {
+    setSelectedMaterialIds((prev) =>
+      prev.filter((id) => studyMaterials.some((material) => material._id === id))
+    )
+  }, [studyMaterials])
+
+  useEffect(() => {
+    if (!isAssignDialogOpen) {
+      setSelectedCourseId("all")
+    }
+  }, [isAssignDialogOpen])
 
   const filteredMaterials = useMemo(() => {
     if (!debouncedSearchQuery) {
@@ -322,6 +347,72 @@ export default function StudyMaterialPage() {
     }
   }
 
+  const visibleMaterialIds = useMemo(
+    () => filteredMaterials.map((material) => material._id),
+    [filteredMaterials]
+  )
+
+  const allVisibleSelected =
+    visibleMaterialIds.length > 0 && visibleMaterialIds.every((id) => selectedMaterialIds.includes(id))
+
+  const handleSelectMaterial = (materialId: string) => {
+    setSelectedMaterialIds((prev) =>
+      prev.includes(materialId)
+        ? prev.filter((id) => id !== materialId)
+        : [...prev, materialId]
+    )
+  }
+
+  const handleSelectAllVisible = (checked: boolean) => {
+    setSelectedMaterialIds((prev) => {
+      if (checked) {
+        const next = new Set([...prev, ...visibleMaterialIds])
+        return Array.from(next)
+      }
+      return prev.filter((id) => !visibleMaterialIds.includes(id))
+    })
+  }
+
+  const handleAssignSubmit = async () => {
+    if (selectedMaterialIds.length === 0) {
+      toast.error("Select at least one study material to assign.")
+      return
+    }
+
+    const targetCourseId = selectedCourseId === "all" ? undefined : selectedCourseId
+    const courseSpecific = Boolean(targetCourseId)
+
+    setIsAssigning(true)
+    const loadingToast = toast.loading("Updating study material assignment...")
+
+    try {
+      await Promise.all(
+        selectedMaterialIds.map((materialId) =>
+          updateStudyMaterialEntry(materialId, {
+            isCourseSpecific: courseSpecific,
+            courseId: targetCourseId,
+          })
+        )
+      )
+
+      toast.success(
+        courseSpecific
+          ? "Study materials assigned to course."
+          : "Study materials are now available to all courses.",
+        { id: loadingToast }
+      )
+
+      setIsAssignDialogOpen(false)
+      setSelectedMaterialIds([])
+      fetchStudyMaterials()
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Failed to assign study materials")
+      toast.error(message, { id: loadingToast })
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -353,14 +444,26 @@ export default function StudyMaterialPage() {
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
               </div>
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => setIsAddDialogOpen(true)}
-                disabled={!educator}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Study Material
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {selectedMaterialIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setIsAssignDialogOpen(true)}
+                  >
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    Assign to Course ({selectedMaterialIds.length})
+                  </Button>
+                )}
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => setIsAddDialogOpen(true)}
+                  disabled={!educator}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Study Material
+                </Button>
+              </div>
             </div>
 
             {fetchError && (
@@ -373,8 +476,15 @@ export default function StudyMaterialPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(checked) => handleSelectAllVisible(checked === true)}
+                        aria-label="Select all study materials"
+                      />
+                    </TableHead>
                     <TableHead>Title</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead>Course</TableHead>
                     <TableHead>Subjects</TableHead>
                     <TableHead>Documents</TableHead>
                     <TableHead>Created</TableHead>
@@ -384,7 +494,7 @@ export default function StudyMaterialPage() {
                 <TableBody>
                   {isFetching ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <span>Loading study materials...</span>
@@ -393,13 +503,20 @@ export default function StudyMaterialPage() {
                     </TableRow>
                   ) : filteredMaterials.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                         No study materials found. Use the button above to add your first resource.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredMaterials.map((material) => (
                       <TableRow key={material._id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedMaterialIds.includes(material._id)}
+                            onCheckedChange={() => handleSelectMaterial(material._id)}
+                            aria-label={`Select ${material.title}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">{material.title}</div>
                           {material.description && (
@@ -409,11 +526,7 @@ export default function StudyMaterialPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {material.isCourseSpecific ? (
-                            <span>{material.courseId?.title || "Linked course"}</span>
-                          ) : (
-                            <span className="text-muted-foreground">All courses</span>
-                          )}
+                          {material.isCourseSpecific ? material.courseId?.title || "Linked course" : "All courses"}
                         </TableCell>
                         <TableCell className="space-y-1">
                           {material.tags && material.tags.length > 0 ? (
@@ -476,9 +589,46 @@ export default function StudyMaterialPage() {
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         educatorId={educator?._id}
-        courses={courses}
         onSuccess={fetchStudyMaterials}
       />
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Assign Study Materials</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Selected: {selectedMaterialIds.length} material{selectedMaterialIds.length === 1 ? "" : "s"}
+            </p>
+            <div className="space-y-2">
+              <Label>Select course</Label>
+              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All courses (default)</SelectItem>
+                  {courses.map((course) => (
+                    <SelectItem key={course._id} value={course._id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} disabled={isAssigning}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignSubmit} disabled={isAssigning || selectedMaterialIds.length === 0}>
+              {isAssigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Assign
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="sm:max-w-[600px]">
