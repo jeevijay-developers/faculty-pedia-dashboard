@@ -29,8 +29,9 @@ import {
   getEducatorEnrolledStudents,
   getCoursesByEducator,
 } from "@/util/server";
-import { Users, Loader2, Eye, UserX, MessageSquare } from "lucide-react";
+import { Users, Loader2, Eye, UserX, Mail } from "lucide-react";
 import toast from "react-hot-toast";
+import { MessageAdminDialog } from "@/components/message-admin-dialog";
 
 interface EnrolledStudent {
   _id: string;
@@ -80,6 +81,7 @@ export default function StudentsPage() {
     useState<EnrolledStudent | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isBroadcastDialogOpen, setIsBroadcastDialogOpen] = useState(false);
+  const [isChatDialogOpen, setIsChatDialogOpen] = useState(false);
 
   // Fetch enrolled students and courses
   const fetchData = useCallback(async () => {
@@ -263,7 +265,7 @@ export default function StudentsPage() {
               </div> */}
 
               {/* Filters Row */}
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col md:flex-row gap-4 md:items-center">
                 <div className="flex-1">
                   <Input
                     placeholder="Search by name, email, mobile, or course..."
@@ -309,6 +311,14 @@ export default function StudentsPage() {
                     <SelectItem value="joinedAt-asc">Oldest First</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  type="button"
+                  className="gap-2 md:ml-auto"
+                  onClick={() => setIsChatDialogOpen(true)}
+                >
+                  <Mail className="h-4 w-4" />
+                  Chat with Admin
+                </Button>
               </div>
             </div>
 
@@ -434,6 +444,12 @@ export default function StudentsPage() {
         onOpenChange={setIsBroadcastDialogOpen}
         educatorId={educator._id}
         followerCount={educator?.followers?.length || 0}
+      />
+
+      <MessageAdminDialog
+        open={isChatDialogOpen}
+        onOpenChange={setIsChatDialogOpen}
+        educatorId={educator._id}
       />
     </div>
   );

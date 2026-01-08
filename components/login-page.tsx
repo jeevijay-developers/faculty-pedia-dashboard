@@ -119,7 +119,7 @@ export default function LoginPage() {
             <div className="bg-muted p-4 rounded-2xl">
               <Image
                 src="/logo-blue.png"
-                alt="Faculty Pedia Logo"
+                alt="Facultypedia Logo"
                 width={40}
                 height={20}
                 className="object-contain"
@@ -131,7 +131,7 @@ export default function LoginPage() {
             Welcome Back
           </CardTitle>
           <CardDescription className="text-gray-600 text-base">
-            Sign in to continue to Faculty Pedia
+            Sign in to continue to Facultypedia
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8">
