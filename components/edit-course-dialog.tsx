@@ -45,6 +45,8 @@ type CourseStudyMaterial = {
   title?: string;
   link?: string;
   url?: string;
+  publicId?: string;
+  resourceType?: string;
 };
 
 type CourseDescription = string | { longDesc?: string; shortDesc?: string };
@@ -296,6 +298,8 @@ export function EditCourseDialog({
           title: m?.title || "",
           file: null,
           link: m?.link || m?.url || "",
+          publicId: m?.publicId,
+          resourceType: m?.resourceType,
         }))
       : [{ title: "", file: null }];
     setAssets(
@@ -597,6 +601,8 @@ export function EditCourseDialog({
         title: string;
         link: string;
         fileType: "PDF";
+        publicId?: string;
+        resourceType?: string;
       }>;
 
       for (const asset of assets) {
@@ -613,12 +619,16 @@ export function EditCourseDialog({
             title: assetTitle,
             link: assetUrl,
             fileType: "PDF",
+            publicId: uploadResponse?.publicId,
+            resourceType: uploadResponse?.resourceType,
           });
         } else if (asset.link) {
           uploadedStudyMaterials.push({
             title: assetTitle,
             link: asset.link,
             fileType: "PDF",
+            ...(asset.publicId ? { publicId: asset.publicId } : {}),
+            ...(asset.resourceType ? { resourceType: asset.resourceType } : {}),
           });
         }
       }

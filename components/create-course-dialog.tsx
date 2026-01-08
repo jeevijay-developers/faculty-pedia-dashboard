@@ -365,6 +365,8 @@ export function CreateCourseDialog({
         title: string;
         link: string;
         fileType: "PDF";
+        publicId?: string;
+        resourceType?: string;
       }>;
 
       for (const asset of assets) {
@@ -381,6 +383,8 @@ export function CreateCourseDialog({
             title: assetTitle,
             link: assetUrl,
             fileType: "PDF",
+            publicId: uploadResponse?.publicId,
+            resourceType: uploadResponse?.resourceType,
           });
         } else if (asset.link) {
           uploadedStudyMaterials.push({

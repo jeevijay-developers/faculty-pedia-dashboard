@@ -518,6 +518,98 @@ export const createStudyMaterialEntry = async ({
   }
 };
 
+/**
+ * @typedef {Object} StudyMaterialUpdatePayload
+ * @property {string} [educatorID]
+ * @property {string} [title]
+ * @property {string} [description]
+ * @property {File[]} [docs]
+ * @property {string[]} [tags]
+ * @property {boolean} [isCourseSpecific]
+ * @property {string} [courseId]
+ * @property {string[]} [removeDocIds]
+ */
+
+/**
+ * Update a study material entry.
+ * @param {string} studyMaterialId
+ * @param {StudyMaterialUpdatePayload} [payload]
+ */
+export const updateStudyMaterialEntry = async (
+  studyMaterialId,
+  {
+    educatorID,
+    title,
+    description,
+    docs = [],
+    tags = [],
+    isCourseSpecific,
+    courseId,
+    removeDocIds = [],
+  } = {}
+) => {
+  if (!studyMaterialId) {
+    throw new Error("Study material ID is required to update study material");
+  }
+
+  if (typeof FormData === "undefined") {
+    throw new Error("FormData is not supported in this environment");
+  }
+
+  const formData = new FormData();
+
+  if (educatorID) {
+    formData.append("educatorID", educatorID);
+  }
+
+  if (title) {
+    formData.append("title", title);
+  }
+
+  if (description) {
+    formData.append("description", description);
+  }
+
+  if (typeof isCourseSpecific !== "undefined") {
+    formData.append("isCourseSpecific", String(isCourseSpecific));
+  }
+
+  if (courseId) {
+    formData.append("courseId", courseId);
+  }
+
+  tags
+    .filter((tag) => typeof tag === "string" && tag.trim().length > 0)
+    .forEach((tag) => formData.append("tags[]", tag.trim()));
+
+  docs.forEach((file) => {
+    if (file) {
+      formData.append("docs", file);
+    }
+  });
+
+  removeDocIds
+    .filter((id) => typeof id === "string" && id.trim().length > 0)
+    .forEach((id) => formData.append("removeDocIds[]", id.trim()));
+
+  try {
+    const response = await API_CLIENT.put(
+      `/api/study-materials/${studyMaterialId}`,
+      formData,
+      {
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating study material:", error);
+    throw error;
+  }
+};
+
 export const deleteStudyMaterialEntry = async (studyMaterialId) => {
   if (!studyMaterialId) {
     throw new Error("Study material ID is required to delete study material");
