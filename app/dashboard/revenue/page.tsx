@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, CreditCard } from "lucide-react";
+import {  CreditCard , IndianRupee  } from "lucide-react";
 import { BankDetailsDialog } from "@/components/bank-details-dialog";
 import { getEducatorPayments, getEducatorPayouts } from "@/util/server";
 import { useToast } from "@/hooks/use-toast";
@@ -73,12 +73,15 @@ export default function RevenuePage() {
             {
               title: "Total Revenue",
               value: formatINR(totals.totalRevenue),
-              icon: DollarSign,
+              icon : IndianRupee,
+
+              
             },
             {
               title: "Total Payouts",
               value: formatINR(totals.totalPayouts),
-              icon: DollarSign,
+              icon : IndianRupee,
+              
             },
             {
               title: "Transactions",
