@@ -882,7 +882,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Link href="/dashboard/courses">
+                  <Link href="/dashboard/courses/live">
                     <div className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors group">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <BookOpen className="h-5 w-5 text-primary" />
@@ -933,7 +933,7 @@ export default function DashboardPage() {
                     </div>
                   </Link>
 
-                  <Link href="/dashboard/live-classes">
+                  <Link href="/dashboard/content/live-classes">
                     <div className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors group">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Video className="h-5 w-5 text-primary" />
