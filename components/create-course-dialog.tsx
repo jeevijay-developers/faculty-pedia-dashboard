@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent, useEffect } from "react";
+import { useEffect, useRef, useState, ChangeEvent } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X, Upload, ImageIcon } from "lucide-react";
+import { MdDelete } from "react-icons/md";
+import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/auth-context";
 import {
   createCourse,
@@ -30,8 +32,7 @@ import {
   uploadImage,
   uploadPdf,
 } from "@/util/server";
-import toast from "react-hot-toast";
-import { MdDelete } from "react-icons/md";
+
 interface CreateCourseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,7 +99,7 @@ export function CreateCourseDialog({
   const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
 
   const [step, setStep] = useState(0);
-  const steps = ["Basics", "Audience", "Media", "Features", "Content"];
+  const steps = ["Basics", "Audience", "Media", "Features"];
 
   const examDropdownRef = useRef<HTMLDivElement>(null);
   const classDropdownRef = useRef<HTMLDivElement>(null);
@@ -126,15 +127,9 @@ export function CreateCourseDialog({
 
   const toVimeoEmbedUrl = (url: string) => {
     if (!url) return "";
-    // Already an embed/player URL
     if (url.includes("player.vimeo.com/video/")) return url;
-
-    // Common watch/manage formats → extract the numeric id
-    const idMatch = url.match(
-      /vimeo\.com\/(?:video\/|manage\/videos\/)?([0-9]+)/
-    );
+    const idMatch = url.match(/vimeo\.com\/(?:video\/|manage\/videos\/)?([0-9]+)/);
     const videoId = idMatch?.[1];
-
     return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
   };
 
@@ -435,7 +430,7 @@ export function CreateCourseDialog({
         studyMaterials: uploadedStudyMaterials,
         courseObjectives: selectedFeatures,
         prerequisites: parsedPrerequisites,
-        language: language,
+        language,
         certificateAvailable: false,
         maxStudents: Number(maxStudents) || 0,
         classesPerWeek: Number(classesPerWeek) || 0,
@@ -519,8 +514,7 @@ export function CreateCourseDialog({
       const serverMessage =
         err?.response?.data?.message || err?.response?.data?.errors?.[0]?.msg;
 
-      const message =
-        serverMessage || err?.message || "Failed to create course";
+      const message = serverMessage || err?.message || "Failed to create course";
 
       toast.error(message, {
         id: loadingToast,
@@ -529,7 +523,6 @@ export function CreateCourseDialog({
       setIsSubmitting(false);
     }
   };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[96vw] max-h-[98vh] min-h-[82vh] overflow-y-auto">
@@ -1035,135 +1028,6 @@ export function CreateCourseDialog({
                     placeholder="One per line"
                     className="min-h-[140px]"
                   />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <DialogTitle className="text-lg">Videos</DialogTitle>
-                  <DialogDescription className="mt-1">
-                    Add video title and paste the YouTube (unlisted) link for
-                    this course.
-                  </DialogDescription>
-                </div>
-                <Button type="button" variant="outline" onClick={addVideoField}>
-                  Add Videos
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {videos.map((video, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor={`video-title-${index}`}>
-                        Video Title
-                      </Label>
-                      <Input
-                        id={`video-title-${index}`}
-                        value={video.title}
-                        onChange={(e) =>
-                          handleVideoChange(index, "title", e.target.value)
-                        }
-                        placeholder="Enter video title"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`video-link-${index}`}>
-                        Video Link (YouTube)
-                      </Label>
-                      <Input
-                        id={`video-link-${index}`}
-                        value={video.link}
-                        onChange={(e) =>
-                          handleVideoChange(index, "link", e.target.value)
-                        }
-                        placeholder="YouTube unlisted link (https://youtu.be/{id})"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <DialogTitle className="text-lg">Assets (PDF)</DialogTitle>
-                    <DialogDescription className="mt-1">
-                      Upload supporting PDFs students will see in the course
-                      panel.
-                    </DialogDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addAssetField}
-                  >
-                    Add Asset
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {assets.map((asset, index) => (
-                    <div
-                      key={`asset-${index}`}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
-                    >
-                      <div className="space-y-2">
-                        <Label htmlFor={`asset-title-${index}`}>
-                          Asset Title
-                        </Label>
-                        <Input
-                          id={`asset-title-${index}`}
-                          value={asset.title}
-                          onChange={(e) =>
-                            handleAssetTitleChange(index, e.target.value)
-                          }
-                          placeholder="e.g. Mechanics Formula Sheet"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`asset-file-${index}`}>PDF File</Label>
-                        <div className="flex items-center gap-3">
-                          <Input
-                            id={`asset-file-${index}`}
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(e) => handleAssetFileChange(index, e)}
-                          />
-                          {asset.file && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
-                              {asset.file.name}
-                            </span>
-                          )}
-                          {assets.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => removeAssetField(index)}
-                            >
-                              <MdDelete className="text-red-700 size-5" />
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          PDF only. Max size per course upload: 5MB.
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {assets.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No assets added yet.
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
