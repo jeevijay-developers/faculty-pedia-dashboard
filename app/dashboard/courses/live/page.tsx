@@ -438,7 +438,17 @@ export default function LiveCoursesPage() {
       <EditCourseDialog
         open={isEditDialogOpen}
         onOpenChange={handleEditDialogChange}
-        course={selectedCourse}
+        course={
+          selectedCourse
+            ? {
+                ...selectedCourse,
+                educatorID:
+                  typeof selectedCourse.educatorID === "string"
+                    ? selectedCourse.educatorID
+                    : undefined,
+              }
+            : null
+        }
         onCourseUpdated={() => fetchCourses(currentPage)}
       />
       <DeleteCourseAlert

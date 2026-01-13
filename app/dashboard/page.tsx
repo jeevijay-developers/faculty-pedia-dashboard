@@ -58,6 +58,8 @@ import {
   updateEducatorSpecializationAndExperience,
   uploadEducatorIntroVideo,
   getEducatorIntroVideoStatus,
+  getCoursesByEducator,
+  getEducatorWebinars,
 } from "@/util/server";
 
 const ensureArray = (value: unknown) => {
@@ -222,6 +224,8 @@ export default function DashboardPage() {
   const [fetchingData, setFetchingData] = useState(true);
   const [educatorId, setEducatorId] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState("");
+  const [coursesCount, setCoursesCount] = useState(0);
+  const [webinarsCount, setWebinarsCount] = useState(0);
 
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -335,11 +339,9 @@ export default function DashboardPage() {
   );
 
   // Calculate stats from educator data
-  const coursesCount = getArrayCount(educator?.courses);
   const questionsCount = getArrayCount(educator?.questions);
   const testSeriesCount = getArrayCount(educator?.testSeries);
   const studentsCount = getArrayCount(educator?.followers);
-  const webinarsCount = getArrayCount(educator?.webinars);
   const educatorStats = educator as ExtendedEducator | null;
   const liveTestsCount = Math.max(
     getArrayCount(educatorStats?.liveTests),
@@ -438,6 +440,53 @@ export default function DashboardPage() {
 
     fetchEducatorData();
   }, [educator, hydrateFromEducator]);
+
+  // Seed counts from in-memory educator (fast path)
+  useEffect(() => {
+    if (!educator) return;
+    setCoursesCount(getArrayCount(educator.courses));
+    setWebinarsCount(getArrayCount(educator.webinars));
+  }, [educator]);
+
+  // Refresh counts from server to avoid stale zeros
+  useEffect(() => {
+    const refreshCounts = async () => {
+      if (!educatorId) return;
+
+      try {
+        const [coursesResponse, webinarsResponse] = await Promise.all([
+          getCoursesByEducator(educatorId, { page: 1, limit: 1 }),
+          getEducatorWebinars(educatorId, { page: 1, limit: 1 }),
+        ]);
+
+        const totalCourses =
+          coursesResponse?.pagination?.totalCourses ??
+          coursesResponse?.data?.pagination?.totalCourses ??
+          (Array.isArray(coursesResponse?.courses)
+            ? coursesResponse.courses.length
+            : 0);
+
+        const totalWebinars =
+          webinarsResponse?.pagination?.totalWebinars ??
+          webinarsResponse?.data?.pagination?.totalWebinars ??
+          (Array.isArray(webinarsResponse?.webinars)
+            ? webinarsResponse.webinars.length
+            : 0);
+
+        if (Number.isFinite(totalCourses)) {
+          setCoursesCount(Number(totalCourses));
+        }
+
+        if (Number.isFinite(totalWebinars)) {
+          setWebinarsCount(Number(totalWebinars));
+        }
+      } catch (error) {
+        console.error("Failed to refresh educator counts:", error);
+      }
+    };
+
+    void refreshCounts();
+  }, [educatorId]);
 
   // Handle basic info update
   const handleUpdateBasicInfo = async () => {
