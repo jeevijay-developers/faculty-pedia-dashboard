@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, ChangeEvent } from "react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,14 +33,6 @@ import {
   uploadPdf,
 } from "@/util/server";
 
-type CourseLesson = {
-  title?: string;
-  name?: string;
-  link?: string;
-  url?: string;
-  videoLink?: string;
-};
-
 type CourseStudyMaterial = {
   title?: string;
   link?: string;
@@ -48,8 +40,6 @@ type CourseStudyMaterial = {
   publicId?: string;
   resourceType?: string;
 };
-
-type CourseDescription = string | { longDesc?: string; shortDesc?: string };
 
 type CourseShape = {
   _id?: string;
@@ -61,28 +51,26 @@ type CourseShape = {
   endDate?: string;
   validDate?: string;
   validity?: string;
-  specialization?: string | string[];
-  class?: string[];
-  classes?: string[];
-  courseClass?: string;
-  subject?: string | string[];
-  description?: CourseDescription;
+  specialization?: string[] | string;
+  class?: string[] | string;
+  subject?: string[] | string | { name?: string } | null;
+  description?: string | { longDesc?: string; shortDesc?: string } | null;
   courseObjectives?: string[];
-  fees?: number | string;
-  fee?: number | string;
-  maxStudents?: number | string;
-  seatLimit?: number | string;
+  fees?: number;
+  fee?: number;
+  maxStudents?: number;
+  seatLimit?: number;
   introVideo?: string;
-  video?: { intro?: string; lessons?: CourseLesson[] };
+  video?: { intro?: string; lessons?: Array<{ title?: string; link?: string }> };
   videoTitle?: string;
-  videos?: CourseLesson[];
+  videos?: Array<{ title?: string; link?: string; url?: string }>;
   studyMaterials?: CourseStudyMaterial[];
   prerequisites?: string[] | string;
   language?: string;
-  classesPerWeek?: number | string;
-  classPerWeek?: number | string;
-  testFrequency?: number | string;
-  testsPerWeek?: number | string;
+  classesPerWeek?: number;
+  classPerWeek?: number;
+  testFrequency?: number;
+  testsPerWeek?: number;
   classTiming?: string;
   timing?: string;
   image?: string | { url?: string };
@@ -98,6 +86,19 @@ interface EditCourseDialogProps {
   onCourseUpdated: () => void;
 }
 
+const normalizeCourseType = (type?: string | null) => {
+  if (type === "one-to-one" || type === "one-to-all") return type;
+  return "one-to-all";
+};
+
+const extractSubject = (subject: CourseShape["subject"]) => {
+  if (!subject) return "";
+  if (Array.isArray(subject)) return subject[0] || "";
+  if (typeof subject === "string") return subject;
+  if (typeof subject === "object" && subject?.name) return subject.name;
+  return "";
+};
+
 const formatClassLabel = (cls: string) => {
   if (!cls) return "";
   if (cls === "dropper") return "Dropper";
@@ -105,39 +106,19 @@ const formatClassLabel = (cls: string) => {
   return `Class ${normalized}`;
 };
 
-const normalizeCourseType = (value?: string) => {
-  if (!value) return "one-to-all";
-  if (value === "OTO") return "one-to-one";
-  if (value === "OTA") return "one-to-all";
-  return value === "one-to-one" ? "one-to-one" : "one-to-all";
-};
-
 const extractClasses = (course: CourseShape | null) => {
   if (!course) return [] as string[];
-  if (Array.isArray(course.class)) return course.class;
-  if (Array.isArray(course.classes)) return course.classes;
-  if (course.courseClass) return [course.courseClass];
+  const raw = (course as { class?: string[] | string }).class;
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") return [raw];
   return [] as string[];
 };
 
-const extractSubject = (subject: CourseShape["subject"]) => {
-  if (!subject) return "";
-  if (Array.isArray(subject)) return subject[0] || "";
-  return subject;
-};
-
 const extractVideos = (course: CourseShape | null) => {
-  const lessons = Array.isArray(course?.videos)
-    ? course?.videos
-    : Array.isArray(course?.video?.lessons)
-    ? course.video?.lessons
-    : [];
-
-  const mapped = lessons
-    .map((v: CourseLesson | undefined) => ({
-      title: v?.title || v?.name || "",
-      link: v?.link || v?.url || v?.videoLink || "",
-    }))
+  if (!course) return [{ title: "", link: "" }];
+  const videos = Array.isArray(course.videos) ? course.videos : [];
+  const mapped = videos
+    .map((v) => ({ title: v.title || "", link: v.link || v.url || "" }))
     .filter((v: { title: string; link: string }) => v.title || v.link);
 
   return mapped.length ? mapped : [{ title: "", link: "" }];
@@ -198,7 +179,7 @@ export function EditCourseDialog({
     { title: "", link: "" },
   ]);
   const [assets, setAssets] = useState<
-    { title: string; file: File | null; link?: string }[]
+    { title: string; file: File | null; link?: string; publicId?: string; resourceType?: string }[]
   >([{ title: "", file: null }]);
   const [prerequisites, setPrerequisites] = useState("");
   const [language, setLanguage] = useState("english");
@@ -218,7 +199,7 @@ export function EditCourseDialog({
   const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
 
   const [step, setStep] = useState(0);
-  const steps = ["Basics", "Audience", "Media", "Features", "Content"];
+  const steps = ["Basics", "Audience", "Media", "Features"];
 
   const examDropdownRef = useRef<HTMLDivElement>(null);
   const classDropdownRef = useRef<HTMLDivElement>(null);
@@ -1189,134 +1170,6 @@ export function EditCourseDialog({
             </div>
           )}
 
-          {step === 4 && (
-            <div className="grid gap-5 rounded-lg border bg-muted/20 p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <DialogTitle className="text-lg">Videos</DialogTitle>
-                  <DialogDescription className="mt-1">
-                    Add video title and paste the YouTube (unlisted) link for
-                    this course.
-                  </DialogDescription>
-                </div>
-                <Button type="button" variant="outline" onClick={addVideoField}>
-                  Add Videos
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {videos.map((video, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor={`video-title-${index}`}>
-                        Video Title
-                      </Label>
-                      <Input
-                        id={`video-title-${index}`}
-                        value={video.title}
-                        onChange={(e) =>
-                          handleVideoChange(index, "title", e.target.value)
-                        }
-                        placeholder="Enter video title"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`video-link-${index}`}>
-                        Video Link (YouTube)
-                      </Label>
-                      <Input
-                        id={`video-link-${index}`}
-                        value={video.link}
-                        onChange={(e) =>
-                          handleVideoChange(index, "link", e.target.value)
-                        }
-                        placeholder="YouTube unlisted link (https://youtu.be/{id})"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <DialogTitle className="text-lg">Assets (PDF)</DialogTitle>
-                    <DialogDescription className="mt-1">
-                      Upload supporting PDFs students will see in the course
-                      panel.
-                    </DialogDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addAssetField}
-                  >
-                    Add Asset
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {assets.map((asset, index) => (
-                    <div
-                      key={`asset-${index}`}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border bg-background p-4"
-                    >
-                      <div className="space-y-2">
-                        <Label htmlFor={`asset-title-${index}`}>
-                          Asset Title
-                        </Label>
-                        <Input
-                          id={`asset-title-${index}`}
-                          value={asset.title}
-                          onChange={(e) =>
-                            handleAssetTitleChange(index, e.target.value)
-                          }
-                          placeholder="e.g. Mechanics Formula Sheet"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`asset-file-${index}`}>PDF File</Label>
-                        <div className="flex items-center gap-3">
-                          <Input
-                            id={`asset-file-${index}`}
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(e) => handleAssetFileChange(index, e)}
-                          />
-                          {asset.file && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
-                              {asset.file.name}
-                            </span>
-                          )}
-                          {!asset.file && asset.link && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[180px]">
-                              Existing: {asset.link}
-                            </span>
-                          )}
-                          {assets.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => removeAssetField(index)}
-                            >
-                              <MdDelete className="text-red-700 size-5" />
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          PDF only. Max size 10MB.
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-3">

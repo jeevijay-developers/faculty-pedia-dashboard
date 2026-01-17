@@ -105,6 +105,14 @@ export function CreateQuestionDialog({
     }
   };
 
+  const handlePositiveMarksBlur = () => {
+    const parsed = Number(formData.positiveMarks);
+    if (!Number.isNaN(parsed) && parsed < 0) {
+      toast.error("The value of Positive marks could not be negative");
+      setFormData((prev) => ({ ...prev, positiveMarks: "" }));
+    }
+  };
+
   const handleSubmit = async () => {
     // Validate required fields
     if (formData.title.trim().length < 10) {
@@ -488,6 +496,7 @@ export function CreateQuestionDialog({
                     id="positiveMarks"
                     type="number"
                     value={formData.positiveMarks}
+                    onBlur={handlePositiveMarksBlur}
                     onChange={(e) =>
                       setFormData({
                         ...formData,

@@ -135,31 +135,130 @@ export function EditQuestionDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.correctOptions.length === 0) {
-      toast.error("Please select at least one correct option");
+    const mapTypeToQuestionType = (value: string) => {
+      const lower = value?.toLowerCase();
+      if (lower === "mcq") return "single-select";
+      if (lower === "msq") return "multi-select";
+      if (lower === "numerical") return "integer";
+      return value;
+    };
+
+    const questionType = mapTypeToQuestionType(formData.type);
+    const allowedTypes = ["single-select", "multi-select", "integer"];
+    if (!allowedTypes.includes(questionType)) {
+      toast.error("Please choose a valid question type");
       return;
     }
+
+    const positiveMarks = Number(formData.positiveMarks);
+    const negativeMarks = Number(formData.negativeMarks);
+
+    if (Number.isNaN(positiveMarks) || positiveMarks < 0) {
+      toast.error("Positive marks must be a non-negative number");
+      return;
+    }
+
+    if (Number.isNaN(negativeMarks) || negativeMarks < 0) {
+      toast.error("Negative marks must be a non-negative number");
+      return;
+    }
+
+    // Build correctOptions in the shape the API expects
+    const buildCorrectOptions = () => {
+      const normalized = formData.correctOptions.map((opt) =>
+        String(opt).toUpperCase()
+      );
+
+      if (questionType === "single-select") {
+        if (normalized.length !== 1) {
+          toast.error("Single-select needs exactly one correct option");
+          return null;
+        }
+        return normalized[0];
+      }
+
+      if (questionType === "multi-select") {
+        if (normalized.length === 0) {
+          toast.error("Select at least one correct option");
+          return null;
+        }
+        return normalized;
+      }
+
+      // integer / numerical
+      const numericValue = Number(normalized[0]);
+      if (normalized.length !== 1 || Number.isNaN(numericValue)) {
+        toast.error("Provide a valid integer answer");
+        return null;
+      }
+      if (!Number.isInteger(numericValue)) {
+        toast.error("Integer answer must be a whole number");
+        return null;
+      }
+      return numericValue;
+    };
+
+    const formattedCorrectOptions = buildCorrectOptions();
+    if (formattedCorrectOptions === null) return;
+
+    if (questionType !== "integer") {
+      const missingOption = [
+        formData.optionA,
+        formData.optionB,
+        formData.optionC,
+        formData.optionD,
+      ].some((opt) => !opt.trim());
+      if (missingOption) {
+        toast.error("Please fill all option texts");
+        return;
+      }
+    }
+
+    const subjectArray = formData.subject
+      ? [formData.subject.toLowerCase()]
+      : undefined;
+
+    const topicsArray = formData.topic
+      ? formData.topic
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : undefined;
+
+    const optionsPayload =
+      questionType === "integer"
+        ? undefined
+        : {
+            A: formData.optionA.trim(),
+            B: formData.optionB.trim(),
+            C: formData.optionC.trim(),
+            D: formData.optionD.trim(),
+          };
 
     setLoading(true);
 
     try {
-      const updateData = {
+      const updateData: Record<string, any> = {
         title: formData.title,
-        subject: formData.subject,
-        topic: formData.topic,
-        type: formData.type,
+        questionType,
         marks: {
-          positive: Number(formData.positiveMarks),
-          negative: Number(formData.negativeMarks),
+          positive: positiveMarks,
+          negative: negativeMarks,
         },
-        options: {
-          A: { text: formData.optionA },
-          B: { text: formData.optionB },
-          C: { text: formData.optionC },
-          D: { text: formData.optionD },
-        },
-        correctOptions: formData.correctOptions,
+        correctOptions: formattedCorrectOptions,
       };
+
+      if (subjectArray) {
+        updateData.subject = subjectArray;
+      }
+
+      if (topicsArray && topicsArray.length) {
+        updateData.topics = topicsArray;
+      }
+
+      if (optionsPayload) {
+        updateData.options = optionsPayload;
+      }
 
       await updateQuestion(question._id || question.id, updateData);
       toast.success("Question updated successfully!");
