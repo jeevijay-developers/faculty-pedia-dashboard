@@ -1,12 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {  CreditCard , IndianRupee  } from "lucide-react";
+import { CreditCard, IndianRupee, Building2 } from "lucide-react";
 import { BankDetailsDialog } from "@/components/bank-details-dialog";
 import { getEducatorPayments, getEducatorPayouts } from "@/util/server";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 const formatINR = (paise: number) => `₹${(paise / 100).toFixed(2)}`;
 
@@ -22,6 +24,7 @@ const statusColor = (status: string) => {
 };
 
 export default function RevenuePage() {
+  const { educator } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,38 +71,69 @@ export default function RevenuePage() {
       </DashboardHeader>
       <div className="flex-1 p-6 space-y-6">
         {/* Summary */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[
             {
               title: "Total Revenue",
               value: formatINR(totals.totalRevenue),
-              icon : IndianRupee,
-
-              
+              icon: IndianRupee,
             },
             {
               title: "Total Payouts",
               value: formatINR(totals.totalPayouts),
-              icon : IndianRupee,
-              
+              icon: IndianRupee,
             },
             {
               title: "Transactions",
               value: totals.transactions.toString(),
               icon: CreditCard,
             },
-          ].map((stat) => (
+            {
+              title: "Payout Status",
+              value: (educator as any)?.razorpayFundAccountId
+                ? "Active"
+                : "Pending",
+              desc: (educator as any)?.razorpayFundAccountId
+                ? `${
+                    (educator as any)?.bankDetails?.bankName || "Bank"
+                  } - XXXX${
+                    (educator as any)?.bankDetails?.accountNumber?.slice(-4) ||
+                    "XXXX"
+                  }`
+                : "Setup bank details",
+              icon: Building2,
+              className: (educator as any)?.razorpayFundAccountId
+                ? "text-green-600"
+                : "text-amber-600",
+              bgClassName: (educator as any)?.razorpayFundAccountId
+                ? "bg-green-100"
+                : "bg-amber-100",
+            },
+          ].map((stat: any) => (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {stat.title}
                 </CardTitle>
-                <div className="p-2 rounded-lg bg-slate-100">
-                  <stat.icon className="h-4 w-4 text-slate-700" />
+                <div
+                  className={`p-2 rounded-lg ${
+                    stat.bgClassName || "bg-slate-100"
+                  }`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 ${stat.className || "text-slate-700"}`}
+                  />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className={`text-2xl font-bold ${stat.className || ""}`}>
+                  {stat.value}
+                </div>
+                {stat.desc && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stat.desc}
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
