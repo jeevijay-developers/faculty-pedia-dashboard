@@ -471,7 +471,7 @@ export function CreateTestSeriesDialog({
               setFormData({ ...formData, subject: value })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select subject" />
             </SelectTrigger>
             <SelectContent>
@@ -492,7 +492,7 @@ export function CreateTestSeriesDialog({
               setFormData({ ...formData, specialization: value })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select specialization" />
             </SelectTrigger>
             <SelectContent>

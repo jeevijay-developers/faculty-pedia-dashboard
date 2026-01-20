@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,9 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
-import { updateQuestion } from "@/util/server";
+import { Loader2, ImageIcon } from "lucide-react";
+import { updateQuestion, uploadImage } from "@/util/server";
 import toast from "react-hot-toast";
+import {
+  CLASS_OPTIONS,
+  SPECIALIZATION_OPTIONS,
+  SUBJECT_OPTIONS,
+} from "@/lib/test-form";
 
 interface EditQuestionDialogProps {
   open: boolean;
@@ -41,8 +47,12 @@ export function EditQuestionDialog({
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
+    specialization: "",
+    classLevel: "",
     topic: "",
+    tags: "",
     type: "MCQ",
+    difficulty: "Medium",
     positiveMarks: "",
     negativeMarks: "",
     optionA: "",
@@ -50,7 +60,9 @@ export function EditQuestionDialog({
     optionC: "",
     optionD: "",
     correctOptions: [] as string[],
+    explanation: "",
   });
+  const [questionImage, setQuestionImage] = useState<File | null>(null);
 
   useEffect(() => {
     if (question) {
@@ -101,11 +113,49 @@ export function EditQuestionDialog({
         return [] as string[];
       };
 
+      const normalizeSpecialization = (value: unknown) => {
+        if (Array.isArray(value)) {
+          const specValue = value.find((s) => typeof s === "string" && s.trim().length > 0);
+          return (specValue as string | undefined) || "";
+        }
+        if (typeof value === "string") return value;
+        return "";
+      };
+
+      const normalizeClass = (value: unknown) => {
+        if (Array.isArray(value)) {
+          const classValue = value.find((c) => typeof c === "string" && c.trim().length > 0);
+          return (classValue as string | undefined) || "";
+        }
+        if (typeof value === "string") return value;
+        return "";
+      };
+
+      const normalizeTags = (value: unknown) => {
+        if (Array.isArray(value)) {
+          return value.filter((t) => typeof t === "string" && t.trim().length > 0).join(", ");
+        }
+        if (typeof value === "string") return value;
+        return "";
+      };
+
+      const normalizeTopics = (value: unknown) => {
+        if (Array.isArray(value)) {
+          return value.filter((t) => typeof t === "string" && t.trim().length > 0).join(", ");
+        }
+        if (typeof value === "string") return value;
+        return "";
+      };
+
       setFormData({
         title: question.title || "",
         subject: normalizeSubject(question.subject),
-        topic: normalizeTopic(question.topic ?? question.topics),
+        specialization: normalizeSpecialization(question.specialization),
+        classLevel: normalizeClass(question.class),
+        topic: normalizeTopics(question.topics ?? question.topic),
+        tags: normalizeTags(question.tags),
         type: normalizeType(question.type || question.questionType),
+        difficulty: question.difficulty || "Medium",
         positiveMarks:
           question.marks?.positive?.toString() || question.positiveMarks?.toString?.() || "",
         negativeMarks:
@@ -115,6 +165,7 @@ export function EditQuestionDialog({
         optionC: normalizeOption(question.options?.C),
         optionD: normalizeOption(question.options?.D),
         correctOptions: normalizeCorrectOptions(question.correctOptions),
+        explanation: question.explanation || "",
       });
     }
   }, [question]);
@@ -225,6 +276,21 @@ export function EditQuestionDialog({
           .filter(Boolean)
       : undefined;
 
+    const tagsArray = formData.tags
+      ? formData.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : undefined;
+
+    const specializationArray = formData.specialization
+      ? [formData.specialization]
+      : undefined;
+
+    const classArray = formData.classLevel
+      ? [formData.classLevel]
+      : undefined;
+
     const optionsPayload =
       questionType === "integer"
         ? undefined
@@ -238,6 +304,19 @@ export function EditQuestionDialog({
     setLoading(true);
 
     try {
+      let questionImageUrl: string | null = null;
+      if (questionImage instanceof File) {
+        try {
+          const uploadResponse = await uploadImage(questionImage, "question");
+          questionImageUrl = uploadResponse?.imageUrl || null;
+        } catch (error) {
+          console.error("Error uploading question image", error);
+          toast.error("Failed to upload question image");
+          setLoading(false);
+          return;
+        }
+      }
+
       const updateData: Record<string, any> = {
         title: formData.title,
         questionType,
@@ -246,14 +325,35 @@ export function EditQuestionDialog({
           negative: negativeMarks,
         },
         correctOptions: formattedCorrectOptions,
+        difficulty: formData.difficulty,
       };
 
       if (subjectArray) {
         updateData.subject = subjectArray;
       }
 
+      if (specializationArray) {
+        updateData.specialization = specializationArray;
+      }
+
+      if (classArray) {
+        updateData.class = classArray;
+      }
+
       if (topicsArray && topicsArray.length) {
         updateData.topics = topicsArray;
+      }
+
+      if (tagsArray && tagsArray.length) {
+        updateData.tags = tagsArray;
+      }
+
+      if (formData.explanation.trim()) {
+        updateData.explanation = formData.explanation.trim();
+      }
+
+      if (questionImageUrl) {
+        updateData.questionImage = questionImageUrl;
       }
 
       if (optionsPayload) {
@@ -295,8 +395,8 @@ export function EditQuestionDialog({
             />
           </div>
 
-          {/* Subject, Topic, Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Subject, Specialization, Class */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-subject">Subject *</Label>
               <Select
@@ -305,29 +405,87 @@ export function EditQuestionDialog({
                   setFormData({ ...formData, subject: value })
                 }
               >
-                <SelectTrigger id="edit-subject">
+                <SelectTrigger id="edit-subject" className="w-full">
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="physics">Physics</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="mathematics">Mathematics</SelectItem>
-                  <SelectItem value="biology">Biology</SelectItem>
+                  {SUBJECT_OPTIONS.map((subjectOption) => (
+                    <SelectItem
+                      key={subjectOption.value}
+                      value={subjectOption.value}
+                    >
+                      {subjectOption.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-topic">Topic *</Label>
-              <Input
-                id="edit-topic"
-                required
-                value={formData.topic}
-                onChange={(e) =>
-                  setFormData({ ...formData, topic: e.target.value })
+              <Label htmlFor="edit-specialization">Specialization</Label>
+              <Select
+                value={formData.specialization}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, specialization: value })
                 }
-                placeholder="e.g., Thermodynamics"
-              />
+              >
+                <SelectTrigger id="edit-specialization" className="w-full">
+                  <SelectValue placeholder="Select specialization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPECIALIZATION_OPTIONS.map((specializationOption) => (
+                    <SelectItem
+                      key={specializationOption.value}
+                      value={specializationOption.value}
+                    >
+                      {specializationOption.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-class">Class</Label>
+              <Select
+                value={formData.classLevel}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, classLevel: value })
+                }
+              >
+                <SelectTrigger id="edit-class" className="w-full">
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASS_OPTIONS.map((classOption) => (
+                    <SelectItem
+                      key={classOption.value}
+                      value={classOption.value}
+                    >
+                      {classOption.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-difficulty">Difficulty</Label>
+              <Select
+                value={formData.difficulty}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, difficulty: value })
+                }
+              >
+                <SelectTrigger id="edit-difficulty" className="w-full">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Easy">Easy</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -338,19 +496,67 @@ export function EditQuestionDialog({
                   setFormData({ ...formData, type: value })
                 }
               >
-                <SelectTrigger id="edit-type">
+                <SelectTrigger id="edit-type" className="w-full">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MCQ">Multiple Choice (Single)</SelectItem>
-                  <SelectItem value="MSQ">
-                    Multiple Choice (Multiple)
-                  </SelectItem>
-                  <SelectItem value="numerical">Numerical</SelectItem>
+                  <SelectItem value="MCQ">Single Select</SelectItem>
+                  <SelectItem value="MSQ">Multi Select</SelectItem>
+                  <SelectItem value="numerical">Integer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label>Question Image (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setQuestionImage(e.target.files?.[0] || null)
+                  }
+                  className="flex-1"
+                />
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {questionImage instanceof File && (
+                <p className="text-xs text-muted-foreground">
+                  Selected: {questionImage.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Topics, Tags */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-topic">Topics *</Label>
+              <Input
+                id="edit-topic"
+                required
+                value={formData.topic}
+                onChange={(e) =>
+                  setFormData({ ...formData, topic: e.target.value })
+                }
+                placeholder="Comma separated e.g., Kinematics, Organic Chemistry"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-tags">Tags (Optional)</Label>
+              <Input
+                id="edit-tags"
+                value={formData.tags}
+                onChange={(e) =>
+                  setFormData({ ...formData, tags: e.target.value })
+                }
+                placeholder="Comma separated tags"
+              />
+            </div>
+          </div>
+
+          {/* Positive Marks, Negative Marks */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-positive">Positive Marks *</Label>
               <Input
@@ -361,11 +567,10 @@ export function EditQuestionDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, positiveMarks: e.target.value })
                 }
-                placeholder="e.g., 4"
+                placeholder="4"
                 step="0.01"
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-negative">Negative Marks *</Label>
               <Input
@@ -376,10 +581,24 @@ export function EditQuestionDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, negativeMarks: e.target.value })
                 }
-                placeholder="e.g., 1"
+                placeholder="1"
                 step="0.01"
               />
             </div>
+          </div>
+
+          {/* Explanation */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-explanation">Explanation (Optional)</Label>
+            <Textarea
+              id="edit-explanation"
+              rows={4}
+              placeholder="Provide a solution walkthrough or explanation for this question"
+              value={formData.explanation}
+              onChange={(e) =>
+                setFormData({ ...formData, explanation: e.target.value })
+              }
+            />
           </div>
 
           {/* Options */}

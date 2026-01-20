@@ -175,8 +175,8 @@ export function BankDetailsDialog({ trigger }: BankDetailsDialogProps) {
               <SelectTrigger>
                 <SelectValue placeholder="Select your bank" />
               </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <div className="sticky top-0 bg-white p-2 border-b">
+              <SelectContent className="max-h-[300px] bg-white">
+                <div className="sticky top-0 bg-white p-2 border-b z-10">
                   <Input
                     placeholder="Search banks..."
                     value={bankSearchQuery}

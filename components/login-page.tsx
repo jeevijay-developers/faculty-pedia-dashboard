@@ -13,20 +13,44 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { loginEducator } from "@/util/server";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Mail, Lock, Eye, EyeOff, AlertCircle, KeyRound } from "lucide-react";
+import { loginEducator, requestPasswordReset, resetPassword } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  
+  // Dev mode detection
+  const isDevMode = process.env.NODE_ENV === "development";
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+
+  // Password reset states
+  const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isRequestingReset, setIsRequestingReset] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -96,6 +120,123 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setResetEmail(email); // Pre-fill with login email if available
+    
+    // In dev mode, skip the OTP request dialog and go directly to reset password
+    if (isDevMode) {
+      setShowResetPasswordDialog(true);
+    } else {
+      // In prod mode, show the forgot password dialog first
+      setShowForgotPasswordDialog(true);
+    }
+  };
+
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    setIsRequestingReset(true);
+    const loadingToast = toast.loading("Sending reset code...");
+
+    try {
+      const response = await requestPasswordReset(resetEmail);
+      toast.success(response.message || "Reset code sent to your email!", {
+        id: loadingToast,
+        duration: 4000,
+      });
+
+      // Check if in dev mode (message indicates no OTP needed)
+      const isDevMode = response.message?.includes("dev mode");
+      
+      if (isDevMode) {
+        // In dev mode, skip OTP and go straight to reset
+        toast.success("Dev mode: You can reset password without OTP", {
+          duration: 3000,
+        });
+      }
+
+      setShowForgotPasswordDialog(false);
+      setShowResetPasswordDialog(true);
+      setOtp(""); // Clear OTP field
+    } catch (err) {
+      console.error("Password reset request error:", err);
+      const error = err as {
+        response?: { data?: { message?: string } };
+      };
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to send reset code. Please try again.";
+      toast.error(errorMessage, {
+        id: loadingToast,
+        duration: 5000,
+      });
+    } finally {
+      setIsRequestingReset(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!resetEmail || !newPassword) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    const loadingToast = toast.loading("Resetting password...");
+
+    try {
+      const response = await resetPassword(resetEmail, otp || "000000", newPassword);
+      toast.success(
+        response.message || "Password reset successful! Please login.",
+        {
+          id: loadingToast,
+          duration: 4000,
+        }
+      );
+
+      // Close dialog and reset form
+      setShowResetPasswordDialog(false);
+      setResetEmail("");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      // Optionally set the email in login form
+      setEmail(resetEmail);
+    } catch (err) {
+      console.error("Password reset error:", err);
+      const error = err as {
+        response?: { data?: { message?: string } };
+      };
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to reset password. Please try again.";
+      toast.error(errorMessage, {
+        id: loadingToast,
+        duration: 5000,
+      });
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -212,12 +353,13 @@ export default function LoginPage() {
                   Remember me
                 </span>
               </label>
-              <a
-                href="#"
+              <button
+                type="button"
+                onClick={handleForgotPassword}
                 className="text-primary hover:text-primary/80 font-medium hover:underline transition-colors"
               >
                 Forgot password?
-              </a>
+              </button>
             </div>
 
             <Button
@@ -256,6 +398,217 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={showForgotPasswordDialog} onOpenChange={setShowForgotPasswordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" />
+              Forgot Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter your email address and we&apos;ll send you a code to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRequestPasswordReset}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="educator@facultypedia.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                    disabled={isRequestingReset}
+                    autoFocus
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForgotPasswordDialog(false)}
+                disabled={isRequestingReset}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isRequestingReset}>
+                {isRequestingReset ? "Sending..." : "Send Reset Code"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-primary" />
+              {isDevMode ? "Reset Password (Dev Mode)" : "Reset Password"}
+            </DialogTitle>
+            <DialogDescription>
+              {isDevMode
+                ? "Enter your email and choose a new password."
+                : "Enter the code sent to your email and choose a new password."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword}>
+            <div className="space-y-4 py-4">
+              {/* Email field - only shown in dev mode */}
+              {isDevMode && (
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email-in-dialog">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      id="reset-email-in-dialog"
+                      type="email"
+                      placeholder="educator@facultypedia.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                      disabled={isResettingPassword}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* OTP field - only shown in prod mode */}
+              {!isDevMode && (
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Verification Code</Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className="pl-10"
+                      maxLength={6}
+                      disabled={isResettingPassword}
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Check your email for the verification code
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    required
+                    disabled={isResettingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 8 characters long
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    required
+                    disabled={isResettingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-red-50 border border-red-200">
+                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <p className="text-xs text-red-600">Passwords do not match</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              {!isDevMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowResetPasswordDialog(false);
+                    setShowForgotPasswordDialog(true);
+                  }}
+                  disabled={isResettingPassword}
+                >
+                  Back
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowResetPasswordDialog(false)}
+                disabled={isResettingPassword}
+              >
+                {isDevMode ? "Cancel" : "Close"}
+              </Button>
+              <Button
+                type="submit"
+                disabled={isResettingPassword || newPassword !== confirmPassword}
+              >
+                {isResettingPassword ? "Resetting..." : "Reset Password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

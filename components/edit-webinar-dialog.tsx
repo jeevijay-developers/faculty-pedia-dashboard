@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,18 +23,37 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
 import { updateWebinar, uploadImage } from "@/util/server";
-import { useAuth } from "@/contexts/auth-context";
 
 interface EditWebinarDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  webinar: any | null;
+  webinar: Webinar | null;
   onWebinarUpdated?: () => void;
 }
 
 interface AssetLink {
   name: "PPT" | "VIDEO" | "PDF" | "DOC";
   link: string;
+}
+
+interface Webinar {
+  _id: string;
+  title?: string;
+  description?: string | { short?: string; long?: string };
+  webinarType?: "one-to-one" | "one-to-all" | "OTO" | "OTA";
+  timing?: string | Date;
+  subject?: string[] | string;
+  specialization?: string[] | string;
+  duration?: string | number;
+  fees?: number;
+  seatLimit?: number;
+  class?: string[];
+  webinarLink?: string;
+  image?: string | { url?: string; public_id?: string };
+  date?: string | Date;
+  time?: string;
+  assetsLink?: string[];
+  assetsLinks?: AssetLink[] | string[];
 }
 
 export function EditWebinarDialog({
@@ -43,8 +63,7 @@ export function EditWebinarDialog({
   onWebinarUpdated,
 }: EditWebinarDialogProps) {
   const [formData, setFormData] = useState({
-    shortDescription: "",
-    longDescription: "",
+    description: "",
     webinarType: "OTA" as "OTO" | "OTA",
     time: "",
     subject: "",
@@ -60,29 +79,86 @@ export function EditWebinarDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [newAssetName, setNewAssetName] = useState<AssetLink["name"]>("PPT");
-  const [newAssetLink, setNewAssetLink] = useState("");
-
-  const { educator } = useAuth();
 
   // Populate form when webinar changes
   useEffect(() => {
     if (webinar && open) {
+      // Handle description - schema has single string field
+      const description = typeof webinar.description === "string" 
+        ? webinar.description 
+        : webinar.description?.short || webinar.description?.long || "";
+
+      // Handle specialization - schema has array, extract first element
+      const specializationValue = Array.isArray(webinar.specialization) 
+        ? webinar.specialization[0] || "CBSE"
+        : webinar.specialization || "CBSE";
+      // Ensure it's one of the valid values
+      const specialization: "IIT-JEE" | "NEET" | "CBSE" = 
+        (specializationValue === "IIT-JEE" || specializationValue === "NEET" || specializationValue === "CBSE")
+          ? specializationValue
+          : "CBSE";
+
+      // Handle subject - schema has array, extract first element
+      const subject = Array.isArray(webinar.subject)
+        ? webinar.subject[0] || ""
+        : webinar.subject || "";
+
+      // Handle webinarType - convert from "one-to-one"/"one-to-all" to "OTO"/"OTA"
+      let webinarType: "OTO" | "OTA" = "OTA";
+      if (webinar.webinarType === "one-to-one" || webinar.webinarType === "OTO") {
+        webinarType = "OTO";
+      } else if (webinar.webinarType === "one-to-all" || webinar.webinarType === "OTA") {
+        webinarType = "OTA";
+      }
+
+      // Handle timing - schema uses Date field, extract date and time
+      let date = "";
+      let time = "";
+      if (webinar.timing) {
+        const timingDate = new Date(webinar.timing);
+        date = timingDate.toISOString().split("T")[0];
+        const hours = String(timingDate.getHours()).padStart(2, "0");
+        const minutes = String(timingDate.getMinutes()).padStart(2, "0");
+        time = `${hours}:${minutes}`;
+      } else if (webinar.date) {
+        // Fallback to old date field if timing doesn't exist
+        date = new Date(webinar.date).toISOString().split("T")[0];
+        time = webinar.time || "";
+      }
+
+      // Handle assetLinks - schema has assetsLink as array of strings
+      // Frontend uses objects with name and link, so we need to convert
+      let assetLinks: AssetLink[] = [];
+      const assetsLinkData = webinar.assetsLink || webinar.assetsLinks || [];
+      if (Array.isArray(assetsLinkData)) {
+        if (assetsLinkData.length > 0 && typeof assetsLinkData[0] === "object" && "link" in assetsLinkData[0]) {
+          // Already in object format
+          assetLinks = assetsLinkData as AssetLink[];
+        } else {
+          // Array of strings - convert to objects (default to PPT type)
+          assetLinks = (assetsLinkData as string[]).map((link: string) => ({
+            name: "PPT" as AssetLink["name"],
+            link: link,
+          }));
+        }
+      }
+
       setFormData({
-        shortDescription: webinar.description?.short || "",
-        longDescription: webinar.description?.long || "",
-        webinarType: webinar.webinarType || "OTA",
-        time: webinar.time || "",
-        subject: webinar.subject || "",
-        specialization: webinar.specialization || "CBSE",
-        date: webinar.date
-          ? new Date(webinar.date).toISOString().split("T")[0]
-          : "",
+        description: description,
+        webinarType: webinarType,
+        time: time,
+        subject: subject,
+        specialization: specialization,
+        date: date,
         seatLimit: webinar.seatLimit?.toString() || "",
         webinarLink: webinar.webinarLink || "",
-        assetLinks: webinar.assetsLinks || [],
+        assetLinks: assetLinks,
       });
-      setImagePreview(webinar.image?.url || null);
+      // Handle image - can be string or object with url
+      const imageUrl = typeof webinar.image === "string" 
+        ? webinar.image 
+        : webinar.image?.url || null;
+      setImagePreview(imageUrl);
       setSelectedImage(null);
       setError(null);
       setSuccess(false);
@@ -108,26 +184,6 @@ export function EditWebinarDialog({
     setImagePreview(null);
   };
 
-  const addAssetLink = () => {
-    if (newAssetLink.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        assetLinks: [
-          ...prev.assetLinks,
-          { name: newAssetName, link: newAssetLink.trim() },
-        ],
-      }));
-      setNewAssetLink("");
-    }
-  };
-
-  const removeAssetLink = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      assetLinks: prev.assetLinks.filter((_, i) => i !== index),
-    }));
-  };
-
   const handleSubmit = async () => {
     if (!webinar?._id) {
       setError("Webinar ID is required");
@@ -146,19 +202,30 @@ export function EditWebinarDialog({
         imageData = imageResponse.imageUrl;
       }
 
-      const updateData: any = {
-        description: {
-          short: formData.shortDescription.trim(),
-          long: formData.longDescription.trim(),
-        },
-        webinarType: formData.webinarType,
-        time: formData.time.trim(),
-        subject: formData.subject.trim(),
-        specialization: formData.specialization,
-        date: new Date(formData.date).toISOString(),
+      // Combine date and time into a single Date object for timing field
+      const dateTime = new Date(`${formData.date}T${formData.time}`);
+      
+      interface WebinarUpdateData {
+        description: string;
+        webinarType: "OTO" | "OTA";
+        timing: string;
+        subject: string[];
+        specialization: string[];
+        seatLimit: number;
+        webinarLink: string;
+        assetsLink: string[];
+        image?: string;
+      }
+
+      const updateData: WebinarUpdateData = {
+        description: formData.description.trim(), // Single string field
+        webinarType: formData.webinarType, // Will be converted by schema setter
+        timing: dateTime.toISOString(), // Combined date and time
+        subject: [formData.subject.trim().toLowerCase()], // Array as per schema
+        specialization: [formData.specialization], // Array as per schema
         seatLimit: Number(formData.seatLimit),
         webinarLink: formData.webinarLink.trim(),
-        assetsLinks: formData.assetLinks,
+        assetsLink: formData.assetLinks.map(asset => asset.link), // Schema expects array of strings (field name is assetsLink, singular)
       };
 
       // Only include image if a new one was uploaded
@@ -177,8 +244,15 @@ export function EditWebinarDialog({
         onOpenChange(false);
         setSuccess(false);
       }, 2000);
-    } catch (error: any) {
-      console.error("Error updating webinar:", error);
+    } catch (err) {
+      console.error("Error updating webinar:", err);
+      const error = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      };
       setError(error?.response?.data?.message || "Failed to update webinar");
     } finally {
       setIsLoading(false);
@@ -215,7 +289,7 @@ export function EditWebinarDialog({
           )}
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="webinarType">Webinar Type *</Label>
                 <Select
@@ -225,7 +299,7 @@ export function EditWebinarDialog({
                   }
                   disabled={isLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -244,7 +318,7 @@ export function EditWebinarDialog({
                   }
                   disabled={isLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select specialization" />
                   </SelectTrigger>
                   <SelectContent>
@@ -254,45 +328,45 @@ export function EditWebinarDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject *</Label>
+                <Select
+                  value={formData.subject}
+                  onValueChange={(value) => handleInputChange("subject", value)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="physics">Physics</SelectItem>
+                    <SelectItem value="chemistry">Chemistry</SelectItem>
+                    <SelectItem value="mathematics">Mathematics</SelectItem>
+                    <SelectItem value="biology">Biology</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject *</Label>
-              <Input
-                id="subject"
-                placeholder="e.g., Mathematics, Physics, Chemistry"
-                value={formData.subject}
-                onChange={(e) => handleInputChange("subject", e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="shortDescription">Short Description *</Label>
+              <Label htmlFor="description">Description *</Label>
               <Textarea
-                id="shortDescription"
-                placeholder="Brief description"
-                rows={2}
-                value={formData.shortDescription}
+                id="description"
+                placeholder="Enter webinar description"
+                rows={6}
+                value={formData.description}
                 onChange={(e) =>
-                  handleInputChange("shortDescription", e.target.value)
+                  handleInputChange("description", e.target.value)
                 }
                 disabled={isLoading}
+                maxLength={1000}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="longDescription">Long Description *</Label>
-              <Textarea
-                id="longDescription"
-                placeholder="Detailed description"
-                rows={4}
-                value={formData.longDescription}
-                onChange={(e) =>
-                  handleInputChange("longDescription", e.target.value)
-                }
-                disabled={isLoading}
-              />
+              <p className="text-xs text-muted-foreground">
+                {formData.description.length}/1000 characters
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -351,10 +425,13 @@ export function EditWebinarDialog({
 
             {imagePreview ? (
               <div className="relative">
-                <img
+                <Image
                   src={imagePreview}
                   alt="Webinar preview"
+                  width={600}
+                  height={192}
                   className="w-full h-48 object-cover rounded-md border"
+                  unoptimized
                 />
                 <Button
                   type="button"
@@ -395,7 +472,7 @@ export function EditWebinarDialog({
           </div>
 
           {/* Asset Links Section */}
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <h3 className="text-lg font-medium">Asset Links</h3>
 
             <div className="grid grid-cols-3 gap-2">
@@ -468,7 +545,7 @@ export function EditWebinarDialog({
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
 
         <DialogFooter>

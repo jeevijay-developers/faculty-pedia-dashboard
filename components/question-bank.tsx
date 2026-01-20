@@ -34,7 +34,6 @@ interface QuestionBankProps {
   onQuestionSelect: (questionId: string, selected: boolean) => void;
   loading?: boolean;
   height?: string;
-  darkTheme?: boolean;
 }
 
 export default function QuestionBank({
@@ -42,8 +41,7 @@ export default function QuestionBank({
   selectedQuestions,
   onQuestionSelect,
   loading = false,
-  height = "h-[69rem]",
-  darkTheme = false,
+  height = "h-full",
 }: QuestionBankProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
@@ -130,183 +128,104 @@ export default function QuestionBank({
   ).filter(Boolean);
 
   return (
-    <div className={`px-1 space-y-4 ${darkTheme ? "text-gray-100" : ""}`}>
+    <div className="px-4 py-4 space-y-4 flex flex-col h-full">
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
         <div className="relative">
-          <Search
-            className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
-              darkTheme ? "text-gray-400" : "text-gray-400"
-            }`}
-          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search questions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`pl-10 ${
-              darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder:text-gray-400 focus:border-blue-500"
-                : ""
-            }`}
+            className="pl-10"
           />
         </div>
 
-        <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-          <SelectTrigger
-            className={
-              darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
-                : ""
-            }
-          >
-            <SelectValue placeholder="Filter by subject" />
-          </SelectTrigger>
-          <SelectContent
-            className={darkTheme ? "bg-gray-800 border-gray-700" : ""}
-          >
-            <SelectItem
-              value="all"
-              className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-            >
-              All Subjects
-            </SelectItem>
-            {subjects.map((subject) => (
-              <SelectItem
-                key={subject}
-                value={subject.toLowerCase()}
-                className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-              >
-                {subject}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by subject" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {subjects.map((subject) => (
+                <SelectItem key={subject} value={subject.toLowerCase()}>
+                  {subject}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={topicFilter} onValueChange={setTopicFilter}>
-          <SelectTrigger
-            className={
-              darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
-                : ""
-            }
-          >
-            <SelectValue placeholder="Filter by topic" />
-          </SelectTrigger>
-          <SelectContent
-            className={darkTheme ? "bg-gray-800 border-gray-700" : ""}
-          >
-            <SelectItem
-              value="all"
-              className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-            >
-              All Topics
-            </SelectItem>
-            {topics.map((topic) => (
-              <SelectItem
-                key={topic}
-                value={topic.toLowerCase()}
-                className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-              >
-                {topic}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={topicFilter} onValueChange={setTopicFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by topic" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Topics</SelectItem>
+              {topics.map((topic) => (
+                <SelectItem key={topic} value={topic.toLowerCase()}>
+                  {topic}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select
-          value={questionTypeFilter}
-          onValueChange={setQuestionTypeFilter}
-        >
-          <SelectTrigger
-            className={
-              darkTheme
-                ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-blue-500 w-full"
-                : ""
-            }
+          <Select
+            value={questionTypeFilter}
+            onValueChange={setQuestionTypeFilter}
           >
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent
-            className={darkTheme ? "bg-gray-800 border-gray-700" : ""}
-          >
-            <SelectItem
-              value="all"
-              className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-            >
-              All Types
-            </SelectItem>
-            {questionTypes.map((type) => (
-              <SelectItem
-                key={type}
-                value={type}
-                className={darkTheme ? "text-gray-100 focus:bg-gray-700" : ""}
-              >
-                {formatQuestionTypeLabel(type)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {questionTypes.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {formatQuestionTypeLabel(type)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Selection Summary */}
-      <div
-        className={`p-3 rounded-lg flex justify-between items-center ${
-          darkTheme ? "bg-gray-700/50 border border-gray-600" : "bg-gray-50"
-        }`}
-      >
-        <span
-          className={`text-sm font-medium ${darkTheme ? "text-gray-200" : ""}`}
-        >
+      <div className="p-3 rounded-lg flex justify-between items-center bg-muted flex-shrink-0">
+        <span className="text-sm font-medium">
           Selected: {selectedQuestions.length} questions
         </span>
-        <span
-          className={`text-sm ${darkTheme ? "text-gray-400" : "text-gray-600"}`}
-        >
+        <span className="text-sm text-muted-foreground">
           Showing: {filteredQuestions.length} of {questions.length} questions
         </span>
       </div>
 
       {/* Questions List */}
-      <ScrollArea
-        className={height}
-        style={{
-          height: height.includes("vh")
-            ? height.replace("h-[", "").replace("]", "")
-            : undefined,
-        }}
-      >
-        {loading ? (
-          <div className="flex justify-center items-center h-32">
-            <Loader2
-              className={`h-6 w-6 animate-spin ${
-                darkTheme ? "text-gray-400" : ""
-              }`}
-            />
-          </div>
-        ) : filteredQuestions.length === 0 ? (
-          <div
-            className={`text-center py-8 ${
-              darkTheme ? "text-gray-400" : "text-gray-500"
-            }`}
-          >
-            {questions.length === 0
-              ? "No questions available"
-              : "No questions match your filters"}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredQuestions.map((question) => (
-              <QuestionCard
-                key={question._id}
-                question={question}
-                selected={selectedQuestions.includes(question._id)}
-                onSelect={onQuestionSelect}
-                darkTheme={darkTheme}
-              />
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full">
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredQuestions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {questions.length === 0
+                ? "No questions available"
+                : "No questions match your filters"}
+            </div>
+          ) : (
+            <div className="space-y-3 p-1">
+              {filteredQuestions.map((question) => (
+                <QuestionCard
+                  key={question._id}
+                  question={question}
+                  selected={selectedQuestions.includes(question._id)}
+                  onSelect={onQuestionSelect}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -315,24 +234,18 @@ interface QuestionCardProps {
   question: Question;
   selected: boolean;
   onSelect: (questionId: string, selected: boolean) => void;
-  darkTheme?: boolean;
 }
 
 function QuestionCard({
   question,
   selected,
   onSelect,
-  darkTheme = false,
 }: QuestionCardProps) {
   return (
     <Card
-      className={`rounded-md m-2 p-4 transition-all duration-200 cursor-pointer ${
+      className={`rounded-md p-4 transition-all duration-200 cursor-pointer ${
         selected
-          ? darkTheme
-            ? "ring-2 ring-blue-400 bg-blue-900/20 border-blue-600"
-            : "ring-2 ring-blue-500 bg-blue-50"
-          : darkTheme
-          ? "hover:shadow-lg bg-gray-700/30 border-gray-600 hover:border-gray-500"
+          ? "ring-2 ring-primary bg-primary/5 border-primary"
           : "hover:shadow-md"
       }`}
       onClick={() => onSelect(question._id, !selected)}
@@ -343,18 +256,10 @@ function QuestionCard({
           onCheckedChange={(checked) =>
             onSelect(question._id, checked as boolean)
           }
-          className={`mt-1 ${
-            darkTheme
-              ? "border-gray-500 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-              : ""
-          }`}
+          className="mt-1"
         />
         <div className="flex-1">
-          <p
-            className={`text-sm font-medium leading-relaxed ${
-              darkTheme ? "text-gray-200" : "text-card-foreground"
-            }`}
-          >
+          <p className="text-sm font-medium leading-relaxed text-card-foreground">
             {question.title}
           </p>
         </div>

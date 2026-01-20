@@ -68,6 +68,7 @@ export function CreateCourseDialog({
   );
   const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [videos, setVideos] = useState<{ title: string; link: string }[]>([
     { title: "", link: "" },
   ]);
@@ -187,61 +188,6 @@ export function CreateCourseDialog({
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
-  };
-
-  const handleVideoChange = (
-    index: number,
-    field: "title" | "link",
-    value: string
-  ) => {
-    setVideos((prev) =>
-      prev.map((video, idx) =>
-        idx === index ? { ...video, [field]: value } : video
-      )
-    );
-  };
-
-  const addVideoField = () => {
-    setVideos((prev) => [...prev, { title: "", link: "" }]);
-  };
-
-  const handleAssetTitleChange = (index: number, value: string) => {
-    setAssets((prev) =>
-      prev.map((asset, idx) =>
-        idx === index ? { ...asset, title: value } : asset
-      )
-    );
-  };
-
-  const handleAssetFileChange = (
-    index: number,
-    event: ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0] || null;
-    if (!file) return;
-
-    const isPdf = file.type === "application/pdf";
-    if (!isPdf) {
-      toast.error("Only PDF files are allowed for assets");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("PDF size should be under 10MB");
-      return;
-    }
-
-    setAssets((prev) =>
-      prev.map((asset, idx) => (idx === index ? { ...asset, file } : asset))
-    );
-  };
-
-  const addAssetField = () => {
-    setAssets((prev) => [...prev, { title: "", file: null }]);
-  };
-
-  const removeAssetField = (index: number) => {
-    setAssets((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const toggleSelection = (
@@ -595,7 +541,7 @@ export function CreateCourseDialog({
                       setCourseType(value as "one-to-all" | "one-to-one")
                     }
                   >
-                    <SelectTrigger id="courseType">
+                    <SelectTrigger id="courseType" className="w-full">
                       <SelectValue placeholder="Select course type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -619,8 +565,8 @@ export function CreateCourseDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="language">Language *</Label>
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger id="language">
+                  <Select value={language} onValueChange={setLanguage} >
+                    <SelectTrigger id="language" className="w-full">
                       <SelectValue placeholder="Select language" />
                     </SelectTrigger>
                     <SelectContent>

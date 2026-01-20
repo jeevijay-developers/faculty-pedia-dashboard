@@ -29,6 +29,36 @@ export const loginEducator = async (email, password) => {
   }
 };
 
+// Request password reset (forgot password)
+export const requestPasswordReset = async (email) => {
+  try {
+    const response = await API_CLIENT.post("/api/auth/forgot-password", {
+      email,
+      userType: "educator",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error requesting password reset:", error);
+    throw error;
+  }
+};
+
+// Reset password with OTP
+export const resetPassword = async (email, otp, newPassword) => {
+  try {
+    const response = await API_CLIENT.post("/api/auth/reset-password", {
+      email,
+      userType: "educator",
+      otp,
+      newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    throw error;
+  }
+};
+
 // Get current educator by token
 export const getCurrentEducator = async () => {
   try {
@@ -370,6 +400,39 @@ export const deleteVideo = async (videoId) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting video:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update a video
+ * @param {string} videoId - The video ID
+ * @param {Object} [options={}] - Update options
+ * @param {string} [options.title] - Video title
+ * @param {string[]} [options.links] - Video links
+ * @param {boolean} [options.isCourseSpecific] - Whether video is course-specific
+ * @param {string} [options.courseId] - Course ID if course-specific
+ */
+export const updateVideo = async (videoId, options = {}) => {
+  if (!videoId) {
+    throw new Error("Video ID is required to update a video");
+  }
+
+  const { title, links, isCourseSpecific, courseId } = options;
+
+  try {
+    const payload = {};
+    if (typeof title !== "undefined") payload.title = title;
+    if (typeof links !== "undefined") payload.links = normalizeVideoLinksPayload(links);
+    if (typeof isCourseSpecific !== "undefined") payload.isCourseSpecific = isCourseSpecific;
+    if (isCourseSpecific && courseId) payload.courseId = courseId;
+
+    const response = await API_CLIENT.put(`/api/videos/${videoId}`, payload, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating video:", error);
     throw error;
   }
 };

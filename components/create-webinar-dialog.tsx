@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
 import { createWebinar, uploadImage } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
+import Image from "next/image";
 
 interface CreateWebinarDialogProps {
   open: boolean;
@@ -41,21 +43,9 @@ export function CreateWebinarDialog({
   onOpenChange,
   onWebinarCreated,
 }: CreateWebinarDialogProps) {
-  const subjectOptions = useMemo(
-    () => [
-      "Physics",
-      "Chemistry",
-      "Mathematics",
-      "Biology",
-      "English",
-      "Hindi",
-    ],
-    []
-  );
   const [formData, setFormData] = useState({
     title: "",
-    shortDescription: "",
-    longDescription: "",
+    description: "",
     webinarType: "OTA" as "OTO" | "OTA",
     time: "",
     subject: "",
@@ -97,25 +87,7 @@ export function CreateWebinarDialog({
     setImagePreview(null);
   };
 
-  const addAssetLink = () => {
-    if (newAssetLink.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        assetLinks: [
-          ...prev.assetLinks,
-          { name: newAssetName, link: newAssetLink.trim() },
-        ],
-      }));
-      setNewAssetLink("");
-    }
-  };
 
-  const removeAssetLink = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      assetLinks: prev.assetLinks.filter((_, i) => i !== index),
-    }));
-  };
 
   const handleSubmit = async () => {
     // Validate required fields
@@ -123,12 +95,12 @@ export function CreateWebinarDialog({
       setError("Title is required");
       return;
     }
-    if (!formData.shortDescription.trim()) {
-      setError("Short description is required");
+    if (!formData.description.trim()) {
+      setError("Description is required");
       return;
     }
-    if (!formData.longDescription.trim()) {
-      setError("Long description is required");
+    if (formData.description.trim().length > 1000) {
+      setError("Description must be 1000 characters or less");
       return;
     }
     if (!formData.subject.trim()) {
@@ -188,23 +160,22 @@ export function CreateWebinarDialog({
         imageData = imageResponse.imageUrl;
       }
 
+      // Combine date and time into a single Date object for timing field
+      const dateTime = new Date(`${formData.date}T${formData.time}`);
+
       const webinarData = {
         title: formData.title.trim(),
-        description: {
-          short: formData.shortDescription.trim(),
-          long: formData.longDescription.trim(),
-        },
-        webinarType: formData.webinarType,
-        time: formData.time.trim(),
-        subject: formData.subject.trim(),
-        specialization: formData.specialization,
-        date: new Date(formData.date).toISOString(),
+        description: formData.description.trim(), // Single string field
+        webinarType: formData.webinarType, // Will be converted by schema setter
+        timing: dateTime.toISOString(), // Combined date and time
+        subject: [formData.subject.trim().toLowerCase()], // Array as per schema
+        specialization: [formData.specialization], // Array as per schema
         seatLimit: Number(formData.seatLimit),
         duration: Number(formData.duration),
         fees: Number(formData.fees),
         educatorId: educator._id,
         webinarLink: formData.webinarLink.trim(),
-        assetsLinks: formData.assetLinks,
+        assetsLink: formData.assetLinks.map(asset => asset.link), // Schema expects array of strings (field name is assetsLink, singular)
         ...(imageData && { image: imageData }),
       };
 
@@ -219,8 +190,7 @@ export function CreateWebinarDialog({
       setTimeout(() => {
         setFormData({
           title: "",
-          shortDescription: "",
-          longDescription: "",
+          description: "",
           webinarType: "OTA",
           time: "",
           subject: "",
@@ -297,7 +267,7 @@ export function CreateWebinarDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="webinarType">Webinar Type *</Label>
                 <Select
@@ -307,7 +277,7 @@ export function CreateWebinarDialog({
                   }
                   disabled={isLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -326,7 +296,7 @@ export function CreateWebinarDialog({
                   }
                   disabled={isLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select specialization" />
                   </SelectTrigger>
                   <SelectContent>
@@ -336,54 +306,45 @@ export function CreateWebinarDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject *</Label>
+                <Select
+                  value={formData.subject}
+                  onValueChange={(value) => handleInputChange("subject", value)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="physics">Physics</SelectItem>
+                    <SelectItem value="chemistry">Chemistry</SelectItem>
+                    <SelectItem value="mathematics">Mathematics</SelectItem>
+                    <SelectItem value="biology">Biology</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject *</Label>
-              <Select
-                value={formData.subject}
-                onValueChange={(value) => handleInputChange("subject", value)}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjectOptions.map((subj) => (
-                    <SelectItem key={subj} value={subj}>
-                      {subj}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="shortDescription">Short Description *</Label>
+              <Label htmlFor="description">Description *</Label>
               <Textarea
-                id="shortDescription"
-                placeholder="Brief description"
-                rows={2}
-                value={formData.shortDescription}
+                id="description"
+                placeholder="Enter webinar description"
+                rows={6}
+                value={formData.description}
                 onChange={(e) =>
-                  handleInputChange("shortDescription", e.target.value)
+                  handleInputChange("description", e.target.value)
                 }
                 disabled={isLoading}
+                maxLength={1000}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="longDescription">Long Description *</Label>
-              <Textarea
-                id="longDescription"
-                placeholder="Detailed description"
-                rows={4}
-                value={formData.longDescription}
-                onChange={(e) =>
-                  handleInputChange("longDescription", e.target.value)
-                }
-                disabled={isLoading}
-              />
+              <p className="text-xs text-muted-foreground">
+                {formData.description.length}/1000 characters
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -472,9 +433,12 @@ export function CreateWebinarDialog({
 
             {imagePreview ? (
               <div className="relative">
-                <img
+                <Image
                   src={imagePreview}
                   alt="Webinar preview"
+                  width={600}
+                  height={192}
+                  unoptimized
                   className="w-full h-48 object-cover rounded-md border"
                 />
                 <Button
@@ -494,7 +458,7 @@ export function CreateWebinarDialog({
                   <Upload className="mx-auto h-12 w-12 text-muted-foreground/50" />
                   <div className="mt-4">
                     <Label htmlFor="image" className="cursor-pointer">
-                      <span className="text-sm font-medium text-primary hover:text-primary/80">
+                      <span className="text-sm font-medium mx-auto text-primary hover:text-primary/80">
                         Upload webinar image
                       </span>
                       <Input
@@ -516,7 +480,7 @@ export function CreateWebinarDialog({
           </div>
 
           {/* Asset Links Section */}
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <h3 className="text-lg font-medium">Asset Links</h3>
 
             <div className="grid grid-cols-3 gap-2">
@@ -589,7 +553,7 @@ export function CreateWebinarDialog({
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
 
         <DialogFooter>

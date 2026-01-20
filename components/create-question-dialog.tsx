@@ -286,6 +286,7 @@ export function CreateQuestionDialog({
       setQuestionImage(null);
       setIntegerAnswer("");
       onOpenChange(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Error creating question:", error);
       toast.error(
@@ -339,7 +340,7 @@ export function CreateQuestionDialog({
                       setFormData({ ...formData, subject: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
@@ -363,7 +364,7 @@ export function CreateQuestionDialog({
                       setFormData({ ...formData, specialization: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select specialization" />
                     </SelectTrigger>
                     <SelectContent>
@@ -387,7 +388,7 @@ export function CreateQuestionDialog({
                       setFormData({ ...formData, classLevel: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select class" />
                     </SelectTrigger>
                     <SelectContent>
@@ -402,7 +403,9 @@ export function CreateQuestionDialog({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="difficulty">Difficulty</Label>
                   <Select
@@ -411,7 +414,7 @@ export function CreateQuestionDialog({
                       setFormData({ ...formData, difficulty: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select difficulty" />
                     </SelectTrigger>
                     <SelectContent>
@@ -430,7 +433,7 @@ export function CreateQuestionDialog({
                       handleQuestionTypeChange(value)
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select question type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -444,7 +447,7 @@ export function CreateQuestionDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Question Image (Optional)</Label>
+                  <Label>Title Image (Optional)</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       type="file"

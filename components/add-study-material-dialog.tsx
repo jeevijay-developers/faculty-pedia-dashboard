@@ -330,7 +330,7 @@ export function AddStudyMaterialDialog({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Select up to 25 subjects that best describe this material.
+              Select subjects that best describe this material.
             </p>
           </div>
 

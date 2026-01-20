@@ -30,11 +30,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Link2, Plus } from "lucide-react";
+import { Loader2, Link2, Plus, ListChecks } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
-import { deleteVideo, getCoursesByEducator, getVideos } from "@/util/server";
+import { deleteVideo, getCoursesByEducator, getVideos, updateVideo } from "@/util/server";
 import { CreateVideoDialog } from "@/components/create-video-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CourseSummary {
   _id: string;
@@ -148,6 +157,10 @@ export default function VideosPage() {
   const [videoPendingDelete, setVideoPendingDelete] = useState<VideoItem | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("all");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -261,6 +274,84 @@ export default function VideosPage() {
     }
   };
 
+  useEffect(() => {
+    setSelectedVideoIds((prev) =>
+      prev.filter((id) => filteredVideos.some((video) => video._id === id))
+    );
+  }, [filteredVideos]);
+
+  useEffect(() => {
+    if (!isAssignDialogOpen) {
+      setSelectedCourseId("all");
+    }
+  }, [isAssignDialogOpen]);
+
+  const visibleVideoIds = useMemo(
+    () => filteredVideos.map((video) => video._id),
+    [filteredVideos]
+  );
+
+  const allVisibleSelected =
+    visibleVideoIds.length > 0 && visibleVideoIds.every((id) => selectedVideoIds.includes(id));
+
+  const handleSelectVideo = (videoId: string) => {
+    setSelectedVideoIds((prev) =>
+      prev.includes(videoId)
+        ? prev.filter((id) => id !== videoId)
+        : [...prev, videoId]
+    );
+  };
+
+  const handleSelectAllVisible = (checked: boolean) => {
+    setSelectedVideoIds((prev) => {
+      if (checked) {
+        const next = new Set([...prev, ...visibleVideoIds]);
+        return Array.from(next);
+      }
+      return prev.filter((id) => !visibleVideoIds.includes(id));
+    });
+  };
+
+  const handleAssignSubmit = async () => {
+    if (selectedVideoIds.length === 0) {
+      toast.error("Select at least one video to assign.");
+      return;
+    }
+
+    const targetCourseId = selectedCourseId === "all" ? undefined : selectedCourseId;
+    const courseSpecific = Boolean(targetCourseId);
+
+    setIsAssigning(true);
+    const loadingToast = toast.loading("Updating video assignment...");
+
+    try {
+      await Promise.all(
+        selectedVideoIds.map((videoId) =>
+          updateVideo(videoId, {
+            isCourseSpecific: courseSpecific,
+            courseId: targetCourseId,
+          } as { isCourseSpecific: boolean; courseId?: string })
+        )
+      );
+
+      toast.success(
+        courseSpecific
+          ? "Videos assigned to course."
+          : "Videos are now available to all courses.",
+        { id: loadingToast }
+      );
+
+      setIsAssignDialogOpen(false);
+      setSelectedVideoIds([]);
+      fetchVideosList();
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Failed to assign videos");
+      toast.error(message, { id: loadingToast });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       <DashboardHeader title="Videos" description="Manage your recorded content." />
@@ -274,7 +365,17 @@ export default function VideosPage() {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="md:max-w-sm"
               />
-              <div className="flex flex-1 justify-end">
+              <div className="flex flex-1 justify-end gap-2">
+                {selectedVideoIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setIsAssignDialogOpen(true)}
+                  >
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    Assign to Course ({selectedVideoIds.length})
+                  </Button>
+                )}
                 <Button onClick={() => setDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Video
@@ -292,6 +393,13 @@ export default function VideosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(checked) => handleSelectAllVisible(checked === true)}
+                        aria-label="Select all videos"
+                      />
+                    </TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Links</TableHead>
                     <TableHead>Scope</TableHead>
@@ -303,7 +411,7 @@ export default function VideosPage() {
                 <TableBody>
                   {isFetching ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <span>Loading videos...</span>
@@ -312,13 +420,20 @@ export default function VideosPage() {
                     </TableRow>
                   ) : filteredVideos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                         No videos found. Use the button above to add your first video.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredVideos.map((video) => (
                       <TableRow key={video._id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedVideoIds.includes(video._id)}
+                            onCheckedChange={() => handleSelectVideo(video._id)}
+                            aria-label={`Select ${video.title}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">{video.title}</TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
@@ -465,6 +580,44 @@ export default function VideosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Assign Videos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Selected: {selectedVideoIds.length} video{selectedVideoIds.length === 1 ? "" : "s"}
+            </p>
+            <div className="space-y-2">
+              <Label>Select course</Label>
+              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All courses (default)</SelectItem>
+                  {courses.map((course) => (
+                    <SelectItem key={course._id} value={course._id}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} disabled={isAssigning}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignSubmit} disabled={isAssigning || selectedVideoIds.length === 0}>
+              {isAssigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Assign
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

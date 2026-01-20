@@ -6,6 +6,18 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { ArrowLeft, BookOpen, FileQuestion, Save } from "lucide-react";
 import QuestionBank from "@/components/question-bank";
 import { useAuth } from "@/contexts/auth-context";
@@ -20,8 +32,11 @@ import {
   defaultTestFormValues,
   validateTestForm,
   buildCreateTestPayload,
+  CLASS_OPTIONS,
+  MARKING_TYPE_OPTIONS,
+  SPECIALIZATION_OPTIONS,
+  SUBJECT_OPTIONS,
 } from "@/lib/test-form";
-import { TestMetadataForm } from "@/components/test-metadata-form";
 
 export default function CreateTestPage() {
   const router = useRouter();
@@ -180,12 +195,318 @@ export default function CreateTestPage() {
         </div>
 
         {/* Form Content */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <TestMetadataForm values={formValues} onChange={handleFormChange} />
-
-          <div className="space-y-6">
+        <div className="grid grid-cols-5 auto-rows-min gap-4">
+          {/* Div 1: Basic Information */}
+          <div className="col-span-2">
             <Card className="bg-card border-border">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="test-title">Title</Label>
+                  <Input
+                    id="test-title"
+                    placeholder="e.g., JEE Advanced Mock Test"
+                    value={formValues.title}
+                    onChange={(event) =>
+                      handleFormChange("title", event.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="test-description">Description</Label>
+                  <Textarea
+                    id="test-description"
+                    rows={3}
+                    placeholder="Add important details, structure, and instructions"
+                    value={formValues.description}
+                    onChange={(event) =>
+                      handleFormChange("description", event.target.value)
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Div 2: Audience & Scope */}
+          <div className="col-span-2">
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Audience & Scope</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Subjects</Label>
+                  <MultiSelect
+                    value={formValues.subjects}
+                    onChange={(selection) =>
+                      handleFormChange("subjects", selection)
+                    }
+                    options={SUBJECT_OPTIONS}
+                    placeholder="Select one or more subjects"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Classes</Label>
+                  <MultiSelect
+                    value={formValues.classes}
+                    onChange={(selection) =>
+                      handleFormChange("classes", selection)
+                    }
+                    options={CLASS_OPTIONS}
+                    placeholder="Select class levels"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Specializations</Label>
+                  <MultiSelect
+                    value={formValues.specializations}
+                    onChange={(selection) =>
+                      handleFormChange("specializations", selection)
+                    }
+                    options={SPECIALIZATION_OPTIONS}
+                    placeholder="Select specialization tracks"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Div 3: Test Settings */}
+          <div className="col-span-2">
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Test Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="test-duration">Duration (minutes)</Label>
+                  <Input
+                    id="test-duration"
+                    type="number"
+                    min={1}
+                    value={formValues.durationMinutes}
+                    onChange={(event) =>
+                      handleFormChange("durationMinutes", event.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test-marks">Overall Marks</Label>
+                  <Input
+                    id="test-marks"
+                    type="number"
+                    min={1}
+                    value={formValues.overallMarks}
+                    onChange={(event) =>
+                      handleFormChange("overallMarks", event.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test-marking-type">Marking Type</Label>
+                  <Select
+                    value={formValues.markingType}
+                    onValueChange={(value) =>
+                      handleFormChange(
+                        "markingType",
+                        value as TestFormValues["markingType"]
+                      )
+                    }
+                  >
+                    <SelectTrigger id="test-marking-type">
+                      <SelectValue placeholder="Choose type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MARKING_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Div 4: Advanced Options */}
+          <div className="col-span-2">
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Advanced Options</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-instructions">
+                      Instructions (optional)
+                    </Label>
+                    <Textarea
+                      id="test-instructions"
+                      rows={3}
+                      placeholder="Share guidelines that learners see before the test"
+                      value={formValues.instructions}
+                      onChange={(event) =>
+                        handleFormChange("instructions", event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="passing-marks">
+                      Passing Marks (optional)
+                    </Label>
+                    <Input
+                      id="passing-marks"
+                      type="number"
+                      min={0}
+                      value={formValues.passingMarks}
+                      onChange={(event) =>
+                        handleFormChange("passingMarks", event.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Negative Marking</Label>
+                    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          Enable negative marking
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Deduct marks for incorrect answers
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formValues.negativeMarking}
+                        onCheckedChange={(checked) =>
+                          handleFormChange("negativeMarking", checked)
+                        }
+                      />
+                    </div>
+                    {formValues.negativeMarking && (
+                      <div className="space-y-1">
+                        <Label htmlFor="negative-ratio">
+                          Negative Ratio (0 - 1)
+                        </Label>
+                        <Input
+                          id="negative-ratio"
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          max={1}
+                          value={formValues.negativeMarkingRatio}
+                          onChange={(event) =>
+                            handleFormChange(
+                              "negativeMarkingRatio",
+                              event.target.value
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Test Series</Label>
+                    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          Part of a Test Series
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Link this test to a specific series
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formValues.isTestSeriesSpecific}
+                        onCheckedChange={(checked) =>
+                          handleFormChange("isTestSeriesSpecific", checked)
+                        }
+                      />
+                    </div>
+                    {formValues.isTestSeriesSpecific && (
+                      <div className="space-y-1">
+                        <Label htmlFor="test-series-id">Test Series ID</Label>
+                        <Input
+                          id="test-series-id"
+                          placeholder="Enter Test Series ID"
+                          value={formValues.testSeriesId}
+                          onChange={(event) =>
+                            handleFormChange("testSeriesId", event.target.value)
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Shuffle Questions</p>
+                        <p className="text-xs text-muted-foreground">
+                          Randomize question order for each attempt
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formValues.shuffleQuestions}
+                        onCheckedChange={(checked) =>
+                          handleFormChange("shuffleQuestions", checked)
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Show Results</p>
+                        <p className="text-xs text-muted-foreground">
+                          Display results immediately after submission
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formValues.showResult}
+                        onCheckedChange={(checked) =>
+                          handleFormChange("showResult", checked)
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border px-4 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Allow Review</p>
+                        <p className="text-xs text-muted-foreground">
+                          Let students review responses after the test
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formValues.allowReview}
+                        onCheckedChange={(checked) =>
+                          handleFormChange("allowReview", checked)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Div 5: Question Bank */}
+          <div className="col-span-3 row-span-4 col-start-3 row-start-1">
+            <Card className="bg-card border-border h-full flex flex-col min-h-[600px]">
+              <CardHeader className="flex flex-row items-center justify-between flex-shrink-0">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <BookOpen className="h-5 w-5 text-primary" />
                   Question Bank
@@ -194,17 +515,20 @@ export default function CreateTestPage() {
                   {formValues.questionIds.length} selected
                 </Badge>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="p-0 flex-1 flex flex-col min-h-0">
                 <QuestionBank
                   questions={questions}
                   selectedQuestions={formValues.questionIds}
                   onQuestionSelect={handleQuestionSelect}
                   loading={questionsLoading}
-                  darkTheme
+                  height="h-full"
                 />
               </CardContent>
             </Card>
+          </div>
 
+          {/* Div 6: Selected Questions */}
+          <div className="col-span-5">
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Selected Questions</CardTitle>
