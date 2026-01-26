@@ -91,7 +91,7 @@ export default function RevenuePage() {
             {
               title: "Payout Status",
               value: (educator as any)?.razorpayFundAccountId
-                ? "Active"
+                ? "Verified ✓"
                 : "Pending",
               desc: (educator as any)?.razorpayFundAccountId
                 ? `${
