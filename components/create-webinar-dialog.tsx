@@ -268,24 +268,7 @@ export function CreateWebinarDialog({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="webinarType">Webinar Type *</Label>
-                <Select
-                  value={formData.webinarType}
-                  onValueChange={(value) =>
-                    handleInputChange("webinarType", value)
-                  }
-                  disabled={isLoading}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="OTO">One To One (OTO)</SelectItem>
-                    <SelectItem value="OTA">One To All (OTA)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              
 
               <div className="space-y-2">
                 <Label htmlFor="specialization">Specialization *</Label>

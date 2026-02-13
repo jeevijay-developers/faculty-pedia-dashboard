@@ -106,6 +106,57 @@ export function CreateCourseDialog({
   const classDropdownRef = useRef<HTMLDivElement>(null);
   const featureDropdownRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    setStep(0);
+    setShowExamDropdown(false);
+    setShowClassDropdown(false);
+    setShowFeatureDropdown(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!showExamDropdown && !showClassDropdown && !showFeatureDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      if (
+        showExamDropdown &&
+        examDropdownRef.current &&
+        !examDropdownRef.current.contains(target)
+      ) {
+        setShowExamDropdown(false);
+      }
+
+      if (
+        showClassDropdown &&
+        classDropdownRef.current &&
+        !classDropdownRef.current.contains(target)
+      ) {
+        setShowClassDropdown(false);
+      }
+
+      if (
+        showFeatureDropdown &&
+        featureDropdownRef.current &&
+        !featureDropdownRef.current.contains(target)
+      ) {
+        setShowFeatureDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [
+    showExamDropdown,
+    showClassDropdown,
+    showFeatureDropdown,
+  ]);
+
   const exams = ["IIT-JEE", "NEET", "CBSE"];
   const classes = [
     "class-6th",
@@ -575,17 +626,19 @@ export function CreateCourseDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxStudents">Seat</Label>
-                  <Input
-                    id="maxStudents"
-                    type="number"
-                    value={maxStudents}
-                    onChange={(e) => setMaxStudents(e.target.value)}
-                    placeholder="Max seats"
-                    min={1}
-                  />
-                </div>
+                {courseType === "one-to-all" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="maxStudents">Seat</Label>
+                    <Input
+                      id="maxStudents"
+                      type="number"
+                      value={maxStudents}
+                      onChange={(e) => setMaxStudents(e.target.value)}
+                      placeholder="Max seats"
+                      min={1}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="validDate">Validity Date *</Label>
                   <Input
