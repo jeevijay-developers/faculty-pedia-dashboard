@@ -54,6 +54,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -69,6 +70,7 @@ import {
   getCoursesByEducator,
   getLiveClassesByEducator,
   updateLiveClass,
+  bulkAddLiveClassesToCourse,
 } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
@@ -131,7 +133,8 @@ interface LiveClass {
   class: string[];
   description?: string;
   maxStudents?: number;
-  introVideo?: string;
+  liveClassLink?: string;
+  recordingURL?: string;
   isCourseSpecific?: boolean;
   assignInCourse?: CourseOption | string | null;
 }
@@ -148,7 +151,8 @@ interface LiveClassFormValues {
   maxStudents: string;
   isCourseSpecific: boolean;
   assignInCourse: string;
-  introVideo: string;
+  liveClassLink: string;
+  recordingURL: string;
 }
 
 const INITIAL_FORM_VALUES: LiveClassFormValues = {
@@ -163,7 +167,8 @@ const INITIAL_FORM_VALUES: LiveClassFormValues = {
   maxStudents: "",
   isCourseSpecific: false,
   assignInCourse: "",
-  introVideo: "",
+  liveClassLink: "",
+  recordingURL: "",
 };
 
 const normalizeMultiValue = (value?: string | string[] | null) => {
@@ -270,8 +275,12 @@ const buildLiveClassPayload = (
     payload.maxStudents = Number(values.maxStudents);
   }
 
-  if (values.introVideo.trim()) {
-    payload.introVideo = values.introVideo.trim();
+  if (values.liveClassLink.trim()) {
+    payload.liveClassLink = values.liveClassLink.trim();
+  }
+
+  if (values.recordingURL.trim()) {
+    payload.recordingURL = values.recordingURL.trim();
   }
 
   if (values.isCourseSpecific && values.assignInCourse) {
@@ -310,6 +319,10 @@ export default function LiveClassesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLiveClassIds, setSelectedLiveClassIds] = useState<string[]>([]);
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [selectedCourseForAssign, setSelectedCourseForAssign] = useState("");
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -463,7 +476,8 @@ export default function LiveClassesPage() {
         typeof liveClass.assignInCourse === "string"
           ? liveClass.assignInCourse
           : liveClass.assignInCourse?._id || "",
-      introVideo: liveClass.introVideo || "",
+      liveClassLink: liveClass.liveClassLink || "",
+      recordingURL: liveClass.recordingURL || "",
     });
     setEditOpen(true);
   };
@@ -577,12 +591,91 @@ export default function LiveClassesPage() {
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedLiveClassIds(filteredLiveClasses.map((lc) => lc._id));
+    } else {
+      setSelectedLiveClassIds([]);
+    }
+  };
+
+  const handleSelectLiveClass = (liveClassId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedLiveClassIds((prev) => [...prev, liveClassId]);
+    } else {
+      setSelectedLiveClassIds((prev) => prev.filter((id) => id !== liveClassId));
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!selectedCourseForAssign || selectedLiveClassIds.length === 0) return;
+    
+    setIsBulkAssigning(true);
+    setError(null);
+    try {
+      const result = await bulkAddLiveClassesToCourse(
+        selectedCourseForAssign,
+        selectedLiveClassIds
+      );
+      
+      setBulkAssignOpen(false);
+      setSelectedLiveClassIds([]);
+      setSelectedCourseForAssign("");
+      
+      toast.success(
+        `Successfully assigned ${result.success} live class(es) to course${
+          result.failed > 0 ? `. ${result.failed} failed (may already be assigned)` : ""
+        }`
+      );
+    } catch (err) {
+      console.error("Error bulk assigning live classes:", err);
+      let message = "Unable to assign live classes to course.";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseErr = err as {
+          response?: { data?: { message?: string } };
+        };
+        message = responseErr.response?.data?.message ?? message;
+      }
+      setError(message);
+    } finally {
+      setIsBulkAssigning(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Live Classes" />
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="p-6">
+            {selectedLiveClassIds.length > 0 && (
+              <div className="mb-4 flex items-center justify-between rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedLiveClassIds.length} live class(es) selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedLiveClassIds([])}
+                  >
+                    Clear Selection
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setBulkAssignOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Assign to Course
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
               <Input
                 placeholder="Search by title..."
@@ -624,6 +717,16 @@ export default function LiveClassesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          filteredLiveClasses.length > 0 &&
+                          selectedLiveClassIds.length === filteredLiveClasses.length
+                        }
+                        onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                        aria-label="Select all live classes"
+                      />
+                    </TableHead>
                     <TableHead>Live Class</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Schedule</TableHead>
@@ -638,7 +741,7 @@ export default function LiveClassesPage() {
                   {isLoading ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-6 text-muted-foreground"
                       >
                         Loading live classes...
@@ -647,7 +750,7 @@ export default function LiveClassesPage() {
                   ) : filteredLiveClasses.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-6 text-muted-foreground"
                       >
                         No live classes found.
@@ -656,6 +759,15 @@ export default function LiveClassesPage() {
                   ) : (
                     filteredLiveClasses.map((liveClass) => (
                       <TableRow key={liveClass._id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedLiveClassIds.includes(liveClass._id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectLiveClass(liveClass._id, checked === true)
+                            }
+                            aria-label={`Select ${liveClass.liveClassTitle}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
@@ -811,16 +923,29 @@ export default function LiveClassesPage() {
                   <p className="text-sm">{selectedLiveClass.description}</p>
                 </div>
               )}
-              {selectedLiveClass.introVideo && (
+              {selectedLiveClass.liveClassLink && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Intro Video</p>
+                  <p className="text-sm text-muted-foreground">Live Class Link</p>
                   <a
-                    href={selectedLiveClass.introVideo}
+                    href={selectedLiveClass.liveClassLink}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-blue-600 hover:underline"
                   >
-                    {selectedLiveClass.introVideo}
+                    {selectedLiveClass.liveClassLink}
+                  </a>
+                </div>
+              )}
+              {selectedLiveClass.recordingURL && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Recording Link</p>
+                  <a
+                    href={selectedLiveClass.recordingURL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {selectedLiveClass.recordingURL}
                   </a>
                 </div>
               )}
@@ -869,6 +994,80 @@ export default function LiveClassesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Assign to Course</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Assign {selectedLiveClassIds.length} selected live class(es) to a
+                course
+              </p>
+              <Label htmlFor="assignCourse">Select Course</Label>
+              <Select
+                value={selectedCourseForAssign}
+                onValueChange={setSelectedCourseForAssign}
+                disabled={coursesLoading}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue
+                    placeholder={
+                      coursesLoading ? "Loading courses..." : "Select course"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {coursesLoading && (
+                    <SelectItem value="loading" disabled>
+                      Loading...
+                    </SelectItem>
+                  )}
+                  {courses.map((course) => (
+                    <SelectItem key={course._id} value={course._id}>
+                      <span
+                        className="truncate block max-w-[400px]"
+                        title={course.title || course.name || "Untitled course"}
+                      >
+                        {course.title || course.name || "Untitled course"}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {error && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setBulkAssignOpen(false);
+                  setSelectedCourseForAssign("");
+                }}
+                disabled={isBulkAssigning}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAssign}
+                disabled={isBulkAssigning || !selectedCourseForAssign}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isBulkAssigning && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Assign
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1159,17 +1358,32 @@ function LiveClassForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="introVideo">Intro Video URL</Label>
+          <Label htmlFor="liveClassLink">Live class link</Label>
           <Input
-            id="introVideo"
+            id="liveClassLink"
             type="url"
-            value={values.introVideo}
+            value={values.liveClassLink}
             onChange={(e) =>
-              setValues((prev) => ({ ...prev, introVideo: e.target.value }))
+              setValues((prev) => ({ ...prev, liveClassLink: e.target.value }))
             }
             placeholder="https://..."
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="recordingURL">Recording link</Label>
+          <Input
+            id="recordingURL"
+            type="url"
+            value={values.recordingURL}
+            onChange={(e) =>
+              setValues((prev) => ({ ...prev, recordingURL: e.target.value }))
+            }
+            placeholder="https://..."
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="flex items-center justify-between">
             <span>Assign to Course</span>
@@ -1198,7 +1412,7 @@ function LiveClassForm({
             }
             disabled={!values.isCourseSpecific || coursesLoading}
           >
-            <SelectTrigger className="mt-2">
+            <SelectTrigger className="mt-2 !w-full [&>span]:truncate [&>span]:max-w-full [&>span]:block">
               <SelectValue
                 placeholder={
                   coursesLoading
@@ -1217,7 +1431,9 @@ function LiveClassForm({
               )}
               {courses.map((course) => (
                 <SelectItem key={course._id} value={course._id}>
-                  {course.title || course.name || "Untitled course"}
+                  <span className="truncate block max-w-[400px]" title={course.title || course.name || "Untitled course"}>
+                    {course.title || course.name || "Untitled course"}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

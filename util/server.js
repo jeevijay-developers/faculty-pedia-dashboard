@@ -1161,6 +1161,46 @@ export const getLiveClassesByIds = async (liveClassIds) => {
   }
 };
 
+// Add live class to course
+export const addLiveClassToCourse = async (courseId, liveClassId) => {
+  try {
+    const response = await API_CLIENT.post(
+      `/api/courses/${courseId}/live-class`,
+      { liveClassId },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error adding live class to course:", error);
+    throw error;
+  }
+};
+
+// Bulk add live classes to course
+export const bulkAddLiveClassesToCourse = async (courseId, liveClassIds) => {
+  try {
+    const results = await Promise.allSettled(
+      liveClassIds.map((liveClassId) =>
+        addLiveClassToCourse(courseId, liveClassId)
+      )
+    );
+
+    const successes = results.filter((r) => r.status === "fulfilled");
+    const failures = results.filter((r) => r.status === "rejected");
+
+    return {
+      success: successes.length,
+      failed: failures.length,
+      total: liveClassIds.length,
+    };
+  } catch (error) {
+    console.error("Error bulk adding live classes to course:", error);
+    throw error;
+  }
+};
+
 // Image upload function
 export const uploadImage = async (imageFile, type = "course") => {
   try {
