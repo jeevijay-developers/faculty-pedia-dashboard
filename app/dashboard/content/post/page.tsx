@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -174,6 +174,9 @@ export default function PostPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const subjectDropdownRef = useRef<HTMLDivElement>(null);
+  const specializationDropdownRef = useRef<HTMLDivElement>(null);
+
   const isEditMode = dialogMode === "edit";
 
   const isTableLoading = authLoading || isFetching;
@@ -182,6 +185,31 @@ export default function PostPage() {
     setShowSubjectDropdown(false);
     setShowSpecializationDropdown(false);
   };
+
+  useEffect(() => {
+    if (!showSubjectDropdown && !showSpecializationDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        (subjectDropdownRef.current &&
+          subjectDropdownRef.current.contains(target)) ||
+        (specializationDropdownRef.current &&
+          specializationDropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+
+      closeDropdowns();
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSubjectDropdown, showSpecializationDropdown]);
 
   const openCreateDialog = () => {
     if (isSubmitting) return;
@@ -594,7 +622,7 @@ export default function PostPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 relative">
+              <div className="space-y-2 relative" ref={subjectDropdownRef}>
                 <Label>Subjects *</Label>
                 <div
                   className="min-h-[40px] w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm flex flex-wrap items-center gap-1"
@@ -649,7 +677,7 @@ export default function PostPage() {
                 )}
               </div>
 
-              <div className="space-y-2 relative">
+              <div className="space-y-2 relative" ref={specializationDropdownRef}>
                 <Label>Exam *</Label>
                 <div
                   className="min-h-[40px] w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm flex flex-wrap items-center gap-1"
