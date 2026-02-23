@@ -6,14 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createVideo } from "@/util/server";
 
@@ -38,14 +32,14 @@ export function CreateVideoDialog({
   const [title, setTitle] = useState("");
   const [linkInputs, setLinkInputs] = useState<string[]>([""]);
   const [isCourseSpecific, setIsCourseSpecific] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setTitle("");
     setLinkInputs([""]);
     setIsCourseSpecific(false);
-    setSelectedCourseId("");
+    setSelectedCourseIds([]);
   };
 
   const handleClose = (nextState: boolean) => {
@@ -79,8 +73,8 @@ export function CreateVideoDialog({
       return;
     }
 
-    if (isCourseSpecific && !selectedCourseId) {
-      toast.error("Please select a course for this video");
+    if (isCourseSpecific && selectedCourseIds.length === 0) {
+      toast.error("Please select at least one course for this video");
       return;
     }
 
@@ -92,7 +86,7 @@ export function CreateVideoDialog({
         title: title.trim(),
         links: sanitizedLinks,
         isCourseSpecific,
-        courseId: isCourseSpecific ? selectedCourseId : undefined,
+        courseIds: isCourseSpecific ? selectedCourseIds : [],
       });
       toast.success("Video created successfully", { id: toastId });
       resetForm();
@@ -128,7 +122,7 @@ export function CreateVideoDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Video Links</Label>
-              <Button
+              {/* <Button
                 type="button"
                 variant="outline"
                 size="sm"
@@ -136,7 +130,7 @@ export function CreateVideoDialog({
                 disabled={isSubmitting || linkInputs.length >= 20}
               >
                 <Plus className="mr-1 h-4 w-4" /> Add link
-              </Button>
+              </Button> */}
             </div>
             <div className="space-y-2">
               {linkInputs.map((link, index) => (
@@ -173,35 +167,50 @@ export function CreateVideoDialog({
             </div>
             <Switch
               checked={isCourseSpecific}
-              onCheckedChange={setIsCourseSpecific}
+              onCheckedChange={(next) => {
+                setIsCourseSpecific(next);
+                if (!next) {
+                  setSelectedCourseIds([]);
+                }
+              }}
               disabled={isSubmitting}
             />
           </div>
 
           {isCourseSpecific && (
             <div className="space-y-2">
-              <Label htmlFor="video-course">Select Course</Label>
-              <Select
-                value={selectedCourseId}
-                onValueChange={setSelectedCourseId}
-                disabled={isSubmitting || courses.length === 0}
-              >
-                <SelectTrigger id="video-course">
-                  <SelectValue placeholder={courses.length ? "Choose a course" : "No courses available"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {courses.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  You have no courses yet. Create a course first to attach videos.
-                </p>
-              )}
+              <Label>Select courses</Label>
+              <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-2">
+                {courses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No courses available.</p>
+                ) : (
+                  courses.map((course) => {
+                    const checked = selectedCourseIds.includes(course._id);
+                    return (
+                      <label
+                        key={course._id}
+                        className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => {
+                            setSelectedCourseIds((prev) =>
+                              value === true
+                                ? [...prev, course._id]
+                                : prev.filter((id) => id !== course._id)
+                            );
+                          }}
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-sm line-clamp-1">{course.title}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select one or more courses. Leave empty to keep the video unassigned.
+              </p>
             </div>
           )}
 

@@ -12,7 +12,6 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +35,6 @@ import {
   Trash2,
   MoreHorizontal,
   Loader2,
-  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,7 +52,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -62,7 +59,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   createLiveClass,
@@ -70,35 +66,9 @@ import {
   getCoursesByEducator,
   getLiveClassesByEducator,
   updateLiveClass,
-  bulkAddLiveClassesToCourse,
 } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
-
-const SUBJECT_OPTIONS = [
-  { label: "Biology", value: "biology" },
-  { label: "Physics", value: "physics" },
-  { label: "Mathematics", value: "mathematics" },
-  { label: "Chemistry", value: "chemistry" },
-  { label: "English", value: "english" },
-  { label: "Hindi", value: "hindi" },
-];
-
-const getSubjectLabel = (value: string) => {
-  const option = SUBJECT_OPTIONS.find((entry) => entry.value === value);
-  return option ? option.label : value;
-};
-
-const SPECIALIZATION_OPTIONS = [
-  { label: "IIT-JEE", value: "IIT-JEE" },
-  { label: "NEET", value: "NEET" },
-  { label: "CBSE", value: "CBSE" },
-];
-
-const getSpecializationLabel = (value: string) => {
-  const option = SPECIALIZATION_OPTIONS.find((entry) => entry.value === value);
-  return option ? option.label : value;
-};
 
 const CLASS_OPTIONS = [
   { label: "Class 6", value: "class-6th" },
@@ -111,15 +81,13 @@ const CLASS_OPTIONS = [
   { label: "Dropper", value: "dropper" },
 ];
 
-const getClassLabel = (value: string) => {
-  const option = CLASS_OPTIONS.find((entry) => entry.value === value);
-  return option ? option.label : value;
-};
-
 interface CourseOption {
   _id: string;
   title?: string;
   name?: string;
+  subject?: string | string[];
+  specialization?: string | string[];
+  class?: string | string[];
 }
 
 interface LiveClass {
@@ -141,34 +109,18 @@ interface LiveClass {
 
 interface LiveClassFormValues {
   liveClassTitle: string;
-  subjects: string[];
-  specializations: string[];
   classTiming: string;
   classDuration: string;
-  liveClassesFee: string;
-  class: string[];
-  description: string;
-  maxStudents: string;
-  isCourseSpecific: boolean;
-  assignInCourse: string;
   liveClassLink: string;
-  recordingURL: string;
+  assignInCourse: string;
 }
 
 const INITIAL_FORM_VALUES: LiveClassFormValues = {
   liveClassTitle: "",
-  subjects: [],
-  specializations: [],
   classTiming: "",
   classDuration: "",
-  liveClassesFee: "",
-  class: [],
-  description: "",
-  maxStudents: "",
-  isCourseSpecific: false,
-  assignInCourse: "",
   liveClassLink: "",
-  recordingURL: "",
+  assignInCourse: "",
 };
 
 const normalizeMultiValue = (value?: string | string[] | null) => {
@@ -233,58 +185,39 @@ const toDateTimeLocalValue = (isoDate?: string) => {
   return localDate.toISOString().slice(0, 16);
 };
 
-const getCourseLabel = (course?: CourseOption | string | null) => {
-  if (!course) return "All Courses";
-  if (typeof course === "string") return course;
-  return course.title || course.name || "Course";
-};
-
-const toggleArrayValue = (current: string[], value: string) =>
-  current.includes(value)
-    ? current.filter((item) => item !== value)
-    : [...current, value];
-
 const buildLiveClassPayload = (
   values: LiveClassFormValues,
-  educatorId: string
+  educatorId: string,
+  selectedCourse?: CourseOption
 ) => {
-  const normalizedSubjects = values.subjects.map((entry) =>
-    entry.toLowerCase()
+  const normalizedSubjects = normalizeMultiValue(selectedCourse?.subject).map(
+    (entry) => entry.toLowerCase()
   );
-  const normalizedSpecializations = values.specializations.map((entry) =>
-    entry.toUpperCase()
-  );
+  const normalizedSpecializations = normalizeMultiValue(
+    selectedCourse?.specialization
+  ).map((entry) => entry.toUpperCase());
+  const normalizedClasses = normalizeMultiValue(selectedCourse?.class);
+
+  const subjects = normalizedSubjects.length ? normalizedSubjects : ["english"];
+  const specializations =
+    normalizedSpecializations.length ? normalizedSpecializations : ["CBSE"];
+  const classes = normalizedClasses.length ? normalizedClasses : ["class-10th"];
 
   const payload: Record<string, unknown> = {
     liveClassTitle: values.liveClassTitle.trim(),
-    subject: normalizedSubjects,
-    liveClassSpecification: normalizedSpecializations,
+    subject: subjects,
+    liveClassSpecification: specializations,
     classTiming: new Date(values.classTiming).toISOString(),
     classDuration: Number(values.classDuration),
-    liveClassesFee: Number(values.liveClassesFee),
-    class: values.class,
+    liveClassesFee: 0,
+    class: classes,
     educatorID: educatorId,
-    isCourseSpecific: values.isCourseSpecific,
+    isCourseSpecific: true,
+    assignInCourse: values.assignInCourse,
   };
-
-  if (values.description.trim()) {
-    payload.description = values.description.trim();
-  }
-
-  if (values.maxStudents) {
-    payload.maxStudents = Number(values.maxStudents);
-  }
 
   if (values.liveClassLink.trim()) {
     payload.liveClassLink = values.liveClassLink.trim();
-  }
-
-  if (values.recordingURL.trim()) {
-    payload.recordingURL = values.recordingURL.trim();
-  }
-
-  if (values.isCourseSpecific && values.assignInCourse) {
-    payload.assignInCourse = values.assignInCourse;
   }
 
   return payload;
@@ -319,10 +252,14 @@ export default function LiveClassesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLiveClassIds, setSelectedLiveClassIds] = useState<string[]>([]);
-  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
-  const [selectedCourseForAssign, setSelectedCourseForAssign] = useState("");
-  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [createFormError, setCreateFormError] = useState<string | null>(null);
+  const courseNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    courses.forEach((course) => {
+      map.set(course._id, course.title || course.name || "Untitled course");
+    });
+    return map;
+  }, [courses]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -406,36 +343,43 @@ export default function LiveClassesPage() {
   const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!educatorId) return;
-    if (
-      formData.subjects.length === 0 ||
-      formData.specializations.length === 0
-    ) {
-      setError("Please select subject and specialization.");
+    setCreateFormError(null);
+    if (!formData.liveClassTitle.trim()) {
+      setCreateFormError("Please enter a title.");
+      return;
+    }
+    if (!formData.classDuration || Number(formData.classDuration) <= 0) {
+      setCreateFormError("Please enter a valid duration in minutes.");
       return;
     }
     if (!formData.classTiming) {
-      setError("Please select a class schedule.");
+      setCreateFormError("Please select a class schedule.");
       return;
     }
-    if (formData.class.length === 0) {
-      setError("Select at least one class level.");
+    if (!formData.assignInCourse) {
+      setCreateFormError("Please select a course to assign this live class.");
       return;
     }
-    if (formData.isCourseSpecific && !formData.assignInCourse) {
-      setError("Please select a course to assign this live class.");
+
+    const selectedCourse = courses.find(
+      (course) => course._id === formData.assignInCourse
+    );
+    if (!selectedCourse) {
+      setCreateFormError("Selected course not found. Please choose a valid course.");
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
     try {
-      const payload = buildLiveClassPayload(formData, educatorId);
+      const payload = buildLiveClassPayload(formData, educatorId, selectedCourse);
       const response = await createLiveClass(payload);
       const created = response?.data ?? response;
       if (created) {
         setLiveClasses((prev) => [created, ...prev]);
       }
       resetCreateForm();
+      setCreateFormError(null);
       setOpen(false);
       toast.success("Live class created successfully");
     } catch (err) {
@@ -449,7 +393,7 @@ export default function LiveClassesPage() {
         };
         message = responseErr.response?.data?.message ?? message;
       }
-      setError(message);
+      setCreateFormError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -457,27 +401,15 @@ export default function LiveClassesPage() {
 
   const handleEdit = (liveClass: LiveClass) => {
     setEditingId(liveClass._id);
-    const normalizedSubjects = normalizeMultiValue(liveClass.subject);
-    const normalizedSpecializations = normalizeMultiValue(
-      liveClass.liveClassSpecification
-    );
     setEditFormData({
       liveClassTitle: liveClass.liveClassTitle || "",
-      subjects: normalizedSubjects,
-      specializations: normalizedSpecializations,
       classTiming: toDateTimeLocalValue(liveClass.classTiming),
       classDuration: liveClass.classDuration?.toString() || "",
-      liveClassesFee: liveClass.liveClassesFee?.toString() || "",
-      class: liveClass.class || [],
-      description: liveClass.description || "",
-      maxStudents: liveClass.maxStudents?.toString() || "",
-      isCourseSpecific: Boolean(liveClass.isCourseSpecific),
       assignInCourse:
         typeof liveClass.assignInCourse === "string"
           ? liveClass.assignInCourse
           : liveClass.assignInCourse?._id || "",
       liveClassLink: liveClass.liveClassLink || "",
-      recordingURL: liveClass.recordingURL || "",
     });
     setEditOpen(true);
   };
@@ -485,30 +417,39 @@ export default function LiveClassesPage() {
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!educatorId || !editingId) return;
-    if (
-      editFormData.subjects.length === 0 ||
-      editFormData.specializations.length === 0
-    ) {
-      setError("Please select subject and specialization.");
+    if (!editFormData.liveClassTitle.trim()) {
+      setError("Please enter a title.");
+      return;
+    }
+    if (!editFormData.classDuration || Number(editFormData.classDuration) <= 0) {
+      setError("Please enter a valid duration in minutes.");
       return;
     }
     if (!editFormData.classTiming) {
       setError("Please select a class schedule.");
       return;
     }
-    if (editFormData.class.length === 0) {
-      setError("Select at least one class level.");
+    if (!editFormData.assignInCourse) {
+      setError("Please select a course to assign this live class.");
       return;
     }
-    if (editFormData.isCourseSpecific && !editFormData.assignInCourse) {
-      setError("Please select a course to assign this live class.");
+
+    const selectedCourse = courses.find(
+      (course) => course._id === editFormData.assignInCourse
+    );
+    if (!selectedCourse) {
+      setError("Selected course not found. Please choose a valid course.");
       return;
     }
 
     setIsEditSubmitting(true);
     setError(null);
     try {
-      const payload = buildLiveClassPayload(editFormData, educatorId);
+      const payload = buildLiveClassPayload(
+        editFormData,
+        educatorId,
+        selectedCourse
+      );
       const response = await updateLiveClass(editingId, payload);
       const updated = response?.data ?? response;
       if (updated) {
@@ -581,6 +522,7 @@ export default function LiveClassesPage() {
     setOpen(nextOpen);
     if (!nextOpen) {
       resetCreateForm();
+      setCreateFormError(null);
     }
   };
 
@@ -591,57 +533,17 @@ export default function LiveClassesPage() {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedLiveClassIds(filteredLiveClasses.map((lc) => lc._id));
-    } else {
-      setSelectedLiveClassIds([]);
+  const getCourseName = (value: CourseOption | string | null | undefined) => {
+    if (!value) return "—";
+    if (typeof value === "string") {
+      return courseNameById.get(value) || value || "Course";
     }
-  };
-
-  const handleSelectLiveClass = (liveClassId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedLiveClassIds((prev) => [...prev, liveClassId]);
-    } else {
-      setSelectedLiveClassIds((prev) => prev.filter((id) => id !== liveClassId));
+    const directName = value.title || value.name;
+    if (directName) return directName;
+    if (value._id) {
+      return courseNameById.get(value._id) || value._id;
     }
-  };
-
-  const handleBulkAssign = async () => {
-    if (!selectedCourseForAssign || selectedLiveClassIds.length === 0) return;
-    
-    setIsBulkAssigning(true);
-    setError(null);
-    try {
-      const result = await bulkAddLiveClassesToCourse(
-        selectedCourseForAssign,
-        selectedLiveClassIds
-      );
-      
-      setBulkAssignOpen(false);
-      setSelectedLiveClassIds([]);
-      setSelectedCourseForAssign("");
-      
-      toast.success(
-        `Successfully assigned ${result.success} live class(es) to course${
-          result.failed > 0 ? `. ${result.failed} failed (may already be assigned)` : ""
-        }`
-      );
-    } catch (err) {
-      console.error("Error bulk assigning live classes:", err);
-      let message = "Unable to assign live classes to course.";
-      if (err instanceof Error) {
-        message = err.message;
-      } else if (typeof err === "object" && err !== null && "response" in err) {
-        const responseErr = err as {
-          response?: { data?: { message?: string } };
-        };
-        message = responseErr.response?.data?.message ?? message;
-      }
-      setError(message);
-    } finally {
-      setIsBulkAssigning(false);
-    }
+    return "Course";
   };
 
   return (
@@ -650,32 +552,6 @@ export default function LiveClassesPage() {
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="p-6">
-            {selectedLiveClassIds.length > 0 && (
-              <div className="mb-4 flex items-center justify-between rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-blue-900">
-                    {selectedLiveClassIds.length} live class(es) selected
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedLiveClassIds([])}
-                  >
-                    Clear Selection
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setBulkAssignOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Assign to Course
-                  </Button>
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
               <Input
                 placeholder="Search by title..."
@@ -690,7 +566,7 @@ export default function LiveClassesPage() {
                     Add Live Class
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[720px]">
+                <DialogContent className="sm:max-w-[720px] max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Live Class</DialogTitle>
                   </DialogHeader>
@@ -702,6 +578,7 @@ export default function LiveClassesPage() {
                     submitLabel="Create"
                     courses={courses}
                     coursesLoading={coursesLoading}
+                    formError={createFormError}
                   />
                 </DialogContent>
               </Dialog>
@@ -713,22 +590,13 @@ export default function LiveClassesPage() {
               </div>
             )}
 
-            <div className="rounded-md border overflow-hidden">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          filteredLiveClasses.length > 0 &&
-                          selectedLiveClassIds.length === filteredLiveClasses.length
-                        }
-                        onCheckedChange={(checked) => handleSelectAll(checked === true)}
-                        aria-label="Select all live classes"
-                      />
-                    </TableHead>
                     <TableHead>Live Class</TableHead>
                     <TableHead>Subject</TableHead>
+                    <TableHead>Course</TableHead>
                     <TableHead>Schedule</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Fee</TableHead>
@@ -741,7 +609,7 @@ export default function LiveClassesPage() {
                   {isLoading ? (
                     <TableRow>
                       <TableCell
-                        colSpan={9}
+                        colSpan={8}
                         className="text-center py-6 text-muted-foreground"
                       >
                         Loading live classes...
@@ -750,7 +618,7 @@ export default function LiveClassesPage() {
                   ) : filteredLiveClasses.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={9}
+                        colSpan={8}
                         className="text-center py-6 text-muted-foreground"
                       >
                         No live classes found.
@@ -759,15 +627,6 @@ export default function LiveClassesPage() {
                   ) : (
                     filteredLiveClasses.map((liveClass) => (
                       <TableRow key={liveClass._id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedLiveClassIds.includes(liveClass._id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectLiveClass(liveClass._id, checked === true)
-                            }
-                            aria-label={`Select ${liveClass.liveClassTitle}`}
-                          />
-                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
@@ -786,6 +645,11 @@ export default function LiveClassesPage() {
                               )}
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {getCourseName(liveClass.assignInCourse)}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">
@@ -854,7 +718,7 @@ export default function LiveClassesPage() {
       </div>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Live Class Details</DialogTitle>
           </DialogHeader>
@@ -955,7 +819,7 @@ export default function LiveClassesPage() {
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={handleEditDialogChange}>
-        <DialogContent className="sm:max-w-[720px]">
+        <DialogContent className="sm:max-w-[720px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Live Class</DialogTitle>
           </DialogHeader>
@@ -967,6 +831,7 @@ export default function LiveClassesPage() {
             submitLabel="Save Changes"
             courses={courses}
             coursesLoading={coursesLoading}
+            formError={null}
           />
         </DialogContent>
       </Dialog>
@@ -995,79 +860,6 @@ export default function LiveClassesPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Assign to Course</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Assign {selectedLiveClassIds.length} selected live class(es) to a
-                course
-              </p>
-              <Label htmlFor="assignCourse">Select Course</Label>
-              <Select
-                value={selectedCourseForAssign}
-                onValueChange={setSelectedCourseForAssign}
-                disabled={coursesLoading}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue
-                    placeholder={
-                      coursesLoading ? "Loading courses..." : "Select course"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {coursesLoading && (
-                    <SelectItem value="loading" disabled>
-                      Loading...
-                    </SelectItem>
-                  )}
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      <span
-                        className="truncate block max-w-[400px]"
-                        title={course.title || course.name || "Untitled course"}
-                      >
-                        {course.title || course.name || "Untitled course"}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setBulkAssignOpen(false);
-                  setSelectedCourseForAssign("");
-                }}
-                disabled={isBulkAssigning}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleBulkAssign}
-                disabled={isBulkAssigning || !selectedCourseForAssign}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isBulkAssigning && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Assign
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1080,6 +872,7 @@ type LiveClassFormProps = {
   submitLabel: string;
   courses: CourseOption[];
   coursesLoading: boolean;
+  formError?: string | null;
 };
 
 function LiveClassForm({
@@ -1090,177 +883,29 @@ function LiveClassForm({
   submitLabel,
   courses,
   coursesLoading,
+  formError,
 }: LiveClassFormProps) {
-  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
-  const [showSpecializationDropdown, setShowSpecializationDropdown] =
-    useState(false);
-  const [showClassDropdown, setShowClassDropdown] = useState(false);
-
-  const handleSubjectToggle = (subjectValue: string) => {
-    setValues((prev) => ({
-      ...prev,
-      subjects: toggleArrayValue(prev.subjects, subjectValue),
-    }));
-  };
-
-  const handleSpecializationToggle = (specValue: string) => {
-    setValues((prev) => ({
-      ...prev,
-      specializations: toggleArrayValue(prev.specializations, specValue),
-    }));
-  };
-
-  const handleClassToggle = (classValue: string) => {
-    setValues((prev) => ({
-      ...prev,
-      class: toggleArrayValue(prev.class, classValue),
-    }));
-  };
-
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="liveClassTitle">Title</Label>
-          <Input
-            id="liveClassTitle"
-            value={values.liveClassTitle}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, liveClassTitle: e.target.value }))
-            }
-            placeholder="Live class title"
-            required
-          />
+      {formError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {formError}
         </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={values.description}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, description: e.target.value }))
-            }
-            placeholder="Add a short description (optional)"
-            rows={3}
-            className="min-h-[104px]"
-          />
-        </div>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="liveClassTitle">Title</Label>
+        <Input
+          id="liveClassTitle"
+          value={values.liveClassTitle}
+          onChange={(event) =>
+            setValues((prev) => ({ ...prev, liveClassTitle: event.target.value }))
+          }
+          placeholder="Live class title"
+          required
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2 relative">
-          <Label>Subjects</Label>
-          <div
-            className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
-            onClick={() => {
-              setShowSubjectDropdown((prev) => !prev);
-              setShowSpecializationDropdown(false);
-              setShowClassDropdown(false);
-            }}
-          >
-            {values.subjects?.length ? (
-              values.subjects.map((subject) => (
-                <Badge
-                  key={subject}
-                  variant="secondary"
-                  className="gap-1 capitalize"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleSubjectToggle(subject);
-                  }}
-                >
-                  {getSubjectLabel(subject)}
-                  <X className="h-3 w-3" />
-                </Badge>
-              ))
-            ) : (
-              <span className="text-muted-foreground">Select subjects</span>
-            )}
-          </div>
-          {showSubjectDropdown && (
-            <div className="absolute z-20 mt-1 w-full rounded-md border bg-popover shadow-md p-2 max-h-56 overflow-y-auto">
-              {SUBJECT_OPTIONS.map((option) => (
-                <div
-                  key={option.value}
-                  className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer text-sm"
-                  onClick={() => handleSubjectToggle(option.value)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={values.subjects.includes(option.value)}
-                    readOnly
-                  />
-                  <span>{option.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="space-y-2 relative">
-          <Label>Specialization</Label>
-          <div
-            className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
-            onClick={() => {
-              setShowSpecializationDropdown((prev) => !prev);
-              setShowSubjectDropdown(false);
-              setShowClassDropdown(false);
-            }}
-          >
-            {values.specializations.length ? (
-              values.specializations.map((spec) => (
-                <Badge
-                  key={spec}
-                  variant="secondary"
-                  className="gap-1"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleSpecializationToggle(spec);
-                  }}
-                >
-                  {getSpecializationLabel(spec)}
-                  <X className="h-3 w-3" />
-                </Badge>
-              ))
-            ) : (
-              <span className="text-muted-foreground">
-                Select specialization
-              </span>
-            )}
-          </div>
-          {showSpecializationDropdown && (
-            <div className="absolute z-20 mt-1 w-full rounded-md border bg-popover shadow-md p-2">
-              {SPECIALIZATION_OPTIONS.map((option) => (
-                <div
-                  key={option.value}
-                  className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer text-sm"
-                  onClick={() => handleSpecializationToggle(option.value)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={values.specializations.includes(option.value)}
-                    readOnly
-                  />
-                  <span>{option.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="classTiming">Class Timing</Label>
-          <Input
-            id="classTiming"
-            type="datetime-local"
-            value={values.classTiming}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, classTiming: e.target.value }))
-            }
-            required
-          />
-        </div>
         <div className="space-y-2">
           <Label htmlFor="classDuration">Duration (mins)</Label>
           <Input
@@ -1269,176 +914,74 @@ function LiveClassForm({
             min={1}
             max={480}
             value={values.classDuration}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, classDuration: e.target.value }))
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, classDuration: event.target.value }))
+            }
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="classTiming">Timing</Label>
+          <Input
+            id="classTiming"
+            type="datetime-local"
+            value={values.classTiming}
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, classTiming: event.target.value }))
             }
             required
           />
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="liveClassesFee">Fee (₹)</Label>
-          <Input
-            id="liveClassesFee"
-            type="number"
-            min={0}
-            value={values.liveClassesFee}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, liveClassesFee: e.target.value }))
-            }
-            placeholder="Enter fee"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="maxStudents">Max Students</Label>
-          <Input
-            id="maxStudents"
-            type="number"
-            min={1}
-            value={values.maxStudents}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, maxStudents: e.target.value }))
-            }
-            placeholder="Optional"
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="liveClassLink">Link</Label>
+        <Input
+          id="liveClassLink"
+          type="url"
+          value={values.liveClassLink}
+          onChange={(event) =>
+            setValues((prev) => ({ ...prev, liveClassLink: event.target.value }))
+          }
+          placeholder="https://example.com/live"
+          required
+        />
       </div>
 
-      <div className="space-y-2 relative">
-        <Label>Target Classes</Label>
-        <div
-          className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
-          onClick={() => {
-            setShowClassDropdown((prev) => !prev);
-            setShowSubjectDropdown(false);
-            setShowSpecializationDropdown(false);
-          }}
+      <div className="space-y-2">
+        <Label htmlFor="assignInCourse">Select Course</Label>
+        <Select
+          value={values.assignInCourse}
+          onValueChange={(value) =>
+            setValues((prev) => ({ ...prev, assignInCourse: value }))
+          }
+          disabled={coursesLoading}
         >
-          {values.class.length ? (
-            values.class.map((classValue) => (
-              <Badge
-                key={classValue}
-                variant="secondary"
-                className="gap-1"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleClassToggle(classValue);
-                }}
-              >
-                {getClassLabel(classValue)}
-                <X className="h-3 w-3" />
-              </Badge>
-            ))
-          ) : (
-            <span className="text-muted-foreground">Select classes</span>
-          )}
-        </div>
-        {showClassDropdown && (
-          <div className="absolute z-20 mt-1 w-full rounded-md border bg-popover shadow-md p-2 max-h-60 overflow-y-auto">
-            {CLASS_OPTIONS.map((option) => (
-              <div
-                key={option.value}
-                className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer text-sm"
-                onClick={() => handleClassToggle(option.value)}
-              >
-                <input
-                  type="checkbox"
-                  checked={values.class.includes(option.value)}
-                  readOnly
-                />
-                <span>{option.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="liveClassLink">Live class link</Label>
-          <Input
-            id="liveClassLink"
-            type="url"
-            value={values.liveClassLink}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, liveClassLink: e.target.value }))
-            }
-            placeholder="https://..."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="recordingURL">Recording link</Label>
-          <Input
-            id="recordingURL"
-            type="url"
-            value={values.recordingURL}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, recordingURL: e.target.value }))
-            }
-            placeholder="https://..."
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label className="flex items-center justify-between">
-            <span>Assign to Course</span>
-            <span className="text-xs text-muted-foreground">
-              Toggle to restrict
-            </span>
-          </Label>
-          <div className="flex items-center gap-3 rounded-md border p-3">
-            <Switch
-              id="isCourseSpecific"
-              checked={values.isCourseSpecific}
-              onCheckedChange={(checked) =>
-                setValues((prev) => ({
-                  ...prev,
-                  isCourseSpecific: Boolean(checked),
-                  assignInCourse: checked ? prev.assignInCourse : "",
-                }))
+          <SelectTrigger className="!w-full [&>span]:truncate [&>span]:max-w-full [&>span]:block">
+            <SelectValue
+              placeholder={
+                coursesLoading ? "Loading courses..." : "Choose a course"
               }
             />
-            <span className="text-sm">Course specific</span>
-          </div>
-          <Select
-            value={values.assignInCourse}
-            onValueChange={(value) =>
-              setValues((prev) => ({ ...prev, assignInCourse: value }))
-            }
-            disabled={!values.isCourseSpecific || coursesLoading}
-          >
-            <SelectTrigger className="mt-2 !w-full [&>span]:truncate [&>span]:max-w-full [&>span]:block">
-              <SelectValue
-                placeholder={
-                  coursesLoading
-                    ? "Loading courses..."
-                    : values.isCourseSpecific
-                    ? "Select course"
-                    : "All courses"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {coursesLoading && (
-                <SelectItem value="loading" disabled>
-                  Loading...
-                </SelectItem>
-              )}
-              {courses.map((course) => (
-                <SelectItem key={course._id} value={course._id}>
-                  <span className="truncate block max-w-[400px]" title={course.title || course.name || "Untitled course"}>
-                    {course.title || course.name || "Untitled course"}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          </SelectTrigger>
+          <SelectContent>
+            {coursesLoading && (
+              <SelectItem value="loading" disabled>
+                Loading...
+              </SelectItem>
+            )}
+            {courses.map((course) => (
+              <SelectItem key={course._id} value={course._id}>
+                <span
+                  className="truncate block max-w-[400px]"
+                  title={course.title || course.name || "Untitled course"}
+                >
+                  {course.title || course.name || "Untitled course"}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex justify-end gap-2">

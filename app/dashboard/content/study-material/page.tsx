@@ -78,6 +78,14 @@ interface StudyMaterialItem {
     title?: string
     slug?: string
   }
+  courseIds?: Array<
+    | string
+    | {
+        _id: string
+        title?: string
+        slug?: string
+      }
+  >
   createdAt?: string
   updatedAt?: string
 }
@@ -233,8 +241,13 @@ export default function StudyMaterialPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("all")
+  const [selectedAssignCourseIds, setSelectedAssignCourseIds] = useState<string[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
+
+  const courseNameMap = useMemo(
+    () => new Map(courses.map((course) => [course._id, course.title || "Untitled course"])),
+    [courses]
+  )
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -291,7 +304,7 @@ export default function StudyMaterialPage() {
 
   useEffect(() => {
     if (!isAssignDialogOpen) {
-      setSelectedCourseId("all")
+      setSelectedAssignCourseIds([])
     }
   }, [isAssignDialogOpen])
 
@@ -306,6 +319,47 @@ export default function StudyMaterialPage() {
       return Boolean(titleMatch || descriptionMatch)
     })
   }, [studyMaterials, debouncedSearchQuery])
+
+  const getCourseNames = useCallback(
+    (material: StudyMaterialItem) => {
+      if (!material.isCourseSpecific) {
+        return "None"
+      }
+
+      const collectedIds: string[] = []
+
+      if (Array.isArray(material.courseIds)) {
+        material.courseIds.forEach((entry) => {
+          if (typeof entry === "string") {
+            collectedIds.push(entry)
+          } else if (entry?._id) {
+            collectedIds.push(entry._id)
+          }
+        })
+      }
+
+      if (material.courseId) {
+        if (typeof material.courseId === "string") {
+          collectedIds.push(material.courseId)
+        } else if (material.courseId._id) {
+          collectedIds.push(material.courseId._id)
+        }
+      }
+
+      const uniqueIds = Array.from(new Set(collectedIds))
+
+      if (uniqueIds.length === 0) {
+        if (typeof material.courseId === "object") {
+          return material.courseId.title || "Linked course"
+        }
+        return "None"
+      }
+
+      const names = uniqueIds.map((id) => courseNameMap.get(id) || "Linked course")
+      return names.join(", ")
+    },
+    [courseNameMap]
+  )
 
   const handleViewMaterial = (material: StudyMaterialItem) => {
     setSelectedMaterial(material)
@@ -379,8 +433,8 @@ export default function StudyMaterialPage() {
       return
     }
 
-    const targetCourseId = selectedCourseId === "all" ? undefined : selectedCourseId
-    const courseSpecific = Boolean(targetCourseId)
+    const targetCourseIds = selectedAssignCourseIds
+    const courseSpecific = targetCourseIds.length > 0
 
     setIsAssigning(true)
     const loadingToast = toast.loading("Updating study material assignment...")
@@ -390,15 +444,15 @@ export default function StudyMaterialPage() {
         selectedMaterialIds.map((materialId) =>
           updateStudyMaterialEntry(materialId, {
             isCourseSpecific: courseSpecific,
-            courseId: targetCourseId,
+            courseIds: targetCourseIds,
           })
         )
       )
 
       toast.success(
         courseSpecific
-          ? "Study materials assigned to course."
-          : "Study materials are now available to all courses.",
+          ? "Study materials assigned to selected courses."
+          : "Course assignment cleared. Materials are not linked to any course.",
         { id: loadingToast }
       )
 
@@ -526,7 +580,7 @@ export default function StudyMaterialPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {material.isCourseSpecific ? material.courseId?.title || "Linked course" : "All courses"}
+                          {getCourseNames(material)}
                         </TableCell>
                         <TableCell className="space-y-1">
                           {material.tags && material.tags.length > 0 ? (
@@ -590,6 +644,7 @@ export default function StudyMaterialPage() {
         onOpenChange={setIsAddDialogOpen}
         educatorId={educator?._id}
         onSuccess={fetchStudyMaterials}
+        courses={courses}
       />
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
@@ -602,20 +657,37 @@ export default function StudyMaterialPage() {
               Selected: {selectedMaterialIds.length} material{selectedMaterialIds.length === 1 ? "" : "s"}
             </p>
             <div className="space-y-2">
-              <Label>Select course</Label>
-              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All courses (default)</SelectItem>
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Select courses (leave empty for all)</Label>
+              <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-2">
+                {courses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No courses available.</p>
+                ) : (
+                  courses.map((course) => {
+                    const checked = selectedAssignCourseIds.includes(course._id)
+                    return (
+                      <label
+                        key={course._id}
+                        className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => {
+                            setSelectedAssignCourseIds((prev) =>
+                              value === true
+                                ? [...prev, course._id]
+                                : prev.filter((id) => id !== course._id)
+                            )
+                          }}
+                        />
+                        <span className="text-sm line-clamp-1">{course.title}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to keep materials unassigned (shown as None).
+              </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -656,7 +728,7 @@ export default function StudyMaterialPage() {
                   <Label className="text-xs uppercase text-muted-foreground">Scope</Label>
                   <p className="text-sm">
                     {selectedMaterial.isCourseSpecific
-                      ? selectedMaterial.courseId?.title || "Linked course"
+                      ? getCourseNames(selectedMaterial)
                       : "Available for all courses"}
                   </p>
                 </div>

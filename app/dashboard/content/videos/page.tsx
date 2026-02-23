@@ -37,13 +37,6 @@ import { deleteVideo, getCoursesByEducator, getVideos, updateVideo } from "@/uti
 import { CreateVideoDialog } from "@/components/create-video-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface CourseSummary {
   _id: string;
@@ -56,6 +49,7 @@ interface VideoItem {
   links?: string[];
   isCourseSpecific?: boolean;
   courseId?: string | { _id: string; title?: string };
+  courseIds?: Array<string | { _id: string; title?: string }>;
   createdAt?: string;
   educatorID?: string | { _id: string };
 }
@@ -159,7 +153,7 @@ export default function VideosPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("all");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
@@ -230,13 +224,43 @@ export default function VideosPage() {
     return map;
   }, [courses]);
 
-  const resolveCourseTitle = (courseField?: VideoItem["courseId"]) => {
-    const id = resolveReferenceId(courseField);
-    if (!id) {
-      return "-";
+  const collectCourseIds = useCallback((video: VideoItem) => {
+    const ids: string[] = [];
+
+    if (Array.isArray(video.courseIds)) {
+      video.courseIds.forEach((entry) => {
+        if (typeof entry === "string") {
+          ids.push(entry);
+        } else if (isRecord(entry) && typeof entry._id === "string") {
+          ids.push(entry._id);
+        }
+      });
     }
-    return courseLookup.get(id) || "Linked course";
-  };
+
+    if (video.courseId) {
+      if (typeof video.courseId === "string") {
+        ids.push(video.courseId);
+      } else if (isRecord(video.courseId) && typeof video.courseId._id === "string") {
+        ids.push(video.courseId._id);
+      }
+    }
+
+    return Array.from(new Set(ids));
+  }, []);
+
+  const isCourseScoped = useCallback(
+    (video: VideoItem) => collectCourseIds(video).length > 0,
+    [collectCourseIds]
+  );
+
+  const getCourseNames = useCallback(
+    (video: VideoItem) => {
+      const ids = collectCourseIds(video);
+      if (ids.length === 0) return "-";
+      return ids.map((id) => courseLookup.get(id) || "Linked course").join(", ");
+    },
+    [collectCourseIds, courseLookup]
+  );
 
   const handleViewDialogChange = (open: boolean) => {
     if (!open) {
@@ -282,7 +306,7 @@ export default function VideosPage() {
 
   useEffect(() => {
     if (!isAssignDialogOpen) {
-      setSelectedCourseId("all");
+      setSelectedCourseIds([]);
     }
   }, [isAssignDialogOpen]);
 
@@ -318,8 +342,8 @@ export default function VideosPage() {
       return;
     }
 
-    const targetCourseId = selectedCourseId === "all" ? undefined : selectedCourseId;
-    const courseSpecific = Boolean(targetCourseId);
+    const targetCourseIds = selectedCourseIds;
+    const courseSpecific = targetCourseIds.length > 0;
 
     setIsAssigning(true);
     const loadingToast = toast.loading("Updating video assignment...");
@@ -329,15 +353,15 @@ export default function VideosPage() {
         selectedVideoIds.map((videoId) =>
           updateVideo(videoId, {
             isCourseSpecific: courseSpecific,
-            courseId: targetCourseId,
-          } as { isCourseSpecific: boolean; courseId?: string })
+            courseIds: targetCourseIds,
+          })
         )
       );
 
       toast.success(
         courseSpecific
-          ? "Videos assigned to course."
-          : "Videos are now available to all courses.",
+          ? "Videos assigned to selected courses."
+          : "Course assignment cleared. Videos are unassigned (shown as None).",
         { id: loadingToast }
       );
 
@@ -452,10 +476,10 @@ export default function VideosPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {video.isCourseSpecific ? "Course-specific" : "All courses"}
+                          {isCourseScoped(video) ? "Course-specific" : "Not assigned"}
                         </TableCell>
                         <TableCell>
-                          {video.isCourseSpecific ? resolveCourseTitle(video.courseId) : "-"}
+                          {isCourseScoped(video) ? getCourseNames(video) : "None"}
                         </TableCell>
                         <TableCell>{formatDate(video.createdAt)}</TableCell>
                         <TableCell className="text-right">
@@ -512,15 +536,13 @@ export default function VideosPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Scope</p>
                 <p className="text-sm text-foreground">
-                  {videoBeingViewed.isCourseSpecific ? "Course-specific" : "All courses"}
+                  {isCourseScoped(videoBeingViewed) ? "Course-specific" : "Not assigned"}
                 </p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Course</p>
                 <p className="text-sm text-foreground">
-                  {videoBeingViewed.isCourseSpecific
-                    ? resolveCourseTitle(videoBeingViewed.courseId)
-                    : "-"}
+                  {isCourseScoped(videoBeingViewed) ? getCourseNames(videoBeingViewed) : "None"}
                 </p>
               </div>
               <div className="space-y-2">
@@ -591,20 +613,37 @@ export default function VideosPage() {
               Selected: {selectedVideoIds.length} video{selectedVideoIds.length === 1 ? "" : "s"}
             </p>
             <div className="space-y-2">
-              <Label>Select course</Label>
-              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All courses (default)</SelectItem>
-                  {courses.map((course) => (
-                    <SelectItem key={course._id} value={course._id}>
-                      {course.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Select courses (leave empty for none)</Label>
+              <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-2">
+                {courses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No courses available.</p>
+                ) : (
+                  courses.map((course) => {
+                    const checked = selectedCourseIds.includes(course._id);
+                    return (
+                      <label
+                        key={course._id}
+                        className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => {
+                            setSelectedCourseIds((prev) =>
+                              value === true
+                                ? [...prev, course._id]
+                                : prev.filter((id) => id !== course._id)
+                            );
+                          }}
+                        />
+                        <span className="text-sm line-clamp-1">{course.title}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to keep videos unassigned (shown as None).
+              </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">

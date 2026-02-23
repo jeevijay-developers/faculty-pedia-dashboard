@@ -337,6 +337,15 @@ export const createCourse = async (courseData) => {
 // Video APIs
 // ============================================================
 
+/**
+ * @typedef {Object} CreateVideoPayload
+ * @property {string} title
+ * @property {string[]} links
+ * @property {boolean} [isCourseSpecific]
+ * @property {string} [courseId]
+ * @property {string[]} [courseIds]
+ */
+
 const normalizeVideoLinksPayload = (links = []) =>
   (Array.isArray(links) ? links : [links])
     .map((link) => (typeof link === "string" ? link.trim() : ""))
@@ -355,14 +364,21 @@ export const getVideos = async (params = {}) => {
   }
 };
 
+/**
+ * @param {CreateVideoPayload} payload
+ */
 export const createVideo = async ({
   title,
   links,
   isCourseSpecific = false,
   courseId,
+  courseIds = [],
 }) => {
   try {
     const normalizedLinks = normalizeVideoLinksPayload(links);
+    const normalizedCourseIds = Array.isArray(courseIds)
+      ? courseIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+      : [];
 
     if (!normalizedLinks.length) {
       throw new Error("At least one video link is required");
@@ -374,8 +390,12 @@ export const createVideo = async ({
       isCourseSpecific,
     };
 
-    if (isCourseSpecific && courseId) {
-      payload.courseId = courseId;
+    if (isCourseSpecific) {
+      if (normalizedCourseIds.length > 0) {
+        payload.courseIds = normalizedCourseIds;
+      } else if (courseId) {
+        payload.courseId = courseId;
+      }
     }
 
     const response = await API_CLIENT.post("/api/videos", payload, {
@@ -412,20 +432,27 @@ export const deleteVideo = async (videoId) => {
  * @param {string[]} [options.links] - Video links
  * @param {boolean} [options.isCourseSpecific] - Whether video is course-specific
  * @param {string} [options.courseId] - Course ID if course-specific
+ * @param {string[]} [options.courseIds] - Course IDs if course-specific
  */
 export const updateVideo = async (videoId, options = {}) => {
   if (!videoId) {
     throw new Error("Video ID is required to update a video");
   }
 
-  const { title, links, isCourseSpecific, courseId } = options;
+  const { title, links, isCourseSpecific, courseId, courseIds = [] } = options;
+  const normalizedCourseIds = Array.isArray(courseIds)
+    ? courseIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+    : [];
 
   try {
     const payload = {};
     if (typeof title !== "undefined") payload.title = title;
     if (typeof links !== "undefined") payload.links = normalizeVideoLinksPayload(links);
     if (typeof isCourseSpecific !== "undefined") payload.isCourseSpecific = isCourseSpecific;
-    if (isCourseSpecific && courseId) payload.courseId = courseId;
+    if (typeof courseIds !== "undefined") payload.courseIds = normalizedCourseIds;
+    if (isCourseSpecific && normalizedCourseIds.length === 0 && courseId) {
+      payload.courseId = courseId;
+    }
 
     const response = await API_CLIENT.put(`/api/videos/${videoId}`, payload, {
       headers: getAuthHeaders(),
@@ -577,6 +604,7 @@ export const createStudyMaterialEntry = async ({
   tags = [],
   isCourseSpecific = false,
   courseId,
+  courseIds = [],
 }) => {
   if (!educatorID) {
     throw new Error("Educator ID is required to create study material");
@@ -594,10 +622,22 @@ export const createStudyMaterialEntry = async ({
     formData.append("description", description);
   }
 
-  formData.append("isCourseSpecific", String(isCourseSpecific));
+  const normalizedCourseIds = Array.isArray(courseIds)
+    ? courseIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+    : [];
 
-  if (isCourseSpecific && courseId) {
-    formData.append("courseId", courseId);
+  const effectiveIsCourseSpecific =
+    isCourseSpecific || normalizedCourseIds.length > 0 || Boolean(courseId);
+
+  formData.append("isCourseSpecific", String(effectiveIsCourseSpecific));
+
+  if (effectiveIsCourseSpecific) {
+    if (normalizedCourseIds.length > 0) {
+      normalizedCourseIds.forEach((id) => formData.append("courseIds[]", id));
+    }
+    if (courseId && normalizedCourseIds.length === 0) {
+      formData.append("courseId", courseId);
+    }
   }
 
   tags
@@ -633,6 +673,7 @@ export const createStudyMaterialEntry = async ({
  * @property {string[]} [tags]
  * @property {boolean} [isCourseSpecific]
  * @property {string} [courseId]
+ * @property {string[]} [courseIds]
  * @property {string[]} [removeDocIds]
  */
 
@@ -651,6 +692,7 @@ export const updateStudyMaterialEntry = async (
     tags = [],
     isCourseSpecific,
     courseId,
+    courseIds = [],
     removeDocIds = [],
   } = {}
 ) => {
@@ -676,11 +718,19 @@ export const updateStudyMaterialEntry = async (
     formData.append("description", description);
   }
 
+  const normalizedCourseIds = Array.isArray(courseIds)
+    ? courseIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+    : [];
+
   if (typeof isCourseSpecific !== "undefined") {
     formData.append("isCourseSpecific", String(isCourseSpecific));
   }
 
-  if (courseId) {
+  if (normalizedCourseIds.length > 0) {
+    normalizedCourseIds.forEach((id) => formData.append("courseIds[]", id));
+  }
+
+  if (courseId && normalizedCourseIds.length === 0) {
     formData.append("courseId", courseId);
   }
 

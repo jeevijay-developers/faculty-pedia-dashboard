@@ -746,7 +746,11 @@ export function EditCourseDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div
+                className={`grid grid-cols-1 ${
+                  courseType === "one-to-one" ? "md:grid-cols-3" : "md:grid-cols-4"
+                } gap-4`}
+              >
                 <div className="space-y-2">
                   <Label htmlFor="courseFee">Course Fee *</Label>
                   <Input
@@ -769,17 +773,19 @@ export function EditCourseDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxStudents">Seat</Label>
-                  <Input
-                    id="maxStudents"
-                    type="number"
-                    value={maxStudents}
-                    onChange={(e) => setMaxStudents(e.target.value)}
-                    placeholder="Max seats"
-                    min={1}
-                  />
-                </div>
+                {courseType !== "one-to-one" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="maxStudents">Seat</Label>
+                    <Input
+                      id="maxStudents"
+                      type="number"
+                      value={maxStudents}
+                      onChange={(e) => setMaxStudents(e.target.value)}
+                      placeholder="Max seats"
+                      min={1}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="validDate">Validity Date *</Label>
                   <Input

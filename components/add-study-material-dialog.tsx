@@ -101,6 +101,8 @@ interface CreateStudyMaterialPayload {
   description?: string;
   tags: string[];
   docs: File[];
+  isCourseSpecific?: boolean;
+  courseIds?: string[];
 }
 
 const submitStudyMaterialEntry =
@@ -113,6 +115,7 @@ interface AddStudyMaterialDialogProps {
   onOpenChange: (open: boolean) => void;
   educatorId?: string;
   onSuccess?: () => void;
+  courses?: CourseSummary[];
 }
 
 export function AddStudyMaterialDialog({
@@ -120,21 +123,28 @@ export function AddStudyMaterialDialog({
   onOpenChange,
   educatorId,
   onSuccess,
+  courses = [],
 }: AddStudyMaterialDialogProps) {
   const [formState, setFormState] = useState({ title: "", description: "" });
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const subjectFieldRef = useRef<HTMLDivElement | null>(null);
   const subjectDropdownRef = useRef<HTMLDivElement | null>(null);
+  const courseFieldRef = useRef<HTMLDivElement | null>(null);
+  const courseDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const resetForm = () => {
     setFormState({ title: "", description: "" });
     setSelectedSubjects([]);
     setShowSubjectDropdown(false);
+    setSelectedCourseIds([]);
+    setShowCourseDropdown(false);
     setSelectedFiles([]);
     setFormError(null);
     if (fileInputRef.current) {
@@ -153,7 +163,7 @@ export function AddStudyMaterialDialog({
   };
 
   useEffect(() => {
-    if (!showSubjectDropdown) {
+    if (!showSubjectDropdown && !showCourseDropdown) {
       return;
     }
 
@@ -161,18 +171,29 @@ export function AddStudyMaterialDialog({
       const target = event.target as Node;
       if (
         subjectFieldRef.current?.contains(target) ||
-        subjectDropdownRef.current?.contains(target)
+        subjectDropdownRef.current?.contains(target) ||
+        courseFieldRef.current?.contains(target) ||
+        courseDropdownRef.current?.contains(target)
       ) {
         return;
       }
       setShowSubjectDropdown(false);
+      setShowCourseDropdown(false);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showSubjectDropdown]);
+  }, [showSubjectDropdown, showCourseDropdown]);
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files ? Array.from(event.target.files) : [];
@@ -216,6 +237,8 @@ export function AddStudyMaterialDialog({
     }
 
     const tags = selectedSubjects.slice(0, 25);
+    const courseIds = selectedCourseIds.slice(0, 50);
+    const isCourseSpecific = courseIds.length > 0;
 
     try {
       setIsSubmitting(true);
@@ -224,6 +247,8 @@ export function AddStudyMaterialDialog({
         title: formState.title.trim(),
         description: formState.description.trim(),
         tags,
+        courseIds,
+        isCourseSpecific,
         docs: selectedFiles,
       });
 
@@ -331,6 +356,78 @@ export function AddStudyMaterialDialog({
             )}
             <p className="text-xs text-muted-foreground">
               Select subjects that best describe this material.
+            </p>
+          </div>
+
+          <div className="space-y-2 relative">
+            <Label>Assign to courses (optional)</Label>
+            <div
+              ref={courseFieldRef}
+              className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex flex-wrap gap-1 items-center"
+              onClick={() => {
+                if (isSubmitting) return;
+                setShowCourseDropdown((prev) => !prev);
+              }}
+            >
+              {selectedCourseIds.length ? (
+                selectedCourseIds.map((courseId) => {
+                  const course = courses.find((entry) => entry._id === courseId);
+                  return (
+                    <Badge key={courseId} variant="secondary" className="gap-1">
+                      {course?.title || "Selected course"}
+                      <button
+                        type="button"
+                        className="ml-1 rounded transition hover:text-destructive"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleCourse(courseId);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })
+              ) : (
+                <span className="text-muted-foreground">
+                  Select one or more courses (leave empty for all courses)
+                </span>
+              )}
+            </div>
+            {showCourseDropdown && (
+              <div
+                ref={courseDropdownRef}
+                className="absolute z-20 mt-1 w-full rounded-md border bg-popover shadow-md p-2 max-h-56 overflow-y-auto"
+              >
+                {courses.length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No courses available.
+                  </div>
+                ) : (
+                  courses.map((course) => (
+                    <button
+                      type="button"
+                      key={course._id}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleCourse(course._id);
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        className="pointer-events-none"
+                        readOnly
+                        checked={selectedCourseIds.includes(course._id)}
+                      />
+                      <span className="line-clamp-1">{course.title}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Leave empty to keep this material unassigned (shown as None), or pick courses to restrict access.
             </p>
           </div>
 

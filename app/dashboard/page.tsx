@@ -256,6 +256,20 @@ export default function DashboardPage() {
     youtube: "",
   });
 
+  const frontendBaseUrl = useMemo(
+    () =>
+      process.env.NEXT_PUBLIC_FRONTEND_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3001",
+    []
+  );
+
+  const educatorProfileUrl = useMemo(() => {
+    if (!educatorId) return "";
+    const normalizedBase = frontendBaseUrl.replace(/\/$/, "");
+    return `${normalizedBase}/profile/educator/${educatorId}`;
+  }, [educatorId, frontendBaseUrl]);
+
   // Video upload state
   const [videoData, setVideoData] = useState({
     videoFile: null as File | null,
@@ -840,7 +854,19 @@ export default function DashboardPage() {
       <DashboardHeader
         title={`Welcome back, ${getFullName()}!`}
         description="Manage your profile and view your teaching statistics"
-      />
+      >
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          disabled={!educatorProfileUrl}
+        >
+          <Link href={educatorProfileUrl || "#"} prefetch={false}>
+            View Your Profile
+          </Link>
+        </Button>
+      </DashboardHeader>
 
       <div className="px-6 space-y-6">
         <Tabs defaultValue="overview" className="space-y-6">
