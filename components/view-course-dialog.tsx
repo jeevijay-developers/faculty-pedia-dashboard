@@ -88,7 +88,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto hide-scrollbar">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -119,33 +119,40 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
           )}
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Students</p>
-                <p className="text-lg font-semibold">{course.enrolledStudents?.length || 0}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
+              <Users className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">Students</p>
+                <p className="text-base font-semibold">{course.enrolledStudents?.length || 0}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <IndianRupee className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Fees</p>
-                <p className="text-lg font-semibold">₹{course.fees?.toLocaleString() || 0}</p>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
+              <IndianRupee className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">Fees</p>
+                <p className="text-base font-semibold truncate">₹{course.fees?.toLocaleString() || 0}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Duration</p>
-                <p className="text-lg font-semibold">{course.classDuration || course.courseDuration || 0} min</p>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
+              <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">Duration</p>
+                <p className="text-base font-semibold truncate">{course.classDuration ? `${course.classDuration} min` : (course.courseDuration || "N/A")}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              <BookOpen className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Seats</p>
-                <p className="text-lg font-semibold">{course.maxStudents || course.seatLimit || "Unlimited"}</p>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
+              <Calendar className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">Classes/Week</p>
+                <p className="text-base font-semibold">{course.classesPerWeek || "N/A"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
+              <BookOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">Seats</p>
+                <p className="text-base font-semibold">{course.maxStudents || course.seatLimit || "Unlimited"}</p>
               </div>
             </div>
           </div>
