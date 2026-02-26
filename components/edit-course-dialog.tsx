@@ -818,6 +818,31 @@ export function EditCourseDialog({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="classesPerWeek">Classes per Week</Label>
+                  <Input
+                    id="classesPerWeek"
+                    type="number"
+                    min="0"
+                    value={classesPerWeek}
+                    onChange={(e) => setClassesPerWeek(e.target.value)}
+                    placeholder="e.g. 5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="classDuration">Class Duration (minutes)</Label>
+                  <Input
+                    id="classDuration"
+                    type="number"
+                    min="0"
+                    value={classDuration}
+                    onChange={(e) => setClassDuration(e.target.value)}
+                    placeholder="e.g. 90"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="aboutCourse">About Course *</Label>
                 <Textarea

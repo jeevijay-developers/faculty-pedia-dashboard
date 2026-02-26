@@ -258,14 +258,12 @@ export default function DashboardPage() {
 
   const frontendBaseUrl = useMemo(
     () =>
-      process.env.NEXT_PUBLIC_FRONTEND_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3001",
+      process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000",
     []
   );
 
   const educatorProfileUrl = useMemo(() => {
-    if (!educatorId) return "";
+    if (!educatorId || !frontendBaseUrl) return "";
     const normalizedBase = frontendBaseUrl.replace(/\/$/, "");
     return `${normalizedBase}/profile/educator/${educatorId}`;
   }, [educatorId, frontendBaseUrl]);
