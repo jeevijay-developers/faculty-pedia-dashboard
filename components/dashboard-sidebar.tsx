@@ -201,7 +201,7 @@ export function DashboardSidebar({ className }: DashboardSidebarProps) {
         <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
             <Image
-              src="/logo-blue.png"
+              src="/finalLogo.png"
               alt="Facultypedia Logo"
               width={32}
               height={32}
