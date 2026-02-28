@@ -57,7 +57,7 @@ interface Webinar {
   _id: string
   title: string
   description?: string | { short?: string; long?: string }
-  webinarType?: string
+  webinarType?: "one-to-one" | "one-to-all" | "OTO" | "OTA" | undefined
   timing?: string
   subject?: string[] | string
   specialization?: string[] | string
