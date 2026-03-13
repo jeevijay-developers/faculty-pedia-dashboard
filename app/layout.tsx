@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Created with Facultypedia",
   generator: "Facultypedia",
   icons: {
-    icon: "/finalLogo.PNG",
+    icon: "/finalLogo.png",
   },
 };
 
