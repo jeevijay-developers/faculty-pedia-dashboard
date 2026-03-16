@@ -450,8 +450,9 @@ export const updateVideo = async (videoId, options = {}) => {
     if (typeof links !== "undefined") payload.links = normalizeVideoLinksPayload(links);
     if (typeof isCourseSpecific !== "undefined") payload.isCourseSpecific = isCourseSpecific;
     if (typeof courseIds !== "undefined") payload.courseIds = normalizedCourseIds;
-    if (isCourseSpecific && normalizedCourseIds.length === 0 && courseId) {
-      payload.courseId = courseId;
+    if (typeof courseId !== "undefined") payload.courseId = courseId;
+    if (isCourseSpecific && !payload.courseId && normalizedCourseIds.length > 0) {
+      payload.courseId = normalizedCourseIds[0];
     }
 
     const response = await API_CLIENT.put(`/api/videos/${videoId}`, payload, {

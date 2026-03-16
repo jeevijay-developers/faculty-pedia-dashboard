@@ -344,6 +344,7 @@ export default function VideosPage() {
 
     const targetCourseIds = selectedCourseIds;
     const courseSpecific = targetCourseIds.length > 0;
+    const primaryCourseId = courseSpecific ? targetCourseIds[0] : undefined;
 
     setIsAssigning(true);
     const loadingToast = toast.loading("Updating video assignment...");
@@ -353,6 +354,7 @@ export default function VideosPage() {
         selectedVideoIds.map((videoId) =>
           updateVideo(videoId, {
             isCourseSpecific: courseSpecific,
+            courseId: primaryCourseId,
             courseIds: targetCourseIds,
           })
         )
@@ -360,7 +362,7 @@ export default function VideosPage() {
 
       toast.success(
         courseSpecific
-          ? "Videos assigned to selected courses."
+          ? "Videos assigned to the selected course."
           : "Course assignment cleared. Videos are unassigned (shown as None).",
         { id: loadingToast }
       );
@@ -613,7 +615,7 @@ export default function VideosPage() {
               Selected: {selectedVideoIds.length} video{selectedVideoIds.length === 1 ? "" : "s"}
             </p>
             <div className="space-y-2">
-              <Label>Select courses (leave empty for none)</Label>
+              <Label>Select one course (leave empty for none)</Label>
               <div className="max-h-56 overflow-y-auto rounded-md border p-2 space-y-2">
                 {courses.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No courses available.</p>
@@ -629,9 +631,7 @@ export default function VideosPage() {
                           checked={checked}
                           onCheckedChange={(value) => {
                             setSelectedCourseIds((prev) =>
-                              value === true
-                                ? [...prev, course._id]
-                                : prev.filter((id) => id !== course._id)
+                              value === true ? [course._id] : prev.filter((id) => id !== course._id)
                             );
                           }}
                         />
@@ -642,7 +642,7 @@ export default function VideosPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Leave empty to keep videos unassigned (shown as None).
+                Only one course can be assigned per video right now. Leave empty to keep videos unassigned.
               </p>
             </div>
           </div>
