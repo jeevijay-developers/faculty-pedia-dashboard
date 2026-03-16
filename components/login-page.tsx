@@ -259,7 +259,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <div className="bg-muted p-4 rounded-2xl">
               <Image
-                src="/logo-blue.png"
+                src="/finalLogo.png"
                 alt="Facultypedia Logo"
                 width={40}
                 height={20}
