@@ -380,7 +380,7 @@ export default function DashboardPage() {
       description: `${coursesCount} courses created`,
       icon: BookOpen,
       trend: `Subject: ${subjectTrend}`,
-      href: "/dashboard/courses",
+      href: "/dashboard/courses/live",
     },
     {
       title: "Question Bank",
