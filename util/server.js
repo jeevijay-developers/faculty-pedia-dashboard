@@ -657,6 +657,7 @@ export const createStudyMaterialEntry = async ({
         ...getAuthHeaders(),
         "Content-Type": "multipart/form-data",
       },
+      timeout: 180000,
     });
     return response.data;
   } catch (error) {
@@ -758,6 +759,7 @@ export const updateStudyMaterialEntry = async (
           ...getAuthHeaders(),
           "Content-Type": "multipart/form-data",
         },
+        timeout: 180000,
       }
     );
     return response.data;
