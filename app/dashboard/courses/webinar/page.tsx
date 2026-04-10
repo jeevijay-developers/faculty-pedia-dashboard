@@ -650,7 +650,7 @@ export default function WebinarPage() {
                   <div className="font-medium">{formatTimeValue(selectedWebinar)}</div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Duration</span>
+                  <span className="text-muted-foreground">Duration (in minutes)</span>
                   <div className="font-medium">{formatDuration(selectedWebinar.duration)}</div>
                 </div>
                 <div>

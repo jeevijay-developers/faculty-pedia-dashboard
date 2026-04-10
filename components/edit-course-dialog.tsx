@@ -1012,7 +1012,7 @@ export function EditCourseDialog({
                         <ImageIcon className="h-10 w-10" />
                         <p className="text-sm">Upload a banner image</p>
                         <p className="text-xs text-muted-foreground">
-                          Recommended size 1200x400px
+                          Recommended size 1456 x 800 px
                         </p>
                       </div>
                     )}

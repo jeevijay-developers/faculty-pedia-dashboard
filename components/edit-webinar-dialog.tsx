@@ -66,6 +66,7 @@ export function EditWebinarDialog({
     description: "",
     webinarType: "OTA" as "OTO" | "OTA",
     time: "",
+    duration: "",
     subject: "",
     specialization: "CBSE" as "IIT-JEE" | "NEET" | "CBSE",
     date: "",
@@ -147,6 +148,10 @@ export function EditWebinarDialog({
         description: description,
         webinarType: webinarType,
         time: time,
+        duration:
+          webinar.duration !== undefined && webinar.duration !== null
+            ? String(webinar.duration)
+            : "",
         subject: subject,
         specialization: specialization,
         date: date,
@@ -209,6 +214,7 @@ export function EditWebinarDialog({
         description: string;
         webinarType: "OTO" | "OTA";
         timing: string;
+        duration: string;
         subject: string[];
         specialization: string[];
         seatLimit: number;
@@ -221,6 +227,7 @@ export function EditWebinarDialog({
         description: formData.description.trim(), // Single string field
         webinarType: formData.webinarType, // Will be converted by schema setter
         timing: dateTime.toISOString(), // Combined date and time
+        duration: formData.duration.trim(),
         subject: [formData.subject.trim().toLowerCase()], // Array as per schema
         specialization: [formData.specialization], // Array as per schema
         seatLimit: Number(formData.seatLimit),
@@ -391,18 +398,30 @@ export function EditWebinarDialog({
                   disabled={isLoading}
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="seatLimit">Seat Limit *</Label>
-              <Input
-                id="seatLimit"
-                type="number"
-                placeholder="100"
-                value={formData.seatLimit}
-                onChange={(e) => handleInputChange("seatLimit", e.target.value)}
-                disabled={isLoading}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration *</Label>
+                <Input
+                  id="duration"
+                  type="text"
+                  placeholder="e.g. 90 minutes"
+                  value={formData.duration}
+                  onChange={(e) => handleInputChange("duration", e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="seatLimit">Seat Limit *</Label>
+                <Input
+                  id="seatLimit"
+                  type="number"
+                  placeholder="100"
+                  value={formData.seatLimit}
+                  onChange={(e) => handleInputChange("seatLimit", e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -463,7 +482,7 @@ export function EditWebinarDialog({
                       />
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      PNG, JPG, JPEG up to 10MB
+                      Recommended size 1456 x 800 px. PNG, JPG, JPEG up to 10MB
                     </p>
                   </div>
                 </div>

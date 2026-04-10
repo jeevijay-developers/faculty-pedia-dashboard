@@ -440,7 +440,7 @@ export function CreateTestSeriesDialog({
                 Upload a banner image for your test series
               </p>
               <p className="text-xs text-muted-foreground mb-3">
-                Supports JPG, PNG. Max size 5MB
+                Recommended size 1456 x 800 px. Supports JPG, PNG. Max size 5MB
               </p>
               <label htmlFor="image-upload" className="cursor-pointer">
                 <Button type="button" variant="outline" size="sm" asChild>

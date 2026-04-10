@@ -1555,10 +1555,10 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="text-card-foreground flex items-center gap-2">
                   <Video className="h-5 w-5" />
-                  Add Demo Video
+                  Add Intro Video
                 </CardTitle>
                 <CardDescription>
-                  Upload your educational videos to Vimeo
+                  Upload your introduction video. This video will be displayed on your profile to give students a quick overview of your teaching style and expertise.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
