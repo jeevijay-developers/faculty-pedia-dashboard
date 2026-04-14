@@ -841,7 +841,7 @@ export function CreateCourseDialog({
               <div className="space-y-2">
                 <Label>Course Banner</Label>
                 <div className="space-y-3">
-                  <div className="relative w-full h-60 rounded-md border-2 border-dashed bg-muted/40 overflow-hidden">
+                  <div className="relative w-full aspect-video rounded-md border-2 border-dashed bg-muted/40 overflow-hidden">
                     {imagePreview ? (
                       <>
                         <Image
@@ -849,7 +849,7 @@ export function CreateCourseDialog({
                           alt="Preview"
                           fill
                           sizes="100vw"
-                          className="object-cover"
+                          className="object-contain bg-muted/20"
                           unoptimized
                         />
                         <button
@@ -861,11 +861,11 @@ export function CreateCourseDialog({
                         </button>
                       </>
                     ) : (
-                      <div className="flex h-60 w-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
                         <ImageIcon className="h-10 w-10" />
                         <p className="text-sm">Upload a banner image</p>
                         <p className="text-xs text-muted-foreground">
-                          Recommended size 1456 x 800 px
+                          Recommended size 1280x720 px
                         </p>
                       </div>
                     )}

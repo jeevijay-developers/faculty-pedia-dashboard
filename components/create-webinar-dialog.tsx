@@ -454,7 +454,7 @@ export function CreateWebinarDialog({
                       />
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Recommended size 1456 x 800 px. PNG, JPG, JPEG up to 10MB
+                      Recommended size 1280x 720 px. PNG, JPG, JPEG up to 10MB
                     </p>
                   </div>
                 </div>

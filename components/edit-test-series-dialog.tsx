@@ -438,7 +438,7 @@ export function EditTestSeriesDialog({
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Recommended size 1456 x 800 px. JPG, PNG, or WEBP up to 5MB. Changes save immediately.
+                  Recommended size 1280x 720 px. JPG, PNG, or WEBP up to 5MB. Changes save immediately.
                 </p>
               </div>
             </div>
