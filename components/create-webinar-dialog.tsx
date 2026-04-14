@@ -76,6 +76,14 @@ export function CreateWebinarDialog({
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB (server limit)
+      if (file.size > MAX_IMAGE_BYTES) {
+        toast.error(
+          `Image is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). Please keep it under 5 MB.`
+        );
+        event.target.value = "";
+        return;
+      }
       setSelectedImage(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
@@ -454,7 +462,7 @@ export function CreateWebinarDialog({
                       />
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Recommended size 1280x 720 px. PNG, JPG, JPEG up to 10MB
+                      Recommended size 1280x 720 px. PNG, JPG, JPEG up to 5MB
                     </p>
                   </div>
                 </div>

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
 import { updateWebinar, uploadImage } from "@/util/server";
+import toast from "react-hot-toast";
 
 interface EditWebinarDialogProps {
   open: boolean;
@@ -178,6 +179,14 @@ export function EditWebinarDialog({
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB (server limit)
+      if (file.size > MAX_IMAGE_BYTES) {
+        toast.error(
+          `Image is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). Please keep it under 5 MB.`
+        );
+        event.target.value = "";
+        return;
+      }
       setSelectedImage(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
@@ -482,7 +491,7 @@ export function EditWebinarDialog({
                       />
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Recommended size 1280x 720 px. PNG, JPG, JPEG up to 10MB
+                      Recommended size 1280x 720 px. PNG, JPG, JPEG up to 5MB
                     </p>
                   </div>
                 </div>
