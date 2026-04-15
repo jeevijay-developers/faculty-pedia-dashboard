@@ -1413,6 +1413,50 @@ export const uploadCourseIntroVideo = async (courseId, videoFile) => {
   return response.data;
 };
 
+// Upload webinar intro/demo video to Vimeo
+export const uploadWebinarIntroVideo = async (webinarId, videoFile) => {
+  if (!webinarId) {
+    throw new Error("Webinar ID is required");
+  }
+
+  if (!videoFile) {
+    throw new Error("Video file is required");
+  }
+
+  const formData = new FormData();
+  formData.append("video", videoFile);
+
+  const response = await API_CLIENT.post(
+    `/api/webinars/${webinarId}/intro-video/upload`,
+    formData,
+    {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 600000,
+    }
+  );
+
+  return response.data;
+};
+
+// Poll webinar intro video Vimeo transcode status
+export const getWebinarIntroVideoStatus = async (webinarId) => {
+  if (!webinarId) {
+    throw new Error("Webinar ID is required");
+  }
+
+  const response = await API_CLIENT.get(
+    `/api/webinars/${webinarId}/intro-video/status`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  return response.data;
+};
+
 // Poll course intro video Vimeo transcode status
 export const getCourseIntroVideoStatus = async (courseId) => {
   if (!courseId) {

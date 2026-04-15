@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
-import { createWebinar, uploadImage } from "@/util/server";
+import { createWebinar, uploadImage, uploadWebinarIntroVideo } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
 import Image from "next/image";
@@ -60,7 +60,18 @@ export function CreateWebinarDialog({
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [introVideoFile, setIntroVideoFile] = useState<File | null>(null);
+  const [introVideoPreview, setIntroVideoPreview] = useState<string | null>(null);
+  const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (introVideoPreview) {
+        URL.revokeObjectURL(introVideoPreview);
+      }
+    };
+  }, [introVideoPreview]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [newAssetName, setNewAssetName] = useState<AssetLink["name"]>("PPT");
@@ -93,6 +104,36 @@ export function CreateWebinarDialog({
   const removeImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
+  };
+
+  const handleIntroVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file");
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Video size must be under 500MB");
+      return;
+    }
+
+    setIntroVideoFile(file);
+    setIntroVideoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    toast.success(`Selected: ${file.name}`);
+  };
+
+  const removeIntroVideo = () => {
+    setIntroVideoFile(null);
+    setIntroVideoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   };
 
 
@@ -187,7 +228,28 @@ export function CreateWebinarDialog({
         ...(imageData && { image: imageData }),
       };
 
-      await createWebinar(educator._id, webinarData);
+      const createdResponse = await createWebinar(educator._id, webinarData);
+      const createdWebinar =
+        createdResponse?.data || createdResponse?.webinar || createdResponse;
+      const createdWebinarId = createdWebinar?._id || createdWebinar?.id;
+
+      if (introVideoFile && createdWebinarId) {
+        try {
+          setUploadingIntroVideo(true);
+          await uploadWebinarIntroVideo(createdWebinarId, introVideoFile);
+          toast.success("Demo video uploaded to Vimeo");
+        } catch (err) {
+          console.error("Intro video upload failed:", err);
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Demo video upload failed. You can retry from edit."
+          );
+        } finally {
+          setUploadingIntroVideo(false);
+        }
+      }
+
       setSuccess(true);
 
       if (onWebinarCreated) {
@@ -212,6 +274,7 @@ export function CreateWebinarDialog({
         });
         setSelectedImage(null);
         setImagePreview(null);
+        removeIntroVideo();
         setNewAssetName("PPT");
         setNewAssetLink("");
         setSuccess(false);
@@ -468,6 +531,65 @@ export function CreateWebinarDialog({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Demo Video Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Demo Video (optional)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="introVideoFile">Upload to Vimeo</Label>
+                <Input
+                  id="introVideoFile"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleIntroVideoFileChange}
+                  disabled={isLoading}
+                />
+                {introVideoFile && (
+                  <span className="text-xs text-muted-foreground truncate block">
+                    {introVideoFile.name}
+                  </span>
+                )}
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Uploaded to Vimeo after the webinar is created. Max 500MB.
+                </p>
+                {uploadingIntroVideo && (
+                  <p className="text-xs text-primary font-medium">
+                    Uploading demo video...
+                  </p>
+                )}
+                {introVideoFile && !uploadingIntroVideo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeIntroVideo}
+                    disabled={isLoading}
+                    className="text-destructive hover:text-destructive/80"
+                  >
+                    <X className="h-4 w-4 mr-1" /> Remove
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                <div className="aspect-video rounded-md overflow-hidden bg-muted flex items-center justify-center border">
+                  {introVideoPreview ? (
+                    <video
+                      key={introVideoPreview}
+                      src={introVideoPreview}
+                      controls
+                      className="h-full w-full object-contain bg-black"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No demo video selected
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Asset Links Section */}

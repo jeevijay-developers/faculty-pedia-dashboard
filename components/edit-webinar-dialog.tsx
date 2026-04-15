@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle, Upload, X } from "lucide-react";
-import { updateWebinar, uploadImage } from "@/util/server";
+import { updateWebinar, uploadImage, uploadWebinarIntroVideo } from "@/util/server";
 import toast from "react-hot-toast";
 
 interface EditWebinarDialogProps {
@@ -51,6 +51,7 @@ interface Webinar {
   class?: string[];
   webinarLink?: string;
   image?: string | { url?: string; public_id?: string };
+  introVideo?: string;
   date?: string | Date;
   time?: string;
   assetsLink?: string[];
@@ -78,7 +79,27 @@ export function EditWebinarDialog({
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [introVideoFile, setIntroVideoFile] = useState<File | null>(null);
+  const [introVideoPreview, setIntroVideoPreview] = useState<string | null>(null);
+  const [existingIntroVideo, setExistingIntroVideo] = useState<string>("");
+  const [uploadingIntroVideo, setUploadingIntroVideo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const toVimeoEmbedUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("player.vimeo.com/video/")) return url;
+    const idMatch = url.match(/vimeo\.com\/(?:video\/|manage\/videos\/)?([0-9]+)/);
+    const videoId = idMatch?.[1];
+    return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (introVideoPreview) {
+        URL.revokeObjectURL(introVideoPreview);
+      }
+    };
+  }, [introVideoPreview]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -166,6 +187,12 @@ export function EditWebinarDialog({
         : webinar.image?.url || null;
       setImagePreview(imageUrl);
       setSelectedImage(null);
+      setExistingIntroVideo(toVimeoEmbedUrl(webinar.introVideo || ""));
+      setIntroVideoFile(null);
+      setIntroVideoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       setError(null);
       setSuccess(false);
     }
@@ -196,6 +223,36 @@ export function EditWebinarDialog({
   const removeImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
+  };
+
+  const handleIntroVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file");
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Video size must be under 500MB");
+      return;
+    }
+
+    setIntroVideoFile(file);
+    setIntroVideoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    toast.success(`Selected: ${file.name}`);
+  };
+
+  const removeIntroVideoSelection = () => {
+    setIntroVideoFile(null);
+    setIntroVideoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   };
 
   const handleSubmit = async () => {
@@ -250,6 +307,39 @@ export function EditWebinarDialog({
       }
 
       await updateWebinar(webinar._id, updateData);
+
+      if (introVideoFile) {
+        try {
+          setUploadingIntroVideo(true);
+          const uploadResp = await uploadWebinarIntroVideo(
+            webinar._id,
+            introVideoFile
+          );
+          const uploadedUrl =
+            uploadResp?.data?.introVideo ||
+            uploadResp?.data?.embedUrl ||
+            uploadResp?.introVideo;
+          if (uploadedUrl) {
+            setExistingIntroVideo(toVimeoEmbedUrl(uploadedUrl));
+          }
+          setIntroVideoFile(null);
+          setIntroVideoPreview((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+          });
+          toast.success("Demo video uploaded to Vimeo");
+        } catch (uploadErr) {
+          console.error("Intro video upload failed:", uploadErr);
+          toast.error(
+            uploadErr instanceof Error
+              ? uploadErr.message
+              : "Demo video upload failed."
+          );
+        } finally {
+          setUploadingIntroVideo(false);
+        }
+      }
+
       setSuccess(true);
 
       if (onWebinarUpdated) {
@@ -497,6 +587,81 @@ export function EditWebinarDialog({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Demo Video Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Demo Video</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="introVideoFile">Upload new (Vimeo)</Label>
+                <Input
+                  id="introVideoFile"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleIntroVideoFileChange}
+                  disabled={isLoading}
+                />
+                {introVideoFile && (
+                  <span className="text-xs text-muted-foreground truncate block">
+                    {introVideoFile.name}
+                  </span>
+                )}
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Optional. Uploading will replace the current demo video. Max 500MB.
+                </p>
+                {uploadingIntroVideo && (
+                  <p className="text-xs text-primary font-medium">
+                    Uploading demo video...
+                  </p>
+                )}
+                {introVideoFile && !uploadingIntroVideo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeIntroVideoSelection}
+                    disabled={isLoading}
+                    className="text-destructive hover:text-destructive/80"
+                  >
+                    <X className="h-4 w-4 mr-1" /> Cancel selection
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                <div className="aspect-video rounded-md overflow-hidden bg-muted flex items-center justify-center border">
+                  {introVideoPreview ? (
+                    <video
+                      key={introVideoPreview}
+                      src={introVideoPreview}
+                      controls
+                      className="h-full w-full object-contain bg-black"
+                    />
+                  ) : existingIntroVideo ? (
+                    <iframe
+                      key={existingIntroVideo}
+                      src={`${existingIntroVideo}${
+                        existingIntroVideo.includes("?") ? "&" : "?"
+                      }title=0&byline=0&portrait=0`}
+                      width="100%"
+                      height="100%"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No demo video yet
+                    </span>
+                  )}
+                </div>
+                {!introVideoPreview && existingIntroVideo && (
+                  <p className="text-xs text-muted-foreground">
+                    Note: Recently uploaded videos may take 2-5 minutes to process on Vimeo.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Asset Links Section */}
