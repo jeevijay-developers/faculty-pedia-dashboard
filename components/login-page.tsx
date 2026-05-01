@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, KeyRound } from "lucide-react";
-import { loginEducator, requestPasswordReset, resetPassword } from "@/util/server";
+import { loginEducator, loginStudent, requestPasswordReset, resetPassword } from "@/util/server";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
 
@@ -92,14 +92,34 @@ export default function LoginPage() {
     } catch (err) {
       console.error("Login error:", err);
 
-      let errorMessage = "Invalid email or password. Please try again.";
-
-      // Handle specific error types
       const error = err as {
         code?: string;
         message?: string;
         response?: { data?: { message?: string } };
       };
+
+      // Detect if the user accidentally entered student credentials
+      const isAuthFailure =
+        error.response?.status === 400 ||
+        error.response?.status === 401 ||
+        error.response?.status === 403;
+
+      if (isAuthFailure) {
+        try {
+          await loginStudent(email, password);
+          // Student login succeeded — wrong portal
+          const studentPortalMsg =
+            "This account belongs to a student. Please sign in at the student portal instead.";
+          setError(studentPortalMsg);
+          toast.error(studentPortalMsg, { id: loadingToast, duration: 5000 });
+          return;
+        } catch {
+          // Not a student either — fall through to generic error
+        }
+      }
+
+      let errorMessage = "Invalid email or password. Please try again.";
+
       if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
         errorMessage =
           "Backend server is not responding. Please check if the server is running.";

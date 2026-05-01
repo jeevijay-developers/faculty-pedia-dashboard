@@ -15,6 +15,14 @@ const getAuthHeaders = () => {
 };
 
 // Auth APIs
+export const loginStudent = async (email, password) => {
+  const response = await API_CLIENT.post("/api/auth/login-student", {
+    email,
+    password,
+  });
+  return response.data;
+};
+
 export const loginEducator = async (email, password) => {
   try {
     const response = await API_CLIENT.post("/api/auth/ed-login", {
