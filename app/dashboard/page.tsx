@@ -804,7 +804,7 @@ function DashboardPageContent() {
 
       // Start polling for Vimeo transcode completion
       const pollIntroStatus = async () => {
-        const maxAttempts = 12; // ~36s at 3s interval
+        const maxAttempts = 40; // ~10 min at 15s interval — Vimeo can take several minutes
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
             const statusResp = await getEducatorIntroVideoStatus(educatorId);
@@ -822,20 +822,23 @@ function DashboardPageContent() {
 
             if (status === "complete") {
               setIntroVideoStatus("ready");
+              toast.success("Intro video is ready!");
               return;
             }
 
             if (status === "error") {
               setIntroVideoStatus("error");
+              toast.error("Video processing failed. Please try uploading again.");
               return;
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            await new Promise((resolve) => setTimeout(resolve, 15000));
           } catch (err) {
             console.error("Intro video status poll failed:", err);
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            await new Promise((resolve) => setTimeout(resolve, 15000));
           }
         }
+        // Timed out — leave as processing so user knows to refresh later
         setIntroVideoStatus("processing");
       };
 
@@ -1661,7 +1664,18 @@ function DashboardPageContent() {
                       </span>
                     </p>
                     <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-                      {introEmbedUrl ? (
+                      {introVideoStatus === "processing" ? (
+                        <div className="flex flex-col items-center gap-3 text-center px-4">
+                          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Video is being processed by Vimeo. This may take a few minutes.
+                          </p>
+                        </div>
+                      ) : introVideoStatus === "error" ? (
+                        <span className="text-xs text-destructive">
+                          Video processing failed. Please try uploading again.
+                        </span>
+                      ) : introEmbedUrl ? (
                         <iframe
                           key={introEmbedUrl}
                           src={`${introEmbedUrl}${introEmbedUrl.includes("?") ? "&" : "?"
