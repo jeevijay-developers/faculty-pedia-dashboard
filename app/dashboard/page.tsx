@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard-header";
 import {
   Card,
@@ -217,14 +218,43 @@ type ExtendedEducator = EducatorType & {
   liveTests?: string[];
 };
 
+const DASHBOARD_TABS = ["overview", "profile", "experience"] as const;
+type DashboardTab = (typeof DASHBOARD_TABS)[number];
+
 export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
+  );
+}
+
+function DashboardPageContent() {
   const { educator, getFullName } = useAuth();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(true);
   const [educatorId, setEducatorId] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState("");
   const [coursesCount, setCoursesCount] = useState(0);
   const [webinarsCount, setWebinarsCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && (DASHBOARD_TABS as readonly string[]).includes(tabParam)) {
+      setActiveTab(tabParam as DashboardTab);
+    }
+  }, [searchParams]);
 
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -867,7 +897,11 @@ export default function DashboardPage() {
       </DashboardHeader>
 
       <div className="px-6 space-y-6">
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as DashboardTab)}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="gap-2">
               <TrendingUp className="h-4 w-4" />

@@ -20,6 +20,26 @@ export interface Educator {
   };
   introVideo?: string;
   payPerHourFee?: number;
+  workExperience?: Array<{
+    title?: string;
+    company?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  qualification?: Array<{
+    title?: string;
+    institute?: string;
+    startDate?: string;
+    endDate?: string;
+  }>;
+  socials?: {
+    linkedin?: string;
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+  };
   followers: string[];
   status: string;
   rating?: {
