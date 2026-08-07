@@ -342,7 +342,7 @@ function DashboardPageContent() {
         lastName,
         email: educatorData.email || "",
         mobileNumber: educatorData.mobileNumber || "",
-        bio: educatorData.description || "",
+        bio: educatorData.bio || "",
         description: educatorData.description || "",
         introVideoLink: introUrl,
         specialization: ensureArray(educatorData.specialization),
@@ -1195,56 +1195,7 @@ function DashboardPageContent() {
                     disabled={loading}
                     placeholder="Tell us about yourself..."
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {profileData.bio.length}/500 characters
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    rows={5}
-                    value={profileData.description}
-                    onChange={(e) =>
-                      setProfileData((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
-                    disabled={loading}
-                    placeholder="Detailed description of your expertise, teaching style, and achievements..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {profileData.description.length}/1000 characters
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="introVideoLink">
-                    Introduction Video Link
-                  </Label>
-                  <Input
-                    id="introVideoLink"
-                    type="url"
-                    value={profileData.introVideoLink}
-                    onChange={(e) =>
-                      setProfileData((prev) => ({
-                        ...prev,
-                        introVideoLink: e.target.value,
-                      }))
-                    }
-                    onBlur={() =>
-                      setProfileData((prev) => ({
-                        ...prev,
-                        introVideoLink: normalizeVimeoEmbedUrl(
-                          prev.introVideoLink
-                        ),
-                      }))
-                    }
-                    disabled={loading}
-                    placeholder="https://player.vimeo.com/video/{id}"
-                  />
+                  
                 </div>
 
                 <Button
