@@ -225,7 +225,7 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[60svh] md:min-h-screen">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
             <p className="text-muted-foreground">Loading dashboard...</p>
@@ -871,7 +871,7 @@ function DashboardPageContent() {
 
   if (fetchingData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60svh] md:min-h-screen">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading dashboard...</p>
@@ -890,7 +890,7 @@ function DashboardPageContent() {
           asChild
           variant="outline"
           size="sm"
-          className="gap-2"
+          className="gap-2 h-11 md:h-8"
           disabled={!educatorProfileUrl}
         >
           <Link href={educatorProfileUrl || "#"} prefetch={false}>
@@ -899,48 +899,50 @@ function DashboardPageContent() {
         </Button>
       </DashboardHeader>
 
-      <div className="px-6 space-y-6">
+      <div className="px-4 space-y-4 md:px-6 md:space-y-6">
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as DashboardTab)}
-          className="space-y-6"
+          className="space-y-4 md:space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview" className="gap-2">
+          <TabsList
+            className="flex h-auto w-full flex-nowrap justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:h-9 md:grid-cols-3 md:justify-center md:overflow-visible"
+          >
+            <TabsTrigger value="overview" className="gap-2 py-3 md:py-1">
               <TrendingUp className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="profile" className="gap-2">
+            <TabsTrigger value="profile" className="gap-2 py-3 md:py-1">
               <User className="h-4 w-4" />
               Personal Details
             </TabsTrigger>
-            <TabsTrigger value="experience" className="gap-2">
+            <TabsTrigger value="experience" className="gap-2 py-3 md:py-1">
               <Briefcase className="h-4 w-4" />
               Experience
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4 md:space-y-6">
             {/* Main Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
               {statsData.map((stat) => (
                 <Link key={stat.title} href={stat.href}>
                   <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group h-full">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-card-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 md:px-6">
+                      <CardTitle className="text-sm font-medium text-card-foreground min-w-0 break-words">
                         {stat.title}
                       </CardTitle>
                       <stat.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-4 md:px-6">
                       <div className="text-2xl font-bold text-card-foreground">
                         {stat.value}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground break-words">
                         {stat.description}
                       </p>
-                      <div className="flex items-center mt-2 text-xs text-primary">
+                      <div className="flex items-center mt-2 text-xs text-primary min-w-0 break-words">
                         <TrendingUp className="h-3 w-3 mr-1" />
                         {stat.trend}
                       </div>
@@ -951,21 +953,21 @@ function DashboardPageContent() {
             </div>
 
             {/* Live Sessions Stats */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4">
               {liveStatsData.map((stat) => (
                 <Link key={stat.title} href={stat.href}>
                   <Card className="bg-card border-border hover:shadow-lg transition-all cursor-pointer group">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-card-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 md:px-6">
+                      <CardTitle className="text-sm font-medium text-card-foreground min-w-0 break-words">
                         {stat.title}
                       </CardTitle>
                       <stat.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-4 md:px-6">
                       <div className="text-2xl font-bold text-card-foreground">
                         {stat.value}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground break-words">
                         {stat.description}
                       </p>
                       <div className="flex items-center mt-2">
@@ -981,7 +983,7 @@ function DashboardPageContent() {
 
             {/* Quick Actions */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground">
                   Quick Actions
                 </CardTitle>
@@ -989,14 +991,14 @@ function DashboardPageContent() {
                   Common tasks to get you started
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="px-4 md:px-6">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
                   <Link href="/dashboard/courses/live">
                     <div className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors group">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <BookOpen className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-card-foreground">
                           Create Course
                         </p>
@@ -1013,7 +1015,7 @@ function DashboardPageContent() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <FileQuestion className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-card-foreground">
                           Add Questions
                         </p>
@@ -1030,7 +1032,7 @@ function DashboardPageContent() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <TestTube className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-card-foreground">
                           Create Test
                         </p>
@@ -1047,7 +1049,7 @@ function DashboardPageContent() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Video className="h-5 w-5 text-primary" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-card-foreground">
                           Schedule Live
                         </p>
@@ -1064,18 +1066,18 @@ function DashboardPageContent() {
           </TabsContent>
 
           {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
+          <TabsContent value="profile" className="space-y-4 md:space-y-6">
             {/* Basic Information Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground">
                   Basic Information
                 </CardTitle>
                 <CardDescription>Update your personal details</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
                 <div className="flex items-center space-x-4">
-                  <Avatar className="h-20 w-20">
+                  <Avatar className="h-16 w-16 md:h-20 md:w-20">
                     <AvatarImage
                       src={profileImage || "/placeholder.svg"}
                       alt={`${profileData.firstName} ${profileData.lastName}`}
@@ -1085,7 +1087,7 @@ function DashboardPageContent() {
                       {profileData.lastName?.[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <Input
                       type="file"
                       accept="image/*"
@@ -1100,6 +1102,7 @@ function DashboardPageContent() {
                         size="sm"
                         asChild
                         disabled={loading}
+                        className="h-11 md:h-8"
                       >
                         <span className="cursor-pointer gap-2">
                           {loading ? (
@@ -1117,11 +1120,12 @@ function DashboardPageContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
+                      className="h-11 md:h-9"
                       value={profileData.firstName}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1136,6 +1140,7 @@ function DashboardPageContent() {
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
+                      className="h-11 md:h-9"
                       value={profileData.lastName}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1148,12 +1153,13 @@ function DashboardPageContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
+                      className="h-11 md:h-9"
                       value={profileData.email}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1168,6 +1174,7 @@ function DashboardPageContent() {
                     <Label htmlFor="mobileNumber">Mobile Number</Label>
                     <Input
                       id="mobileNumber"
+                      className="h-11 md:h-9"
                       value={profileData.mobileNumber}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1227,6 +1234,7 @@ function DashboardPageContent() {
                   <Input
                     id="introVideoLink"
                     type="url"
+                    className="h-11 md:h-9"
                     value={profileData.introVideoLink}
                     onChange={(e) =>
                       setProfileData((prev) => ({
@@ -1248,7 +1256,7 @@ function DashboardPageContent() {
                 </div>
 
                 <Button
-                  className="gap-2"
+                  className="gap-2 h-11 w-full md:h-9 md:w-auto"
                   onClick={handleUpdateBasicInfo}
                   disabled={loading}
                 >
@@ -1264,7 +1272,7 @@ function DashboardPageContent() {
 
             {/* Specialization Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground">
                   Specialization & Experience
                 </CardTitle>
@@ -1272,14 +1280,15 @@ function DashboardPageContent() {
                   Update your teaching specialization and experience
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex gap-5">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
+                <div className="flex flex-col gap-4 md:flex-row md:gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="yearsExperience">Years of Experience</Label>
                     <Input
                       id="yearsExperience"
                       type="number"
                       min="0"
+                      className="h-11 md:h-9"
                       value={profileData.yearsExperience}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1299,6 +1308,7 @@ function DashboardPageContent() {
                       id="payPerHourFee"
                       type="number"
                       min="0"
+                      className="h-11 md:h-9"
                       value={profileData.payPerHourFee}
                       onChange={(e) =>
                         setProfileData((prev) => ({
@@ -1317,7 +1327,7 @@ function DashboardPageContent() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-between"
+                          className="w-full justify-between h-11 md:h-9"
                           disabled={loading}
                         >
                           <span className="truncate">
@@ -1333,7 +1343,7 @@ function DashboardPageContent() {
                           {SPECIALIZATION_OPTIONS.map((option) => (
                             <div
                               key={option}
-                              className="flex items-center space-x-2"
+                              className="flex items-center space-x-2 py-3 md:py-0"
                             >
                               <Checkbox
                                 id={`spec-${option}`}
@@ -1347,7 +1357,7 @@ function DashboardPageContent() {
                               />
                               <label
                                 htmlFor={`spec-${option}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 md:flex-initial"
                               >
                                 {option}
                               </label>
@@ -1367,7 +1377,7 @@ function DashboardPageContent() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-between"
+                          className="w-full justify-between h-11 md:h-9"
                           disabled={loading}
                         >
                           <span className="truncate">
@@ -1383,7 +1393,7 @@ function DashboardPageContent() {
                           {CLASS_OPTIONS.map((option) => (
                             <div
                               key={option.value}
-                              className="flex items-center space-x-2"
+                              className="flex items-center space-x-2 py-3 md:py-0"
                             >
                               <Checkbox
                                 id={`class-${option.value}`}
@@ -1397,7 +1407,7 @@ function DashboardPageContent() {
                               />
                               <label
                                 htmlFor={`class-${option.value}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 md:flex-initial"
                               >
                                 {option.label}
                               </label>
@@ -1417,7 +1427,7 @@ function DashboardPageContent() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-between"
+                          className="w-full justify-between h-11 md:h-9"
                           disabled={loading}
                         >
                           <span className="truncate">
@@ -1433,7 +1443,7 @@ function DashboardPageContent() {
                           {SUBJECT_OPTIONS.map((option) => (
                             <div
                               key={option.value}
-                              className="flex items-center space-x-2"
+                              className="flex items-center space-x-2 py-3 md:py-0"
                             >
                               <Checkbox
                                 id={`subject-${option.value}`}
@@ -1447,7 +1457,7 @@ function DashboardPageContent() {
                               />
                               <label
                                 htmlFor={`subject-${option.value}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 md:flex-initial"
                               >
                                 {option.label}
                               </label>
@@ -1462,7 +1472,7 @@ function DashboardPageContent() {
                   </div>
                 </div>
                 <Button
-                  className="gap-2"
+                  className="gap-2 h-11 w-full md:h-9 md:w-auto"
                   onClick={handleUpdateSpecialization}
                   disabled={loading}
                 >
@@ -1478,7 +1488,7 @@ function DashboardPageContent() {
 
             {/* Social Links Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground flex items-center gap-2">
                   <Share2 className="h-5 w-5" />
                   Social Media Links
@@ -1488,13 +1498,14 @@ function DashboardPageContent() {
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-6">
-                <div className=" grid grid-cols-2 gap-3 space-y-4">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
+                <div className=" grid grid-cols-1 gap-3 space-y-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="linkedin">LinkedIn</Label>
                     <Input
                       id="linkedin"
                       type="url"
+                      className="h-11 md:h-9"
                       value={socialLinks.linkedin}
                       onChange={(e) =>
                         setSocialLinks((prev) => ({
@@ -1511,6 +1522,7 @@ function DashboardPageContent() {
                     <Input
                       id="twitter"
                       type="url"
+                      className="h-11 md:h-9"
                       value={socialLinks.twitter}
                       onChange={(e) =>
                         setSocialLinks((prev) => ({
@@ -1527,6 +1539,7 @@ function DashboardPageContent() {
                     <Input
                       id="facebook"
                       type="url"
+                      className="h-11 md:h-9"
                       value={socialLinks.facebook}
                       onChange={(e) =>
                         setSocialLinks((prev) => ({
@@ -1543,6 +1556,7 @@ function DashboardPageContent() {
                     <Input
                       id="instagram"
                       type="url"
+                      className="h-11 md:h-9"
                       value={socialLinks.instagram}
                       onChange={(e) =>
                         setSocialLinks((prev) => ({
@@ -1559,6 +1573,7 @@ function DashboardPageContent() {
                     <Input
                       id="youtube"
                       type="url"
+                      className="h-11 md:h-9"
                       value={socialLinks.youtube}
                       onChange={(e) =>
                         setSocialLinks((prev) => ({
@@ -1573,7 +1588,7 @@ function DashboardPageContent() {
                 </div>
 
                 <Button
-                  className="gap-2"
+                  className="gap-2 h-11 w-full md:h-9 md:w-auto"
                   onClick={handleUpdateSocialLinks}
                   disabled={loading}
                 >
@@ -1589,7 +1604,7 @@ function DashboardPageContent() {
 
             {/* Video Section Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground flex items-center gap-2">
                   <Video className="h-5 w-5" />
                   Add Intro Video
@@ -1598,19 +1613,19 @@ function DashboardPageContent() {
                   Upload your introduction video. This video will be displayed on your profile to give students a quick overview of your teaching style and expertise.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="videoFile">Video File</Label>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3 md:flex-nowrap">
                         <Input
                           id="videoFile"
                           type="file"
                           accept="video/*"
                           onChange={handleVideoFileChange}
                           disabled={loading || uploadingVideo}
-                          className="cursor-pointer"
+                          className="cursor-pointer h-11 md:h-9"
                         />
                         {videoData.videoFile && (
                           <Badge variant="outline" className="text-xs">
@@ -1628,7 +1643,7 @@ function DashboardPageContent() {
                     </div>
 
                     <Button
-                      className="gap-2"
+                      className="gap-2 h-11 w-full md:h-9 md:w-auto"
                       onClick={handleUploadVideo}
                       disabled={
                         loading || uploadingVideo || !videoData.videoFile
@@ -1698,10 +1713,10 @@ function DashboardPageContent() {
           </TabsContent>
 
           {/* Experience Tab */}
-          <TabsContent value="experience" className="space-y-6">
+          <TabsContent value="experience" className="space-y-4 md:space-y-6">
             {/* Work Experience Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground flex items-center gap-2">
                   <Briefcase className="h-5 w-5" />
                   Work Experience
@@ -1710,28 +1725,30 @@ function DashboardPageContent() {
                   Add your professional work history
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
                 {workExperience.map((exp, index) => (
                   <div
                     key={index}
-                    className="p-4 border border-border rounded-lg space-y-4"
+                    className="p-3 border border-border rounded-lg space-y-4 md:p-4"
                   >
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">Experience #{index + 1}</h4>
+                    <div className="flex justify-between items-center gap-2">
+                      <h4 className="font-medium min-w-0 break-words">Experience #{index + 1}</h4>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeWorkExperience(index)}
                         disabled={loading}
+                        className="h-11 w-11 md:h-8 md:w-auto"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Title</Label>
                         <Input
+                          className="h-11 md:h-9"
                           value={exp.title}
                           onChange={(e) => {
                             const newExp = [...workExperience];
@@ -1744,6 +1761,7 @@ function DashboardPageContent() {
                       <div className="space-y-2">
                         <Label>Company</Label>
                         <Input
+                          className="h-11 md:h-9"
                           value={exp.company}
                           onChange={(e) => {
                             const newExp = [...workExperience];
@@ -1755,11 +1773,12 @@ function DashboardPageContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Start Date</Label>
                         <Input
                           type="date"
+                          className="h-11 md:h-9"
                           value={exp.startDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const newExp = [...workExperience];
@@ -1773,6 +1792,7 @@ function DashboardPageContent() {
                         <Label>End Date</Label>
                         <Input
                           type="date"
+                          className="h-11 md:h-9"
                           value={exp.endDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const newExp = [...workExperience];
@@ -1786,12 +1806,12 @@ function DashboardPageContent() {
                   </div>
                 ))}
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-3 md:flex-row md:gap-2">
                   <Button
                     variant="outline"
                     onClick={addWorkExperience}
                     disabled={loading}
-                    className="gap-2"
+                    className="gap-2 h-11 w-full md:h-9 md:w-auto"
                   >
                     <Plus className="w-4 h-4" />
                     Add Experience
@@ -1799,7 +1819,7 @@ function DashboardPageContent() {
                   <Button
                     onClick={handleUpdateWorkExperience}
                     disabled={loading || workExperience.length === 0}
-                    className="gap-2"
+                    className="gap-2 h-11 w-full md:h-9 md:w-auto"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1814,7 +1834,7 @@ function DashboardPageContent() {
 
             {/* Qualifications Card */}
             <Card className="bg-card border-border">
-              <CardHeader>
+              <CardHeader className="px-4 md:px-6">
                 <CardTitle className="text-card-foreground flex items-center gap-2">
                   <GraduationCap className="h-5 w-5" />
                   Education & Qualifications
@@ -1823,14 +1843,14 @@ function DashboardPageContent() {
                   Add your educational background
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 px-4 md:space-y-6 md:px-6">
                 {qualifications.map((qual, index) => (
                   <div
                     key={index}
-                    className="p-4 border border-border rounded-lg space-y-4"
+                    className="p-3 border border-border rounded-lg space-y-4 md:p-4"
                   >
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">
+                    <div className="flex justify-between items-center gap-2">
+                      <h4 className="font-medium min-w-0 break-words">
                         Qualification #{index + 1}
                       </h4>
                       <Button
@@ -1838,15 +1858,17 @@ function DashboardPageContent() {
                         size="sm"
                         onClick={() => removeQualification(index)}
                         disabled={loading}
+                        className="h-11 w-11 md:h-8 md:w-auto"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Degree/Title</Label>
                         <Input
+                          className="h-11 md:h-9"
                           value={qual.title}
                           onChange={(e) => {
                             const newQual = [...qualifications];
@@ -1859,6 +1881,7 @@ function DashboardPageContent() {
                       <div className="space-y-2">
                         <Label>Institute</Label>
                         <Input
+                          className="h-11 md:h-9"
                           value={qual.institute}
                           onChange={(e) => {
                             const newQual = [...qualifications];
@@ -1870,11 +1893,12 @@ function DashboardPageContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Start Date</Label>
                         <Input
                           type="date"
+                          className="h-11 md:h-9"
                           value={qual.startDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const newQual = [...qualifications];
@@ -1888,6 +1912,7 @@ function DashboardPageContent() {
                         <Label>End Date</Label>
                         <Input
                           type="date"
+                          className="h-11 md:h-9"
                           value={qual.endDate?.split("T")[0] || ""}
                           onChange={(e) => {
                             const newQual = [...qualifications];
