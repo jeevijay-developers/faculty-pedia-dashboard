@@ -26,6 +26,12 @@ import {
   Loader2,
   FileText,
 } from "lucide-react";
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { useAuth } from "@/contexts/auth-context";
 import { getTestById } from "@/util/server";
 import { Test } from "@/lib/types/test";
@@ -116,8 +122,11 @@ export default function TestDetailsPage() {
           title="Test Details"
           description="View comprehensive test information"
         />
-        <div className="px-6">
-          <div className="flex items-center justify-center py-12">
+        <div className="px-4 md:px-6">
+          <div className="md:hidden">
+            <RecordCardSkeleton />
+          </div>
+          <div className="hidden md:flex items-center justify-center py-12">
             <div className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
               <p className="text-muted-foreground">Loading test details...</p>
@@ -135,7 +144,7 @@ export default function TestDetailsPage() {
           title="Test Details"
           description="View comprehensive test information"
         />
-        <div className="px-6">
+        <div className="px-4 md:px-6">
           <Card className="bg-card border-border">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -167,7 +176,7 @@ export default function TestDetailsPage() {
         description="View comprehensive test information"
       />
 
-      <div className="px-6 space-y-6">
+      <div className="px-4 md:px-6 space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
           <Button
@@ -379,6 +388,40 @@ export default function TestDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Mobile card list — all three columns render inline, so no detail sheet. */}
+            <div className="md:hidden">
+              {test.questions.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty
+                    icon={<FileText className="h-8 w-8 text-muted-foreground" />}
+                    message="No questions added to this test yet."
+                  />
+                </RecordCardList>
+              ) : (
+                <RecordCardList>
+                  {test.questions.map((question, index) => (
+                    <RecordCard
+                      key={question._id}
+                      leading={<Badge variant="outline">Q{index + 1}</Badge>}
+                      title={question.title}
+                      badge={
+                        question.difficulty ? (
+                          <Badge
+                            className={`text-xs ${getDifficultyColor(
+                              question.difficulty
+                            )}`}
+                          >
+                            {question.difficulty}
+                          </Badge>
+                        ) : undefined
+                      }
+                    />
+                  ))}
+                </RecordCardList>
+              )}
+            </div>
+
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -415,6 +458,7 @@ export default function TestDetailsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 
