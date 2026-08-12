@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
@@ -12,7 +12,22 @@ export const metadata: Metadata = {
   generator: "Facultypedia",
   icons: {
     icon: "/finalLogo.png",
+    apple: "/finalLogo.png",
   },
+  // Lets iOS run the dashboard chromeless once added to the home screen.
+  appleWebApp: {
+    capable: true,
+    title: "Facultypedia",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Required for env(safe-area-inset-*) to report real values on notched iPhones.
+  viewportFit: "cover",
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({

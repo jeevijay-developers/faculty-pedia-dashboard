@@ -60,3 +60,47 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Mobile shell (< 768px only)
+ *
+ * Every rule below is scoped to phones so the desktop layout renders exactly
+ * as it did before. Nothing here applies at md and above.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* Bottom tab bar height, excluding the iOS home-indicator inset. */
+  --mobile-nav-height: 3.5rem;
+}
+
+@layer utilities {
+  /* Clear the iOS home indicator / Android gesture bar. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Scroll padding so fixed chrome never covers page content. */
+  .pb-mobile-nav {
+    padding-bottom: calc(
+      var(--mobile-nav-height) + env(safe-area-inset-bottom)
+    );
+  }
+}
+
+@media (max-width: 767px) {
+  /* iOS Safari zooms the viewport when a focused input is under 16px.
+     Bumped on phones only — desktop keeps its text-sm fields. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Stop the whole page rubber-banding behind fixed nav chrome. */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
