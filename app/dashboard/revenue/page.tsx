@@ -6,6 +6,12 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, IndianRupee, Building2 } from "lucide-react";
 import { BankDetailsDialog } from "@/components/bank-details-dialog";
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { getEducatorPayments, getEducatorPayouts } from "@/util/server";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
@@ -71,9 +77,9 @@ export default function RevenuePage() {
       <DashboardHeader title="Revenue">
         <BankDetailsDialog />
       </DashboardHeader>
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-4 space-y-4 md:p-6 md:space-y-6">
         {/* Summary */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           {[
             {
               title: "Total Revenue",
@@ -113,12 +119,12 @@ export default function RevenuePage() {
             },
           ].map((stat: any) => (
             <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 md:px-6">
+                <CardTitle className="text-sm font-medium min-w-0">
                   {stat.title}
                 </CardTitle>
                 <div
-                  className={`p-2 rounded-lg ${
+                  className={`p-2 rounded-lg shrink-0 ${
                     stat.bgClassName || "bg-slate-100"
                   }`}
                 >
@@ -127,12 +133,16 @@ export default function RevenuePage() {
                   />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${stat.className || ""}`}>
+              <CardContent className="px-4 md:px-6">
+                <div
+                  className={`text-xl font-bold break-words md:text-2xl ${
+                    stat.className || ""
+                  }`}
+                >
                   {stat.value}
                 </div>
                 {stat.desc && (
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 break-words">
                     {stat.desc}
                   </p>
                 )}
@@ -143,11 +153,53 @@ export default function RevenuePage() {
 
         {/* Recent Transactions */}
         <Card>
-          <CardHeader>
+          <CardHeader className="px-4 md:px-6">
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="px-4 md:px-6">
+            {/* Mobile: stacked records instead of a horizontally scrolling table */}
+            <div className="md:hidden">
+              {loading && payments.length === 0 ? (
+                <RecordCardSkeleton rows={3} />
+              ) : payments.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty message="No transactions yet" />
+                </RecordCardList>
+              ) : (
+                <RecordCardList>
+                  {payments.map((p) => (
+                    <RecordCard
+                      key={p._id}
+                      title={p.productSnapshot?.title || "N/A"}
+                      badge={
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(
+                            p.status
+                          )}`}
+                        >
+                          {p.status}
+                        </span>
+                      }
+                      meta={[
+                        <span
+                          key="amount"
+                          className="font-medium text-foreground"
+                        >
+                          {formatINR(p.amount || 0)}
+                        </span>,
+                        <span key="type" className="capitalize">
+                          {p.productType}
+                        </span>,
+                        p.createdAt
+                          ? new Date(p.createdAt).toLocaleDateString()
+                          : "-",
+                      ]}
+                    />
+                  ))}
+                </RecordCardList>
+              )}
+            </div>
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -202,11 +254,46 @@ export default function RevenuePage() {
 
         {/* Recent Payouts */}
         <Card>
-          <CardHeader>
+          <CardHeader className="px-4 md:px-6">
             <CardTitle>Recent Payouts</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="px-4 md:px-6">
+            {/* Mobile: stacked records instead of a horizontally scrolling table */}
+            <div className="md:hidden">
+              {loading && payouts.length === 0 ? (
+                <RecordCardSkeleton rows={3} />
+              ) : payouts.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty message="No payouts yet" />
+                </RecordCardList>
+              ) : (
+                <RecordCardList>
+                  {payouts.map((p) => (
+                    <RecordCard
+                      key={p._id}
+                      title={`Payout ${p.month}/${p.year}`}
+                      badge={
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(
+                            p.status
+                          )}`}
+                        >
+                          {p.status}
+                        </span>
+                      }
+                      meta={[
+                        <span key="net" className="font-medium text-foreground">
+                          Net {formatINR(p.amount || 0)}
+                        </span>,
+                        `Gross ${formatINR(p.grossAmount || 0)}`,
+                        `Commission ${formatINR(p.commissionAmount || 0)}`,
+                      ]}
+                    />
+                  ))}
+                </RecordCardList>
+              )}
+            </div>
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">

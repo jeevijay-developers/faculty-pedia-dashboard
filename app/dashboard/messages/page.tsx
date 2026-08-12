@@ -195,10 +195,10 @@ export default function MessagesPage() {
         description="Review broadcast messages sent to your followers."
       />
 
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-4 p-4 md:space-y-6 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold text-card-foreground">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold text-card-foreground md:text-2xl">
               Broadcast History
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -207,13 +207,13 @@ export default function MessagesPage() {
                 ". Older broadcasts remain available in your full history." : "."}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center md:gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => void fetchHistory()}
               disabled={loading}
-              className="gap-2"
+              className="gap-2 w-full min-h-11 md:w-auto md:min-h-0"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -225,7 +225,7 @@ export default function MessagesPage() {
             <Button
               type="button"
               onClick={() => setIsDialogOpen(true)}
-              className="gap-2"
+              className="gap-2 w-full min-h-11 md:w-auto md:min-h-0"
               disabled={!educatorId}
             >
               <Megaphone className="h-4 w-4" />
@@ -234,51 +234,51 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
           <Card>
-            <CardContent className="flex items-center justify-between gap-3">
-              <div>
+            <CardContent className="flex items-center justify-between gap-3 px-4 md:px-6">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">
                   Broadcasts (30 days)
                 </p>
-                <p className="text-2xl font-semibold text-card-foreground">
+                <p className="text-xl font-semibold text-card-foreground md:text-2xl">
                   {history.length}
                 </p>
               </div>
-              <div className="rounded-full bg-primary/10 p-3">
+              <div className="shrink-0 rounded-full bg-primary/10 p-2 md:p-3">
                 <Megaphone className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="flex items-center justify-between gap-3">
-              <div>
+            <CardContent className="flex items-center justify-between gap-3 px-4 md:px-6">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">
                   Total recipients reached
                 </p>
-                <p className="text-2xl font-semibold text-card-foreground">
+                <p className="text-xl font-semibold text-card-foreground md:text-2xl">
                   {totalRecipients}
                 </p>
               </div>
-              <div className="rounded-full bg-primary/10 p-3">
+              <div className="shrink-0 rounded-full bg-primary/10 p-2 md:p-3">
                 <Users className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center justify-between gap-3">
-              <div>
+          <Card className="col-span-2 md:col-span-1">
+            <CardContent className="flex items-center justify-between gap-3 px-4 md:px-6">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Last message</p>
-                <p className="text-2xl font-semibold text-card-foreground">
+                <p className="text-xl font-semibold text-card-foreground break-words md:text-2xl">
                   {lastSentAt ? formatRelativeTime(lastSentAt) : "—"}
                 </p>
                 {lastSentAt && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground break-words">
                     {formatDateTime(lastSentAt)}
                   </p>
                 )}
               </div>
-              <div className="rounded-full bg-primary/10 p-3">
+              <div className="shrink-0 rounded-full bg-primary/10 p-2 md:p-3">
                 <Clock className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
@@ -287,21 +287,21 @@ export default function MessagesPage() {
 
         {error && !isInitialLoading ? (
           <Card className="border-red-200 bg-red-50">
-            <CardHeader>
+            <CardHeader className="px-4 md:px-6">
               <CardTitle className="flex items-center gap-2 text-red-700">
-                <AlertTriangle className="h-5 w-5" />
+                <AlertTriangle className="h-5 w-5 shrink-0" />
                 Unable to load messages
               </CardTitle>
-              <CardDescription className="text-red-600">
+              <CardDescription className="text-red-600 break-words">
                 {error}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 md:px-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => void fetchHistory()}
-                className="gap-2"
+                className="gap-2 w-full min-h-11 md:w-auto md:min-h-0"
               >
                 <RefreshCcw className="h-4 w-4" />
                 Try again
@@ -318,7 +318,7 @@ export default function MessagesPage() {
             ))}
           </div>
         ) : history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-muted-foreground/40 bg-card p-10 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-muted-foreground/40 bg-card p-6 text-center md:p-10">
             <Inbox className="mb-4 h-10 w-10 text-muted-foreground" />
             <h3 className="text-lg font-semibold text-card-foreground">
               No broadcasts in the last 30 days
@@ -332,26 +332,29 @@ export default function MessagesPage() {
           <div className="space-y-4">
             {history.map((entry) => (
               <Card key={entry.id}>
-                <CardHeader className="gap-3">
+                <CardHeader className="gap-3 px-4 md:px-6">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle className="text-lg text-card-foreground">
+                    <div className="min-w-0">
+                      <CardTitle className="text-lg text-card-foreground break-words">
                         {entry.title}
                       </CardTitle>
                     </div>
-                    <Badge variant="secondary" className="flex items-center gap-1">
+                    <Badge
+                      variant="secondary"
+                      className="flex w-fit shrink-0 items-center gap-1"
+                    >
                       <Users className="h-3.5 w-3.5" />
                       {entry.recipientCount} {entry.recipientCount === 1 ? "recipient" : "recipients"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 md:px-6">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <p className="whitespace-pre-line text-sm text-card-foreground sm:max-w-3xl">
+                    <p className="min-w-0 whitespace-pre-line break-words text-sm text-card-foreground sm:max-w-3xl">
                       {entry.message}
                     </p>
                     <div className="sm:text-right">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground break-words">
                         <span className="font-semibold uppercase tracking-wide">Sent</span>
                         {` | ${formatRelativeTime(entry.sentAt)} | `}
                         <span className="text-[11px] text-muted-foreground/80">
