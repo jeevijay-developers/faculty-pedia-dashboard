@@ -41,6 +41,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  RecordCard,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { CreateQuestionDialog } from "@/components/create-question-dialog";
 import { ViewQuestionDialog } from "@/components/view-question-dialog";
 import { EditQuestionDialog } from "@/components/edit-question-dialog";
@@ -240,9 +245,9 @@ export default function QuestionsPage() {
         description="Create and manage your question repository"
       />
 
-      <div className="px-6 space-y-6">
+      <div className="px-4 md:px-6 space-y-6">
         {/* Header Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold text-foreground">
               Your Questions
@@ -252,7 +257,10 @@ export default function QuestionsPage() {
               {questions.length} questions
             </p>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2 h-11 md:h-9"
+          >
             <Plus className="h-4 w-4" />
             Create Question
           </Button>
@@ -264,8 +272,8 @@ export default function QuestionsPage() {
             <CardTitle className="text-lg">Filters & Search</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex flex-1 min-w-64 gap-3">
+            <div className="flex flex-col gap-4 md:flex-row md:flex-wrap">
+              <div className="flex flex-col flex-1 gap-3 md:flex-row md:min-w-64">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -279,7 +287,7 @@ export default function QuestionsPage() {
                   value={questionTypeFilter}
                   onValueChange={setQuestionTypeFilter}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Question type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -291,7 +299,7 @@ export default function QuestionsPage() {
                 </Select>
               </div>
               <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by subject" />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,7 +312,7 @@ export default function QuestionsPage() {
                 </SelectContent>
               </Select>
               <Select value={topicFilter} onValueChange={setTopicFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by topic" />
                 </SelectTrigger>
                 <SelectContent>
@@ -322,14 +330,89 @@ export default function QuestionsPage() {
 
         {/* Questions Grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading questions...</p>
+          <>
+            {/* Mobile: skeleton rows */}
+            <div className="md:hidden">
+              <RecordCardSkeleton />
             </div>
-          </div>
+            {/* Desktop: unchanged spinner */}
+            <div className="hidden md:flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading questions...</p>
+              </div>
+            </div>
+          </>
         ) : filteredQuestions.length > 0 ? (
           <>
+            {/* Mobile: card list */}
+            <div className="md:hidden">
+              <RecordCardList>
+                {paginatedQuestions.map((question) => {
+                  const subjectLabel = getSubjectValues(question)[0] || "—";
+                  const topicLabel = getTopicValues(question)[0] || "—";
+                  const typeValue = getQuestionTypeValue(question);
+                  const positiveMarks =
+                    question.marks?.positive ?? question.positiveMarks ?? 0;
+                  const negativeMarks =
+                    question.marks?.negative ?? question.negativeMarks ?? 0;
+
+                  return (
+                    <RecordCard
+                      key={question._id || question.id}
+                      title={question.title}
+                      meta={[
+                        <span key="subject" className="capitalize">
+                          {subjectLabel}
+                        </span>,
+                        <span key="topic" className="capitalize">
+                          {topicLabel}
+                        </span>,
+                        <span key="marks">
+                          <span className="text-green-600">
+                            +{positiveMarks}
+                          </span>
+                          {" / "}
+                          <span className="text-red-600">-{negativeMarks}</span>
+                        </span>,
+                      ]}
+                      badge={
+                        <Badge variant="outline" className="text-xs">
+                          {formatQuestionTypeLabel(typeValue)}
+                        </Badge>
+                      }
+                      onOpen={() => handleViewQuestion(question)}
+                      actions={
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => handleViewQuestion(question)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleEditQuestion(question)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Question
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-500 font-semibold"
+                            onClick={() => handleDeleteQuestion(question)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Question
+                          </DropdownMenuItem>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </RecordCardList>
+            </div>
+
+            {/* Desktop: unchanged table */}
+            <div className="hidden md:block">
             <Card className="bg-card border-border">
               <Table>
                 <TableHeader>
@@ -427,10 +510,11 @@ export default function QuestionsPage() {
                 </TableBody>
               </Table>
             </Card>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
                 <p className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                   {Math.min(
@@ -439,17 +523,22 @@ export default function QuestionsPage() {
                   )}{" "}
                   of {filteredQuestions.length} questions
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2 md:justify-start">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
-                  <div className="flex items-center gap-1">
+                  {/* Mobile: page counter instead of the full page list */}
+                  <span className="text-sm text-muted-foreground md:hidden">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <div className="hidden md:flex items-center gap-1">
                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                       let pageNumber;
                       if (totalPages <= 5) {
@@ -479,6 +568,7 @@ export default function QuestionsPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                   >

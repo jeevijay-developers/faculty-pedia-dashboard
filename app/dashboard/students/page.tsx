@@ -22,6 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { ViewStudentDetailsDialog } from "@/components/view-student-details-dialog";
 import { BroadcastMessageDialog } from "@/components/broadcast-message-dialog";
 import { useAuth } from "@/contexts/auth-context";
@@ -189,7 +196,7 @@ export default function StudentsPage() {
         title="Students"
         description="Manage your enrolled students"
       />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Stats Card */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
@@ -247,7 +254,7 @@ export default function StudentsPage() {
 
         {/* Enrolled Students Table */}
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <h3 className="text-xl font-semibold mb-4">Enrolled Students</h3>
 
             {/* Filters and Message Button */}
@@ -324,14 +331,76 @@ export default function StudentsPage() {
 
             {/* Table */}
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-muted-foreground">Loading students...</p>
+              <>
+                {/* Mobile: skeleton rows */}
+                <div className="md:hidden">
+                  <RecordCardSkeleton />
                 </div>
-              </div>
+                {/* Desktop: unchanged spinner */}
+                <div className="hidden md:flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Loading students...</p>
+                  </div>
+                </div>
+              </>
             ) : (
-              <div className="rounded-md border">
+              <>
+                {/* Mobile: card list */}
+                <div className="md:hidden">
+                  <RecordCardList>
+                    {filteredAndSortedStudents.length === 0 ? (
+                      <RecordCardEmpty
+                        icon={
+                          <UserX className="h-12 w-12 text-muted-foreground" />
+                        }
+                        message={
+                          searchQuery || selectedCourse !== "all"
+                            ? "No students found matching your filters"
+                            : "No enrolled students yet"
+                        }
+                      />
+                    ) : (
+                      filteredAndSortedStudents.map((student, index) => (
+                        <RecordCard
+                          key={`${student._id}-${student.courseId}-${index}`}
+                          title={student.name}
+                          meta={[
+                            student.courseTitle,
+                            student.class,
+                            formatDate(student.joinedAt),
+                          ]}
+                          badge={
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                student.courseType === "OTO"
+                                  ? "border-blue-500/50 text-blue-500"
+                                  : "border-green-500/50 text-green-500"
+                              }`}
+                            >
+                              {student.courseType === "OTO"
+                                ? "One to One"
+                                : "One to All"}
+                            </Badge>
+                          }
+                          onOpen={() => handleViewDetails(student)}
+                          actions={
+                            <DropdownMenuItem
+                              onClick={() => handleViewDetails(student)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                          }
+                        />
+                      ))
+                    )}
+                  </RecordCardList>
+                </div>
+
+                {/* Desktop: unchanged table */}
+                <div className="hidden md:block rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -420,7 +489,8 @@ export default function StudentsPage() {
                     )}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

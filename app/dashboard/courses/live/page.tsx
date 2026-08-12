@@ -37,6 +37,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import {
+  RecordCard,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { CreateCourseDialog } from "@/components/create-course-dialog";
 import { ViewCourseDialog } from "@/components/view-course-dialog";
 import { EditCourseDialog } from "@/components/edit-course-dialog";
@@ -202,11 +207,30 @@ export default function LiveCoursesPage() {
     ));
   };
 
+  const getCourseImageSrc = (course: Course) =>
+    course.courseThumbnail ??
+    (typeof course.image === "string" ? course.image : course.image?.url) ??
+    "/placeholder.svg";
+
+  // Same class list as renderClasses, flattened to text for the mobile cards.
+  const renderClassesText = (course: Course) => {
+    const classList = Array.isArray(course.class)
+      ? course.class
+      : Array.isArray(course.classes)
+      ? course.classes
+      : course.courseClass
+      ? [course.courseClass]
+      : [];
+
+    if (classList.length === 0) {
+      return "N/A";
+    }
+
+    return classList.map((cls: string) => cls.replace("class-", "Class ")).join(", ");
+  };
+
   const renderCourseImage = (course: Course) => {
-    const src =
-      course.courseThumbnail ??
-      (typeof course.image === "string" ? course.image : course.image?.url) ??
-      "/placeholder.svg";
+    const src = getCourseImageSrc(course);
     return (
       <div className="w-16 h-12 rounded overflow-hidden relative">
         <Image
@@ -230,8 +254,8 @@ export default function LiveCoursesPage() {
         description="Create and manage your active courses"
       />
 
-      <div className="px-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="px-4 md:px-6 space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold text-foreground">
               Your Courses
@@ -240,21 +264,91 @@ export default function LiveCoursesPage() {
               Manage your course content, videos, and student enrollment
             </p>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2 h-11 md:h-9"
+          >
             <Plus className="h-4 w-4" />
             Create Course
           </Button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading courses...</p>
+          <>
+            {/* Mobile: skeleton rows */}
+            <div className="md:hidden">
+              <RecordCardSkeleton />
             </div>
-          </div>
+            {/* Desktop: unchanged spinner */}
+            <div className="hidden md:flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading courses...</p>
+              </div>
+            </div>
+          </>
         ) : courses.length > 0 ? (
           <>
+            {/* Mobile: card list */}
+            <div className="md:hidden">
+              <RecordCardList>
+                {courses.map((course) => (
+                  <RecordCard
+                    key={course._id}
+                    title={<span className="capitalize">{course.title}</span>}
+                    meta={[
+                      <span key="subject" className="capitalize">
+                        {renderSubject(course.subject)}
+                      </span>,
+                      renderClassesText(course),
+                      `₹${course.fees?.toLocaleString() || course.fee || 0}`,
+                      `${course.enrolledStudents?.length || 0} students`,
+                    ]}
+                    badge={
+                      <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
+                        {formatCourseType(course.courseType)}
+                      </Badge>
+                    }
+                    leading={
+                      <Image
+                        src={getCourseImageSrc(course)}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    }
+                    onOpen={() => handleViewCourse(course)}
+                    actions={
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => handleViewCourse(course)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleEditCourse(course)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Course
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-500 font-semibold"
+                          onClick={() => handleDeleteCourse(course)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Course
+                        </DropdownMenuItem>
+                      </>
+                    }
+                  />
+                ))}
+              </RecordCardList>
+            </div>
+
+            {/* Desktop: unchanged table */}
+            <div className="hidden md:block">
             <Card className="bg-card border-border">
               <Table>
                 <TableHeader>
@@ -358,6 +452,7 @@ export default function LiveCoursesPage() {
                 </TableBody>
               </Table>
             </Card>
+            </div>
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between">

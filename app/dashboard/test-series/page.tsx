@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  RecordCard,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { CreateTestSeriesDialog } from "@/components/create-test-series-dialog";
 import { EditTestSeriesDialog } from "@/components/edit-test-series-dialog";
 import { DeleteTestSeriesAlert } from "@/components/delete-test-series-alert";
@@ -317,9 +324,9 @@ export default function TestSeriesPage() {
         description="Create and manage your test series"
       />
 
-      <div className="px-6 space-y-6">
+      <div className="px-4 md:px-6 space-y-6">
         {/* Header Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold text-foreground">
               Your Test Series
@@ -328,7 +335,10 @@ export default function TestSeriesPage() {
               Organize tests into series and track student performance
             </p>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2 h-11 md:h-9"
+          >
             <Plus className="h-4 w-4" />
             Create Test Series
           </Button>
@@ -336,14 +346,91 @@ export default function TestSeriesPage() {
 
         {/* Test Series Grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading test series...</p>
+          <>
+            {/* Mobile: skeleton rows */}
+            <div className="md:hidden">
+              <RecordCardSkeleton />
             </div>
-          </div>
+            {/* Desktop: unchanged spinner */}
+            <div className="hidden md:flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading test series...</p>
+              </div>
+            </div>
+          </>
         ) : testSeries.length > 0 ? (
           <>
+            {/* Mobile: card list */}
+            <div className="md:hidden">
+              <RecordCardList>
+                {paginatedTestSeries.map((series) => (
+                  <RecordCard
+                    key={series._id}
+                    title={<span className="capitalize">{series.title}</span>}
+                    meta={[
+                      <span key="subject" className="capitalize">
+                        {getSubjectLabel(series.subject)}
+                      </span>,
+                      `${series.tests?.length ?? 0}/${getTestsCount(
+                        series
+                      )} tests`,
+                      `₹${getPriceValue(series.price).toLocaleString()}`,
+                      `${getValidityDays(series)} days`,
+                    ]}
+                    badge={
+                      <Badge className={getStatusColor(series)}>
+                        {getStatusText(series)}
+                      </Badge>
+                    }
+                    leading={
+                      <Image
+                        src={getImageSource(series)}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded object-cover"
+                      />
+                    }
+                    onOpen={() => handleViewTestSeries(series)}
+                    actions={
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => handleViewTestSeries(series)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleAssignCourse(series)}
+                        >
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          {series.isCourseSpecific
+                            ? "Reassign Course"
+                            : "Assign Course"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleEditTestSeries(series)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Series
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-500 font-medium"
+                          onClick={() => handleDeleteTestSeries(series)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Series
+                        </DropdownMenuItem>
+                      </>
+                    }
+                  />
+                ))}
+              </RecordCardList>
+            </div>
+
+            {/* Desktop: unchanged table */}
+            <div className="hidden md:block">
             <Card className="bg-card border-border">
               <Table>
                 <TableHeader>
@@ -482,26 +569,32 @@ export default function TestSeriesPage() {
                 </TableBody>
               </Table>
             </Card>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
                 <p className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                   {Math.min(currentPage * ITEMS_PER_PAGE, testSeries.length)} of{" "}
                   {testSeries.length} test series
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2 md:justify-start">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
-                  <div className="flex items-center gap-1">
+                  {/* Mobile: page counter instead of the full page list */}
+                  <span className="text-sm text-muted-foreground md:hidden">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <div className="hidden md:flex items-center gap-1">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                       (page) => (
                         <Button
@@ -519,6 +612,7 @@ export default function TestSeriesPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                   >

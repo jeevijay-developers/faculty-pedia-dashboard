@@ -35,6 +35,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  RecordCard,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
 import { EditTestDialog } from "@/components/edit-test-dialog";
 import { DeleteTestAlert } from "@/components/delete-test-alert";
 import { AssignTestSeriesDialog } from "@/components/assign-test-series-dialog";
@@ -197,9 +202,9 @@ export default function CreateTestPage() {
         description="Create and manage your live tests"
       />
 
-      <div className="px-6 space-y-6">
+      <div className="px-4 md:px-6 space-y-6">
         {/* Header Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold text-foreground">
               Your Tests
@@ -208,12 +213,12 @@ export default function CreateTestPage() {
               Create comprehensive tests with custom questions and settings
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
             {selectedTestIds.length > 0 && (
               <Button
                 onClick={handleAssignToTestSeries}
                 variant="outline"
-                className="gap-2"
+                className="gap-2 h-11 md:h-9"
               >
                 <ListChecks className="h-4 w-4" />
                 Assign to Test Series ({selectedTestIds.length})
@@ -221,7 +226,7 @@ export default function CreateTestPage() {
             )}
             <Button
               onClick={() => router.push("/dashboard/test/create")}
-              className="gap-2"
+              className="gap-2 h-11 md:h-9"
             >
               <Plus className="h-4 w-4" />
               Create Test
@@ -231,14 +236,108 @@ export default function CreateTestPage() {
 
         {/* Test Grid */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading tests...</p>
+          <>
+            {/* Mobile: skeleton rows */}
+            <div className="md:hidden">
+              <RecordCardSkeleton />
             </div>
-          </div>
+            {/* Desktop: unchanged spinner */}
+            <div className="hidden md:flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading tests...</p>
+              </div>
+            </div>
+          </>
         ) : tests.length > 0 ? (
           <>
+            {/* Mobile: card list */}
+            <div className="md:hidden space-y-2">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="flex min-h-11 w-full items-center gap-3 text-left text-sm text-muted-foreground"
+              >
+                <Checkbox
+                  checked={
+                    paginatedTests.length > 0 &&
+                    selectedTestIds.length === paginatedTests.length
+                  }
+                  className="pointer-events-none h-5 w-5"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
+                Select all on this page
+              </button>
+              <RecordCardList>
+                {paginatedTests.map((test) => (
+                  <RecordCard
+                    key={test._id}
+                    title={test.title}
+                    meta={[
+                      test.subjects[0]
+                        ? test.subjects[0].charAt(0).toUpperCase() +
+                          test.subjects[0].slice(1)
+                        : null,
+                      `${test.questions.length} Qs`,
+                      `${test.duration} min`,
+                      `${test.overallMarks} marks`,
+                    ]}
+                    badge={
+                      <Badge className={getStatusColor(test)}>
+                        {getStatusText(test)}
+                      </Badge>
+                    }
+                    leading={
+                      <div
+                        role="checkbox"
+                        aria-checked={selectedTestIds.includes(test._id)}
+                        aria-label={`Select ${test.title}`}
+                        tabIndex={0}
+                        onClick={() => handleSelectTest(test._id)}
+                        onKeyDown={(event) => {
+                          if (event.key === " " || event.key === "Enter") {
+                            event.preventDefault();
+                            handleSelectTest(test._id);
+                          }
+                        }}
+                        className="-ml-2 flex h-11 w-11 items-center justify-center"
+                      >
+                        <Checkbox
+                          checked={selectedTestIds.includes(test._id)}
+                          className="pointer-events-none h-5 w-5"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    }
+                    onOpen={() => handleViewTest(test)}
+                    actions={
+                      <>
+                        <DropdownMenuItem onClick={() => handleViewTest(test)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditTest(test)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Test
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-white font-semibold"
+                          onClick={() => handleDeleteTest(test)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Test
+                        </DropdownMenuItem>
+                      </>
+                    }
+                  />
+                ))}
+              </RecordCardList>
+            </div>
+
+            {/* Desktop: unchanged table */}
+            <div className="hidden md:block">
             <Card className="bg-card border-border">
               <Table>
                 <TableHeader>
@@ -378,26 +477,32 @@ export default function CreateTestPage() {
                 </TableBody>
               </Table>
             </Card>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
                 <p className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
                   {Math.min(currentPage * ITEMS_PER_PAGE, tests.length)} of{" "}
                   {tests.length} tests
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2 md:justify-start">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
-                  <div className="flex items-center gap-1">
+                  {/* Mobile: page counter instead of the full page list */}
+                  <span className="text-sm text-muted-foreground md:hidden">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <div className="hidden md:flex items-center gap-1">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                       (page) => (
                         <Button
@@ -415,6 +520,7 @@ export default function CreateTestPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-11 flex-1 md:h-8 md:flex-none"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                   >
