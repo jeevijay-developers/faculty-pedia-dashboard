@@ -78,6 +78,24 @@ const DialogFooter = ({ className, ...props }: React.ComponentProps<"div">) => (
   />
 );
 
+/**
+ * Scrolling region for dialog content.
+ *
+ * Currently a no-op on desktop (`md:contents` makes it disappear from layout,
+ * so DialogContent's own grid/padding still governs). On mobile it becomes the
+ * single scroll area once DialogContent is converted to a full-screen panel.
+ */
+const DialogBody = ({ className, ...props }: React.ComponentProps<"div">) => (
+  <div
+    data-slot="dialog-body"
+    className={cn(
+      "flex-1 overflow-y-auto overscroll-contain md:contents",
+      className
+    )}
+    {...props}
+  />
+);
+
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
@@ -106,6 +124,7 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

@@ -2,11 +2,14 @@
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Check } from "lucide-react";
 
@@ -141,12 +144,12 @@ export function ViewQuestionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <DialogContent className="md:max-w-3xl md:max-h-[90vh] md:overflow-y-auto md:hide-scrollbar">
         <DialogHeader>
           <DialogTitle>Question Details</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <DialogBody className="space-y-6">
           {/* Question Info */}
           <div className="space-y-3">
             <div className="flex items-start gap-3 flex-wrap">
@@ -165,7 +168,7 @@ export function ViewQuestionDialog({
               </Badge>
             </div>
 
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex flex-wrap md:flex-nowrap items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Positive Marks:</span>
                 <span className="font-semibold text-green-600">
@@ -241,8 +244,8 @@ export function ViewQuestionDialog({
                           : "border-border bg-card"
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className="flex flex-col md:flex-row items-start gap-3">
+                        <div className="flex items-center gap-2 md:min-w-[80px]">
                           <span className="font-semibold text-lg">
                             Option {key}
                           </span>
@@ -252,8 +255,8 @@ export function ViewQuestionDialog({
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <p className="text-base">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <p className="text-base break-words md:break-normal">
                             {text || "No text provided"}
                           </p>
                           {imageUrl && (
@@ -309,7 +312,7 @@ export function ViewQuestionDialog({
 
           {/* Metadata */}
           <Separator />
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {question.updatedAt &&
               question.updatedAt !== question.createdAt && (
                 <div>
@@ -324,7 +327,18 @@ export function ViewQuestionDialog({
                 </div>
               )}
           </div>
-        </div>
+        </DialogBody>
+
+        {/* Mobile-only sticky action bar; desktop keeps its original chrome */}
+        <DialogFooter className="md:hidden">
+          <Button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full min-h-11"
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

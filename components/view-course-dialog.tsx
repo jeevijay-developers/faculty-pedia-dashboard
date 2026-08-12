@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { X, Calendar, Users, BookOpen, Clock, IndianRupee, Video, FileText } from "lucide-react"
@@ -88,11 +88,11 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <DialogContent className="md:max-w-6xl md:max-h-[90vh] md:overflow-y-auto md:hide-scrollbar">
         <DialogHeader>
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-2xl font-bold capitalize">{course.title}</DialogTitle>
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-xl md:text-2xl font-bold capitalize break-words md:break-normal">{course.title}</DialogTitle>
              
             </div>
             {/* <Button
@@ -106,7 +106,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
+        <DialogBody className="space-y-6 mt-4">
           {/* Course Image */}
           {imageUrl && (
             <div className="aspect-video relative overflow-hidden rounded-lg border">
@@ -119,7 +119,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
           )}
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 min-w-0">
               <Users className="h-5 w-5 text-muted-foreground shrink-0" />
               <div className="min-w-0 flex-1">
@@ -297,7 +297,7 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
                         href={course.courseLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
+                        className="text-sm text-primary hover:underline break-all md:break-normal"
                       >
                         View Link
                       </a>
@@ -307,7 +307,18 @@ export function ViewCourseDialog({ open, onOpenChange, course }: ViewCourseDialo
               </div>
             </>
           )}
-        </div>
+        </DialogBody>
+
+        {/* Mobile-only sticky action bar; desktop keeps its original chrome */}
+        <DialogFooter className="md:hidden">
+          <Button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full min-h-11"
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

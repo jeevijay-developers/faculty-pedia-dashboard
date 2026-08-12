@@ -2,7 +2,9 @@
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -74,29 +76,30 @@ export default function ViewTestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-blue-50/30">
-        <DialogHeader className="pb-6 border-b border-gray-100">
+      <DialogContent className="bg-background md:max-w-6xl md:max-h-[95vh] md:overflow-hidden md:bg-gradient-to-br md:from-white md:to-blue-50/30">
+        <DialogHeader className="pb-4 md:pb-6 border-b border-gray-100">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between md:gap-0">
+              <DialogTitle className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent break-words md:break-normal">
                 {test.title}
               </DialogTitle>
               <Badge
                 className={`${getSubjectColor(
                   test.subject
-                )} font-medium px-4 py-2 text-sm`}
+                )} font-medium px-4 py-2 text-sm shrink-0`}
               >
                 {test.subject.charAt(0).toUpperCase() + test.subject.slice(1)}
               </Badge>
             </div>
-            <p className="text-gray-600 text-lg leading-relaxed">
+            <p className="text-gray-600 text-base md:text-lg leading-relaxed">
               {test.description.short}
             </p>
           </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(95vh-200px)] pr-4">
-          <div className="space-y-6 py-4">
+        <DialogBody>
+          <ScrollArea className="md:max-h-[calc(95vh-200px)] md:pr-4">
+            <div className="space-y-6 py-4">
             {/* Test Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Basic Information */}

@@ -2,12 +2,15 @@
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -80,15 +83,17 @@ export function ViewStudentDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="md:max-w-3xl md:max-h-[90vh] md:overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Student Details</DialogTitle>
+          <DialogTitle className="text-xl md:text-2xl">
+            Student Details
+          </DialogTitle>
           <DialogDescription>
             Complete information about the enrolled student
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <DialogBody className="space-y-6">
           {/* Student Profile Section */}
           <Card>
             <CardContent className="pt-6">
@@ -105,12 +110,12 @@ export function ViewStudentDetailsDialog({
                     <User className="h-10 w-10 text-primary" />
                   </div>
                 )}
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h3 className="text-xl font-semibold text-foreground">
+                <div className="flex-1 min-w-0 space-y-3">
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-semibold text-foreground break-words md:break-normal">
                       {student.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground break-all md:break-normal">
                       @{student.username}
                     </p>
                   </div>
@@ -155,19 +160,21 @@ export function ViewStudentDetailsDialog({
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                     <Mail className="h-4 w-4 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium">{student.email}</p>
+                    <p className="text-sm font-medium break-all md:break-normal">
+                      {student.email}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                     <Phone className="h-4 w-4 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">
                       Mobile Number
                     </p>
@@ -177,19 +184,21 @@ export function ViewStudentDetailsDialog({
                   </div>
                 </div>
                 <div className="flex items-start gap-3 md:col-span-2">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                     <MapPin className="h-4 w-4 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Address</p>
-                    <p className="text-sm font-medium">{formatAddress()}</p>
+                    <p className="text-sm font-medium break-words md:break-normal">
+                      {formatAddress()}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                     <Calendar className="h-4 w-4 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Joined On</p>
                     <p className="text-sm font-medium">
                       {formatDate(student.joinedAt)}
@@ -209,8 +218,8 @@ export function ViewStudentDetailsDialog({
                   allEnrollments.map((enrollment, index) => (
                     <div key={index}>
                       <div className="flex items-start justify-between gap-4 py-3">
-                        <div className="flex-1">
-                          <h5 className="font-medium text-foreground">
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-medium text-foreground break-words md:break-normal">
                             {enrollment.courseTitle}
                           </h5>
                           <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -244,7 +253,7 @@ export function ViewStudentDetailsDialog({
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="text-sm font-semibold text-foreground">
                             ₹{enrollment.amountPaid.toLocaleString()}
                           </p>
@@ -277,7 +286,18 @@ export function ViewStudentDetailsDialog({
               )}
             </CardContent>
           </Card>
-        </div>
+        </DialogBody>
+
+        {/* Mobile-only sticky action bar; desktop keeps its original chrome */}
+        <DialogFooter className="md:hidden">
+          <Button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full min-h-11"
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
