@@ -49,6 +49,13 @@ import {
   Edit,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
+import { PostDetailSheet } from "@/components/mobile/lists/post-detail-sheet";
 import { useAuth } from "@/contexts/auth-context";
 import {
   createEducatorPost,
@@ -170,6 +177,8 @@ export default function PostPage() {
   const [showSpecializationDropdown, setShowSpecializationDropdown] =
     useState(false);
   const [viewPost, setViewPost] = useState<Post | null>(null);
+  // Mobile-only detail sheet. Desktop keeps the `viewPost` dialog.
+  const [mobilePost, setMobilePost] = useState<Post | null>(null);
   const [postPendingDelete, setPostPendingDelete] = useState<Post | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -443,9 +452,9 @@ export default function PostPage() {
       />
 
       <Card>
-        <CardContent className="space-y-6 p-6">
+        <CardContent className="space-y-6 p-4 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">
                 {postCountLabel}
               </p>
@@ -454,7 +463,7 @@ export default function PostPage() {
               </h2>
             </div>
             <Button
-              className="gap-2"
+              className="w-full gap-2 md:w-auto"
               onClick={openCreateDialog}
               disabled={!educatorId}
             >
@@ -462,6 +471,77 @@ export default function PostPage() {
             </Button>
           </div>
 
+          {/* Mobile card list — hidden from md up, where the table below takes over. */}
+          <div className="md:hidden">
+            {isTableLoading ? (
+              <RecordCardSkeleton />
+            ) : posts.length === 0 ? (
+              <div className="rounded-md border">
+                <RecordCardEmpty message="You have not published any posts yet." />
+                <div className="px-4 pb-6">
+                  <Button
+                    className="w-full gap-2"
+                    onClick={openCreateDialog}
+                    disabled={!educatorId}
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4" /> Create your first post
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <RecordCardList>
+                {posts.map((post) => {
+                  const subjects = resolveSubjects(post);
+                  const specializations = resolveSpecializations(post);
+
+                  return (
+                    <RecordCard
+                      key={post._id}
+                      title={post.title}
+                      badge={
+                        specializations.length ? (
+                          <Badge>
+                            {formatLabel(specializations[0])}
+                            {specializations.length > 1
+                              ? ` +${specializations.length - 1}`
+                              : ""}
+                          </Badge>
+                        ) : undefined
+                      }
+                      meta={[
+                        subjects.length
+                          ? subjects.map((subject) => formatLabel(subject)).join(", ")
+                          : "-",
+                        formatDate(post.createdAt),
+                        truncate(post.description, 60),
+                      ]}
+                      onOpen={() => setMobilePost(post)}
+                      actions={
+                        <>
+                          <DropdownMenuItem onClick={() => setMobilePost(post)}>
+                            <Eye className="mr-2 h-4 w-4" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => startEditingPost(post)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleDeletePrompt(post)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4 text-red-900 font-semibold" />{" "}
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </RecordCardList>
+            )}
+          </div>
+
+          <div className="hidden md:block">
           <div className="rounded-md border">
             {isTableLoading ? (
               <div className="flex items-center justify-center py-16">
@@ -574,8 +654,24 @@ export default function PostPage() {
               </Table>
             )}
           </div>
+          </div>
         </CardContent>
       </Card>
+
+      <PostDetailSheet
+        open={Boolean(mobilePost)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setMobilePost(null);
+          }
+        }}
+        title={mobilePost?.title ?? ""}
+        description={mobilePost?.description ?? ""}
+        subjects={resolveSubjects(mobilePost ?? undefined)}
+        specializations={resolveSpecializations(mobilePost ?? undefined)}
+        createdLabel={formatDate(mobilePost?.createdAt)}
+        formatLabel={formatLabel}
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="sm:max-w-[520px]">

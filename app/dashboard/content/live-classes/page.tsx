@@ -61,6 +61,13 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
+import { LiveClassDetailSheet } from "@/components/mobile/lists/live-class-detail-sheet";
+import {
   createLiveClass,
   deleteLiveClass,
   getCoursesByEducator,
@@ -240,6 +247,8 @@ export default function LiveClassesPage() {
   const [selectedLiveClass, setSelectedLiveClass] = useState<LiveClass | null>(
     null
   );
+  // Mobile-only detail sheet. Desktop keeps the `viewOpen` dialog.
+  const [mobileLiveClass, setMobileLiveClass] = useState<LiveClass | null>(null);
   const [liveClassToDelete, setLiveClassToDelete] = useState<LiveClass | null>(
     null
   );
@@ -549,9 +558,9 @@ export default function LiveClassesPage() {
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Live Classes" />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 md:p-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
               <Input
                 placeholder="Search by title..."
@@ -561,7 +570,7 @@ export default function LiveClassesPage() {
               />
               <Dialog open={open} onOpenChange={handleCreateDialogChange}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Live Class
                   </Button>
@@ -590,6 +599,71 @@ export default function LiveClassesPage() {
               </div>
             )}
 
+            {/* Mobile card list — hidden from md up, where the table below takes over. */}
+            <div className="md:hidden">
+              {isLoading ? (
+                <RecordCardSkeleton />
+              ) : filteredLiveClasses.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty message="No live classes found." />
+                </RecordCardList>
+              ) : (
+                <RecordCardList>
+                  {filteredLiveClasses.map((liveClass) => {
+                    const firstClass = (liveClass.class || [])[0];
+                    const firstClassLabel = firstClass
+                      ? CLASS_OPTIONS.find((option) => option.value === firstClass)
+                          ?.label || firstClass
+                      : null;
+                    const extraClasses = (liveClass.class || []).length - 1;
+
+                    return (
+                      <RecordCard
+                        key={liveClass._id}
+                        title={liveClass.liveClassTitle}
+                        badge={
+                          firstClassLabel ? (
+                            <Badge variant="secondary">
+                              {firstClassLabel}
+                              {extraClasses > 0 ? ` +${extraClasses}` : ""}
+                            </Badge>
+                          ) : undefined
+                        }
+                        meta={[
+                          formatSubjects(liveClass.subject),
+                          formatDateTime(liveClass.classTiming),
+                          `${liveClass.classDuration || 0} mins`,
+                        ]}
+                        onOpen={() => setMobileLiveClass(liveClass)}
+                        actions={
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => setMobileLiveClass(liveClass)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(liveClass)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(liveClass)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        }
+                      />
+                    );
+                  })}
+                </RecordCardList>
+              )}
+            </div>
+
+            <div className="hidden md:block">
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -713,9 +787,41 @@ export default function LiveClassesPage() {
                 </TableBody>
               </Table>
             </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <LiveClassDetailSheet
+        open={Boolean(mobileLiveClass)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setMobileLiveClass(null);
+          }
+        }}
+        values={
+          mobileLiveClass
+            ? {
+                title: mobileLiveClass.liveClassTitle,
+                subject: formatSubjects(mobileLiveClass.subject),
+                specialization: formatSpecifications(
+                  mobileLiveClass.liveClassSpecification
+                ),
+                course: getCourseName(mobileLiveClass.assignInCourse),
+                schedule: formatDateTime(mobileLiveClass.classTiming),
+                duration: `${mobileLiveClass.classDuration || 0} mins`,
+                fee: formatCurrency(mobileLiveClass.liveClassesFee),
+                maxStudents: mobileLiveClass.maxStudents
+                  ? String(mobileLiveClass.maxStudents)
+                  : "-",
+                targetClasses: formatClasses(mobileLiveClass.class) || "-",
+                description: mobileLiveClass.description,
+                liveClassLink: mobileLiveClass.liveClassLink,
+                recordingURL: mobileLiveClass.recordingURL,
+              }
+            : null
+        }
+      />
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="sm:max-w-[520px] max-h-[80vh] overflow-y-auto">

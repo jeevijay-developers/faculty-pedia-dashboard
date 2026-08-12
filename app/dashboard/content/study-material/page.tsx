@@ -46,6 +46,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2, Plus, Eye, Download, MoreHorizontal, Trash2, ListChecks } from "lucide-react"
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card"
+import { StudyMaterialDetailSheet } from "@/components/mobile/lists/study-material-detail-sheet"
 import { useAuth } from "@/contexts/auth-context"
 import { AddStudyMaterialDialog, type CourseSummary } from "@/components/add-study-material-dialog"
 import {
@@ -229,6 +236,8 @@ export default function StudyMaterialPage() {
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
+  // Mobile-only detail sheet. Desktop keeps the `viewOpen` dialog above.
+  const [mobileMaterial, setMobileMaterial] = useState<StudyMaterialItem | null>(null)
   const [studyMaterials, setStudyMaterials] = useState<StudyMaterialItem[]>([])
   const [selectedMaterial, setSelectedMaterial] = useState<StudyMaterialItem | null>(null)
   const [courses, setCourses] = useState<CourseSummary[]>([])
@@ -487,9 +496,9 @@ export default function StudyMaterialPage() {
   return (
     <div className="flex flex-col h-full">
       <DashboardHeader title="Study Material" />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 md:p-6">
         <Card>
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-4 md:p-6 space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <Input
@@ -526,6 +535,75 @@ export default function StudyMaterialPage() {
               </div>
             )}
 
+            {/* Mobile card list — hidden from md up, where the table below takes over. */}
+            <div className="space-y-3 md:hidden">
+              {isFetching ? (
+                <RecordCardSkeleton />
+              ) : filteredMaterials.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty message="No study materials found. Use the button above to add your first resource." />
+                </RecordCardList>
+              ) : (
+                <>
+                  <label className="flex min-h-11 items-center gap-3 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      onCheckedChange={(checked) => handleSelectAllVisible(checked === true)}
+                      aria-label="Select all study materials"
+                    />
+                    <span>Select all ({filteredMaterials.length})</span>
+                  </label>
+                  <RecordCardList>
+                    {filteredMaterials.map((material) => (
+                      <RecordCard
+                        key={material._id}
+                        leading={
+                          <span className="-ml-2 -mt-1 flex h-11 w-11 items-center justify-center">
+                            <Checkbox
+                              checked={selectedMaterialIds.includes(material._id)}
+                              onCheckedChange={() => handleSelectMaterial(material._id)}
+                              aria-label={`Select ${material.title}`}
+                            />
+                          </span>
+                        }
+                        title={material.title}
+                        badge={
+                          material.tags && material.tags.length > 0 ? (
+                            <Badge variant="secondary">
+                              {material.tags[0]}
+                              {material.tags.length > 1 ? ` +${material.tags.length - 1}` : ""}
+                            </Badge>
+                          ) : undefined
+                        }
+                        meta={[
+                          getCourseNames(material),
+                          `${material.docs?.length || 0} file(s)`,
+                          formatDate(material.createdAt),
+                        ]}
+                        onOpen={() => setMobileMaterial(material)}
+                        actions={
+                          <>
+                            <DropdownMenuItem onClick={() => setMobileMaterial(material)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(material)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        }
+                      />
+                    ))}
+                  </RecordCardList>
+                </>
+              )}
+            </div>
+
+            <div className="hidden md:block">
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -635,9 +713,28 @@ export default function StudyMaterialPage() {
                 </TableBody>
               </Table>
             </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <StudyMaterialDetailSheet
+        material={mobileMaterial}
+        open={Boolean(mobileMaterial)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setMobileMaterial(null)
+          }
+        }}
+        scopeLabel={
+          mobileMaterial
+            ? mobileMaterial.isCourseSpecific
+              ? getCourseNames(mobileMaterial)
+              : "Available for all courses"
+            : ""
+        }
+        createdLabel={formatDate(mobileMaterial?.createdAt)}
+      />
 
       <AddStudyMaterialDialog
         open={isAddDialogOpen}

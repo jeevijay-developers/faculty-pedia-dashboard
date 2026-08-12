@@ -30,7 +30,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Link2, Plus, ListChecks } from "lucide-react";
+import { Loader2, Link2, Plus, ListChecks, Eye, Trash2 } from "lucide-react";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  RecordCard,
+  RecordCardEmpty,
+  RecordCardList,
+  RecordCardSkeleton,
+} from "@/components/mobile/record-card";
+import { VideoDetailSheet } from "@/components/mobile/lists/video-detail-sheet";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/auth-context";
 import toast from "react-hot-toast";
 import { deleteVideo, getCoursesByEducator, getVideos, updateVideo } from "@/util/server";
@@ -148,6 +157,8 @@ export default function VideosPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [videoBeingViewed, setVideoBeingViewed] = useState<VideoItem | null>(null);
+  // Mobile-only detail sheet. Desktop keeps the `videoBeingViewed` dialog.
+  const [mobileVideo, setMobileVideo] = useState<VideoItem | null>(null);
   const [videoPendingDelete, setVideoPendingDelete] = useState<VideoItem | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -381,9 +392,9 @@ export default function VideosPage() {
   return (
     <div className="flex h-full flex-col">
       <DashboardHeader title="Videos" description="Manage your recorded content." />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 md:p-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
               <Input
                 placeholder="Search videos by title"
@@ -391,18 +402,18 @@ export default function VideosPage() {
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="md:max-w-sm"
               />
-              <div className="flex flex-1 justify-end gap-2">
+              <div className="flex flex-1 flex-col gap-2 md:flex-row md:justify-end">
                 {selectedVideoIds.length > 0 && (
                   <Button
                     variant="outline"
-                    className="w-full sm:w-auto"
+                    className="w-full md:w-auto"
                     onClick={() => setIsAssignDialogOpen(true)}
                   >
                     <ListChecks className="mr-2 h-4 w-4" />
                     Assign to Course ({selectedVideoIds.length})
                   </Button>
                 )}
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button className="w-full md:w-auto" onClick={() => setDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Video
                 </Button>
@@ -415,6 +426,75 @@ export default function VideosPage() {
               </div>
             )}
 
+            {/* Mobile card list — hidden from md up, where the table below takes over. */}
+            <div className="space-y-3 md:hidden">
+              {isFetching ? (
+                <RecordCardSkeleton />
+              ) : filteredVideos.length === 0 ? (
+                <RecordCardList>
+                  <RecordCardEmpty message="No videos found. Use the button above to add your first video." />
+                </RecordCardList>
+              ) : (
+                <>
+                  <label className="flex min-h-11 items-center gap-3 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      onCheckedChange={(checked) => handleSelectAllVisible(checked === true)}
+                      aria-label="Select all videos"
+                    />
+                    <span>Select all ({filteredVideos.length})</span>
+                  </label>
+                  <RecordCardList>
+                    {filteredVideos.map((video) => (
+                      <RecordCard
+                        key={video._id}
+                        leading={
+                          <span className="-ml-2 -mt-1 flex h-11 w-11 items-center justify-center">
+                            <Checkbox
+                              checked={selectedVideoIds.includes(video._id)}
+                              onCheckedChange={() => handleSelectVideo(video._id)}
+                              aria-label={`Select ${video.title}`}
+                            />
+                          </span>
+                        }
+                        title={video.title}
+                        badge={
+                          <Badge variant={isCourseScoped(video) ? "secondary" : "outline"}>
+                            {isCourseScoped(video) ? "Course-specific" : "Not assigned"}
+                          </Badge>
+                        }
+                        meta={[
+                          isCourseScoped(video) ? getCourseNames(video) : "None",
+                          `${video.links?.length || 0} link(s)`,
+                          formatDate(video.createdAt),
+                        ]}
+                        onOpen={() => setMobileVideo(video)}
+                        actions={
+                          <>
+                            <DropdownMenuItem onClick={() => setMobileVideo(video)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => {
+                                setVideoPendingDelete(video);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        }
+                      />
+                    ))}
+                  </RecordCardList>
+                </>
+              )}
+            </div>
+
+            <div className="hidden md:block">
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -507,9 +587,27 @@ export default function VideosPage() {
                 </TableBody>
               </Table>
             </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <VideoDetailSheet
+        video={mobileVideo}
+        open={Boolean(mobileVideo)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setMobileVideo(null);
+          }
+        }}
+        scopeLabel={
+          mobileVideo && isCourseScoped(mobileVideo) ? "Course-specific" : "Not assigned"
+        }
+        courseLabel={
+          mobileVideo && isCourseScoped(mobileVideo) ? getCourseNames(mobileVideo) : "None"
+        }
+        createdLabel={formatDate(mobileVideo?.createdAt)}
+      />
 
       <CreateVideoDialog
         open={dialogOpen}
